@@ -1,0 +1,169 @@
+.head {
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.avatar {
+  width: 46px;
+  height: 46px;
+  font-size: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  flex: none;
+}
+.head h3 {
+  font-size: 17px;
+  font-weight: 700;
+}
+.head p {
+  font-size: 12.5px;
+  color: var(--text-3);
+  margin-top: 2px;
+}
+.close {
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: none;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.close:hover {
+  background: var(--surface-hover);
+}
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.section h4 {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.infoGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.infoGrid div {
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 9px 11px;
+}
+.infoGrid span {
+  display: block;
+  font-size: 11px;
+  color: var(--text-3);
+  margin-bottom: 2px;
+}
+.infoGrid b {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+}
+.tlItem {
+  display: flex;
+  gap: 12px;
+  position: relative;
+  padding-bottom: 18px;
+}
+.tlItem:last-child {
+  padding-bottom: 0;
+}
+.tlDotWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.tlDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+  margin-top: 3px;
+}
+.tlDotPending {
+  background: var(--border-strong);
+}
+.tlLine {
+  width: 1.5px;
+  flex: 1;
+  background: var(--border);
+  margin-top: 2px;
+}
+.tlMain b {
+  font-size: 13px;
+  font-weight: 600;
+  display: block;
+}
+.tlMain span {
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+.tlMainPending b,
+.tlMainPending span {
+  color: var(--text-3);
+}
+
+.comment {
+  background: var(--surface-2);
+  border-radius: 12px;
+  padding: 11px 13px;
+}
+.commentWho {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+.commentWho b {
+  font-size: 12.5px;
+}
+.commentWho span {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-left: auto;
+}
+.comment p {
+  font-size: 13px;
+  color: var(--text-1);
+}
+.commentInput {
+  display: flex;
+  gap: 8px;
+}
+.commentInput input {
+  flex: 1;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  padding: 0 12px;
+  outline: none;
+  background: var(--surface-2);
+}
+.commentInput input:focus {
+  border-color: var(--accent);
+  background: var(--surface);
+}

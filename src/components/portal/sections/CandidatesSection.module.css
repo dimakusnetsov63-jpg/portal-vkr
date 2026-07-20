@@ -1,0 +1,84 @@
+.table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  min-width: 900px;
+}
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--surface-2);
+  text-align: left;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.table tbody td {
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
+  height: var(--row-h);
+  white-space: nowrap;
+}
+.table tbody tr {
+  background: var(--surface);
+  cursor: pointer;
+}
+.table tbody tr:hover {
+  background: var(--surface-hover);
+}
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+.colSticky {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: inherit;
+  box-shadow: 1px 0 0 var(--border);
+}
+.table thead th.colSticky {
+  z-index: 6;
+  background: var(--surface-2);
+}
+.nameCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.tableWrap {
+  position: relative;
+}
+.tableScroll {
+  overflow-x: auto;
+  max-height: 66vh;
+  overflow-y: auto;
+}
+.hscrollFake {
+  height: 14px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.hscrollFakeInner {
+  height: 1px;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--text-3);
+}

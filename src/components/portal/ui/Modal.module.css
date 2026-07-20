@@ -1,0 +1,66 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 20, 22, 0.42);
+  backdrop-filter: blur(2px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal {
+  background: var(--surface);
+  border-radius: var(--radius-l);
+  width: 100%;
+  max-width: 480px;
+  box-shadow: var(--shadow-l);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  animation: portal-pop 0.16s ease;
+}
+.modalWide {
+  max-width: 560px;
+  padding: 0;
+}
+.modalHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.modalHead h3 {
+  font-size: 16px;
+  font-weight: 700;
+}
+.modalClose {
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: none;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+}
+.modalClose:hover {
+  background: var(--surface-hover);
+}
+.modalBody {
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.modalFoot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+}

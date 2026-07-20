@@ -1,0 +1,159 @@
+/* Design tokens shared by every portal component. Values are the visual spec
+   distilled from the design prototype — components below reference these
+   variables rather than hard-coding colors/spacing themselves. */
+:root {
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --surface-2: #fbfbfc;
+  --surface-hover: #f2f2f4;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.14);
+  --text-1: #1d1d1f;
+  --text-2: #6e6e73;
+  --text-3: #98989d;
+  --accent: #0071e3;
+  --accent-hover: #0077ed;
+  --accent-press: #0060c2;
+  --accent-soft: rgba(0, 113, 227, 0.09);
+  --accent-soft-strong: rgba(0, 113, 227, 0.16);
+  --green: #1f8a4c;
+  --green-soft: #e7f6ec;
+  --amber: #b3690a;
+  --amber-soft: #fdf1dd;
+  --red: #d33a2c;
+  --red-soft: #fbe7e4;
+  --violet: #6b4fd6;
+  --violet-soft: #efeafb;
+  --teal: #0f8b8d;
+  --teal-soft: #e3f5f5;
+  --blue: #2563eb;
+  --blue-soft: #e8f0fe;
+  --gray-soft: #eeeeef;
+  --radius-s: 8px;
+  --radius-m: 12px;
+  --radius-l: 18px;
+  --shadow-s: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-m: 0 6px 20px rgba(0, 0, 0, 0.07);
+  --shadow-l: 0 20px 48px rgba(0, 0, 0, 0.14);
+  --sidebar-w: 248px;
+  --topbar-h: 64px;
+  --portal-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  --row-h: 52px;
+}
+
+.portal-root {
+  font-family: var(--portal-font);
+  background: var(--bg);
+  color: var(--text-1);
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.portal-root.density-compact {
+  --row-h: 40px;
+}
+
+.portal-root button,
+.portal-root input,
+.portal-root select,
+.portal-root textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+.portal-root button {
+  cursor: pointer;
+}
+
+.portal-root a {
+  color: inherit;
+}
+
+.portal-root ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.portal-root h1,
+.portal-root h2,
+.portal-root h3,
+.portal-root h4,
+.portal-root p {
+  margin: 0;
+}
+
+.portal-root a:focus-visible,
+.portal-root button:focus-visible,
+.portal-root input:focus-visible,
+.portal-root select:focus-visible,
+.portal-root textarea:focus-visible,
+.portal-root [tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.scroll-x {
+  scrollbar-width: thin;
+  scrollbar-color: #c9c9cd transparent;
+}
+.scroll-x::-webkit-scrollbar {
+  height: 12px;
+}
+.scroll-x::-webkit-scrollbar-track {
+  background: var(--surface-2);
+}
+.scroll-x::-webkit-scrollbar-thumb {
+  background: #c9c9cd;
+  border-radius: 8px;
+  border: 3px solid var(--surface-2);
+}
+.scroll-x::-webkit-scrollbar-thumb:hover {
+  background: #adadb2;
+}
+
+@keyframes portal-fadein {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes portal-skeleton {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+@keyframes portal-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes portal-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

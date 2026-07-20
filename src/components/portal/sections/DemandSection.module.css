@@ -1,0 +1,180 @@
+.tableWrap {
+  position: relative;
+}
+.tableScroll {
+  overflow-x: auto;
+  max-height: 66vh;
+  overflow-y: auto;
+}
+.table {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: max-content;
+}
+.table th,
+.table td {
+  padding: 0;
+}
+.headCell {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: var(--surface-2);
+  text-align: left;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.projectCol {
+  position: sticky;
+  left: 0;
+  z-index: 6;
+  width: 230px;
+  padding: 11px 16px !important;
+}
+.dateCol {
+  width: 64px;
+  min-width: 64px;
+  text-align: center !important;
+  padding: 11px 8px !important;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.dateColWeekend {
+  background: #f5f0ef;
+}
+.dow {
+  display: block;
+  font-size: 9.5px;
+  color: var(--text-3);
+  font-weight: 600;
+}
+
+.colSticky {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: inherit;
+  box-shadow: 1px 0 0 var(--border);
+}
+
+.projHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px 11px 10px;
+  font-weight: 700;
+  font-size: 13.5px;
+  background: var(--surface-2);
+  height: var(--row-h);
+  width: 230px;
+}
+.projHead button {
+  background: none;
+  border: none;
+  color: var(--text-2);
+  display: flex;
+  padding: 2px;
+  border-radius: 5px;
+  flex: none;
+}
+.projHead button:hover {
+  background: var(--surface-hover);
+}
+.projHeadChevron {
+  transition: transform 0.15s ease;
+}
+.projHeadCollapsedChevron {
+  transform: rotate(-90deg);
+}
+.swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex: none;
+}
+.projTotal {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--text-3);
+  font-weight: 600;
+}
+.cityCell {
+  padding: 0 14px 0 30px;
+  height: var(--row-h);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-2);
+  width: 230px;
+  background: var(--surface);
+}
+.cityCell svg {
+  flex: none;
+  opacity: 0.55;
+}
+
+.demandCell {
+  width: 64px;
+  min-width: 64px;
+  height: var(--row-h);
+  text-align: center;
+  font-weight: 700;
+  font-size: 13px;
+  border-left: 1px solid var(--border);
+  position: relative;
+}
+.lvlZero {
+  color: var(--text-3);
+  font-weight: 400;
+  background: var(--surface-2);
+}
+.lvlNormal {
+  color: var(--green);
+  background: var(--green-soft);
+}
+.lvlElevated {
+  color: var(--amber);
+  background: var(--amber-soft);
+}
+.lvlCritical {
+  color: var(--red);
+  background: var(--red-soft);
+}
+.lvlCritical::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--red);
+}
+.totalCell {
+  width: 64px;
+  min-width: 64px;
+  height: var(--row-h);
+  text-align: center;
+  font-weight: 700;
+  font-size: 13px;
+  background: var(--surface-2);
+  border-left: 1px solid var(--border);
+}
+
+.hscrollFake {
+  height: 14px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.hscrollFakeInner {
+  height: 1px;
+}

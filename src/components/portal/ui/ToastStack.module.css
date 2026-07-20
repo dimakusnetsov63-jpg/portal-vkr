@@ -1,0 +1,30 @@
+.stack {
+  position: fixed;
+  bottom: 22px;
+  right: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 200;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #1d1d1f;
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: var(--shadow-l);
+  min-width: 240px;
+  animation: portal-toast-in 0.18s ease;
+}
+.toastIcon {
+  flex: none;
+  color: var(--green);
+}
+.toastIconError {
+  color: #ff6a5c;
+}

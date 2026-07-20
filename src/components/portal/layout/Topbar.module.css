@@ -1,0 +1,123 @@
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: var(--topbar-h);
+  background: rgba(245, 245, 247, 0.86);
+  backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 24px;
+}
+.menuBtn {
+  display: none;
+  background: none;
+  border: none;
+  padding: 8px;
+  margin-left: -8px;
+  border-radius: 8px;
+  color: var(--text-1);
+}
+.menuBtn:hover {
+  background: var(--surface-hover);
+}
+.title {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.search {
+  flex: 1;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0 12px;
+  height: 36px;
+  color: var(--text-3);
+}
+.search:hover {
+  border-color: var(--border-strong);
+}
+.searchPlaceholder {
+  flex: 1;
+  text-align: left;
+  color: var(--text-3);
+}
+.kbd {
+  font-size: 10.5px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  padding: 1px 5px;
+  color: var(--text-3);
+  background: var(--surface-2);
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.iconBtn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+}
+.iconBtn:hover {
+  background: var(--surface-hover);
+  color: var(--text-1);
+}
+.dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  border: 2px solid var(--bg);
+}
+.profileTrigger {
+  padding: 4px 8px 4px 4px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: none;
+  display: flex;
+  align-items: center;
+}
+.profileTrigger:hover {
+  background: var(--surface-hover);
+}
+.avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #fff;
+}
+
+@media (max-width: 860px) {
+  .menuBtn {
+    display: flex;
+  }
+  .search {
+    display: none;
+  }
+}
