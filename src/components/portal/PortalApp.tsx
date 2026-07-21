@@ -9,6 +9,7 @@ import { OverviewSection } from "@/components/portal/sections/OverviewSection";
 import { DemandSection } from "@/components/portal/sections/DemandSection";
 import { CandidatesSection } from "@/components/portal/sections/CandidatesSection";
 import { CandidateDrawer } from "@/components/portal/sections/CandidateDrawer";
+import { VacanciesSection } from "@/components/portal/sections/VacanciesSection";
 import { MarketingSection } from "@/components/portal/sections/MarketingSection";
 import { AnalyticsSection } from "@/components/portal/sections/AnalyticsSection";
 import { NotificationsSection } from "@/components/portal/sections/NotificationsSection";
@@ -24,6 +25,8 @@ function ActiveSection() {
       return <DemandSection />;
     case "candidates":
       return <CandidatesSection />;
+    case "vacancies":
+      return <VacanciesSection />;
     case "marketing":
       return <MarketingSection />;
     case "analytics":

@@ -96,6 +96,7 @@ export type PortalPage =
   | "overview"
   | "demand"
   | "candidates"
+  | "vacancies"
   | "marketing"
   | "analytics"
   | "notifications"

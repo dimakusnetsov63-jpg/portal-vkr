@@ -22,7 +22,15 @@ export type IconName =
   | "search"
   | "plus"
   | "download"
-  | "menu";
+  | "menu"
+  | "briefcase"
+  | "cash"
+  | "shield"
+  | "heart"
+  | "graduation"
+  | "gift"
+  | "calendar"
+  | "box";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   home: (
@@ -141,6 +149,52 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   menu: <path d="M3 6h18M3 12h18M3 18h18" />,
+  briefcase: (
+    <>
+      <rect x="2.5" y="7" width="19" height="13" rx="2" />
+      <path d="M8 7V5.5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2V7" />
+      <path d="M2.5 13h19" />
+    </>
+  ),
+  cash: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v10" />
+      <path d="M15 9.3c0-1.3-1.3-2.3-3-2.3s-3 .9-3 2.1c0 1.2 1.2 1.7 3 2 1.8.3 3 .9 3 2.1s-1.3 2.1-3 2.1-3-.9-3-2.2" />
+    </>
+  ),
+  shield: (
+    <>
+      <path d="M12 3.2 5 6v6c0 4.5 3.1 7.4 7 8.8 3.9-1.4 7-4.3 7-8.8V6l-7-2.8Z" />
+      <path d="m9.2 12 2 2 3.6-4" />
+    </>
+  ),
+  heart: <path d="M12 20.2s-7.3-4.4-9.5-8.9A5.3 5.3 0 0 1 12 6.4a5.3 5.3 0 0 1 9.5 4.9c-2.2 4.5-9.5 8.9-9.5 8.9Z" />,
+  graduation: (
+    <>
+      <path d="M22 9.5 12 4.8 2 9.5l10 4.7 10-4.7Z" />
+      <path d="M6 11.7v4.3c0 1.6 2.7 3 6 3s6-1.4 6-3v-4.3" />
+    </>
+  ),
+  gift: (
+    <>
+      <rect x="3" y="8.5" width="18" height="12.5" rx="1" />
+      <path d="M3 8.5h18M12 8.5V21" />
+      <path d="M12 8.5c-1.7-3.6-5.5-3.6-5.5-1.2 0 1.9 2.5 1.2 5.5 1.2Zm0 0c1.7-3.6 5.5-3.6 5.5-1.2 0 1.9-2.5 1.2-5.5 1.2Z" />
+    </>
+  ),
+  calendar: (
+    <>
+      <rect x="3" y="4.5" width="18" height="16.5" rx="2" />
+      <path d="M3 9.5h18M8 2.5v4M16 2.5v4" />
+    </>
+  ),
+  box: (
+    <>
+      <path d="M21 8 12 3 3 8v8l9 5 9-5V8Z" />
+      <path d="m3 8 9 5 9-5M12 21v-8" />
+    </>
+  ),
 };
 
 export function Icon({
