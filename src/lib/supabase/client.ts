@@ -1,5 +1,6 @@
 import { createBrowserClient } from "@supabase/ssr";
 import { supabaseEnv } from "./env";
+import type { Database } from "./database.types";
 
 /**
  * Supabase client for use in Client Components (browser).
@@ -7,5 +8,5 @@ import { supabaseEnv } from "./env";
  * underlying singleton/cookie sync internally.
  */
 export function createClient() {
-  return createBrowserClient(supabaseEnv.url(), supabaseEnv.publishableKey());
+  return createBrowserClient<Database>(supabaseEnv.url(), supabaseEnv.publishableKey());
 }
