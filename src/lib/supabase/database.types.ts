@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      candidate_list_options: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          list_type: Database["public"]["Enums"]["candidate_list_type"]
+          sort_order: number
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          list_type: Database["public"]["Enums"]["candidate_list_type"]
+          sort_order?: number
+          value: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          list_type?: Database["public"]["Enums"]["candidate_list_type"]
+          sort_order?: number
+          value?: string
+        }
+        Relationships: []
+      }
       candidates: {
         Row: {
           archived_at: string | null
@@ -98,6 +125,7 @@ export type Database = {
       show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
+      candidate_list_type: "recruiter" | "manager" | "coordinator" | "city"
       candidate_project:
         | "Самокат"
         | "Купер"
@@ -243,6 +271,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      candidate_list_type: ["recruiter", "manager", "coordinator", "city"],
       candidate_project: [
         "Самокат",
         "Купер",

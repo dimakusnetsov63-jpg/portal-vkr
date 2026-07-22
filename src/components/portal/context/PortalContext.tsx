@@ -37,6 +37,12 @@ import type {
   CandidateInsert,
   CandidateUpdate,
 } from "@/lib/supabase/candidates.types";
+import {
+  createCandidateListOption,
+  listCandidateListOptions,
+  updateCandidateListOption,
+} from "@/lib/supabase/candidateListOptionsRepo";
+import type { CandidateListOption, CandidateListType } from "@/lib/supabase/candidateListOptions.types";
 
 const staffRng = createRng(20260722);
 
@@ -85,6 +91,15 @@ interface PortalContextValue {
   selectedRealCandidateId: string | null;
   openRealCandidateDrawer: (id: string) => void;
   closeRealCandidateDrawer: () => void;
+
+  listOptions: CandidateListOption[];
+  listOptionsLoading: boolean;
+  listOptionsError: string | null;
+  refreshListOptions: () => Promise<void>;
+  addListOption: (listType: CandidateListType, value: string) => Promise<boolean>;
+  renameListOption: (id: string, value: string) => Promise<boolean>;
+  setListOptionActive: (id: string, active: boolean) => Promise<void>;
+  reorderListOption: (id: string, direction: "up" | "down") => Promise<void>;
 }
 
 export interface ContextAction {
@@ -119,6 +134,10 @@ export function PortalProvider({
   const [realCandidatesLoading, setRealCandidatesLoading] = useState(true);
   const [realCandidatesError, setRealCandidatesError] = useState<string | null>(null);
   const [selectedRealCandidateId, setSelectedRealCandidateId] = useState<string | null>(null);
+
+  const [listOptions, setListOptions] = useState<CandidateListOption[]>([]);
+  const [listOptionsLoading, setListOptionsLoading] = useState(true);
+  const [listOptionsError, setListOptionsError] = useState<string | null>(null);
 
   const goto = useCallback((page: PortalPage) => {
     setActivePage(page);
@@ -263,6 +282,117 @@ export function PortalProvider({
   const openRealCandidateDrawer = useCallback((id: string) => setSelectedRealCandidateId(id), []);
   const closeRealCandidateDrawer = useCallback(() => setSelectedRealCandidateId(null), []);
 
+  const refreshListOptions = useCallback(async () => {
+    setListOptionsLoading(true);
+    setListOptionsError(null);
+    try {
+      setListOptions(await listCandidateListOptions());
+    } catch (e) {
+      setListOptionsError(e instanceof Error ? e.message : "Не удалось загрузить списки");
+    } finally {
+      setListOptionsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data load on mount
+    refreshListOptions();
+  }, [refreshListOptions]);
+
+  const addListOption = useCallback(
+    async (listType: CandidateListType, value: string) => {
+      const trimmed = value.trim();
+      const existing = listOptions.find((o) => o.list_type === listType && o.value === trimmed);
+      if (existing) {
+        if (existing.is_active) {
+          pushToast("Такое значение уже есть в списке", "error");
+          return false;
+        }
+        // Re-adding a previously deactivated value reactivates it instead of
+        // inserting a duplicate (list_type, value) is unique in the DB).
+        try {
+          const updated = await updateCandidateListOption(existing.id, { is_active: true });
+          setListOptions((prev) => prev.map((o) => (o.id === existing.id ? updated : o)));
+          pushToast("Значение восстановлено");
+          return true;
+        } catch (e) {
+          pushToast(e instanceof Error ? e.message : "Не удалось восстановить значение", "error");
+          return false;
+        }
+      }
+      try {
+        const siblingOrders = listOptions.filter((o) => o.list_type === listType).map((o) => o.sort_order);
+        const nextOrder = siblingOrders.length ? Math.max(...siblingOrders) + 1 : 0;
+        const created = await createCandidateListOption(listType, trimmed, nextOrder);
+        setListOptions((prev) => [...prev, created]);
+        pushToast("Значение добавлено");
+        return true;
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось добавить значение", "error");
+        return false;
+      }
+    },
+    [listOptions, pushToast],
+  );
+
+  const renameListOption = useCallback(
+    async (id: string, value: string) => {
+      try {
+        const updated = await updateCandidateListOption(id, { value });
+        setListOptions((prev) => prev.map((o) => (o.id === id ? updated : o)));
+        pushToast("Значение обновлено");
+        return true;
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось обновить значение", "error");
+        return false;
+      }
+    },
+    [pushToast],
+  );
+
+  const setListOptionActive = useCallback(
+    async (id: string, active: boolean) => {
+      try {
+        const updated = await updateCandidateListOption(id, { is_active: active });
+        setListOptions((prev) => prev.map((o) => (o.id === id ? updated : o)));
+        pushToast(active ? "Значение снова активно" : "Значение деактивировано");
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось изменить значение", "error");
+      }
+    },
+    [pushToast],
+  );
+
+  const reorderListOption = useCallback(
+    async (id: string, direction: "up" | "down") => {
+      const current = listOptions.find((o) => o.id === id);
+      if (!current) return;
+      const siblings = listOptions
+        .filter((o) => o.list_type === current.list_type)
+        .sort((a, b) => a.sort_order - b.sort_order);
+      const idx = siblings.findIndex((o) => o.id === id);
+      const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= siblings.length) return;
+      const other = siblings[swapIdx];
+      try {
+        const [updatedCurrent, updatedOther] = await Promise.all([
+          updateCandidateListOption(current.id, { sort_order: other.sort_order }),
+          updateCandidateListOption(other.id, { sort_order: current.sort_order }),
+        ]);
+        setListOptions((prev) =>
+          prev.map((o) => {
+            if (o.id === updatedCurrent.id) return updatedCurrent;
+            if (o.id === updatedOther.id) return updatedOther;
+            return o;
+          }),
+        );
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось изменить порядок", "error");
+      }
+    },
+    [listOptions, pushToast],
+  );
+
   const markNotificationRead = useCallback((id: number) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   }, []);
@@ -314,6 +444,14 @@ export function PortalProvider({
       selectedRealCandidateId,
       openRealCandidateDrawer,
       closeRealCandidateDrawer,
+      listOptions,
+      listOptionsLoading,
+      listOptionsError,
+      refreshListOptions,
+      addListOption,
+      renameListOption,
+      setListOptionActive,
+      reorderListOption,
     }),
     [
       activePage,
@@ -349,6 +487,14 @@ export function PortalProvider({
       selectedRealCandidateId,
       openRealCandidateDrawer,
       closeRealCandidateDrawer,
+      listOptions,
+      listOptionsLoading,
+      listOptionsError,
+      refreshListOptions,
+      addListOption,
+      renameListOption,
+      setListOptionActive,
+      reorderListOption,
     ],
   );
 

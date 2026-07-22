@@ -6,8 +6,13 @@ import { Badge } from "@/components/portal/ui/Badge";
 import { Button } from "@/components/portal/ui/Button";
 import { Drawer } from "@/components/portal/ui/Drawer";
 import { Icon } from "@/components/portal/ui/Icon";
-import { CANDIDATE_PROJECTS, CANDIDATE_STAGES, medicalBookLabel, stageColor } from "@/lib/portal/candidateOptions";
-import { RECRUITERS, MANAGERS, COORDINATORS } from "@/lib/portal/constants";
+import {
+  activeListOptions,
+  CANDIDATE_PROJECTS,
+  CANDIDATE_STAGES,
+  medicalBookLabel,
+  stageColor,
+} from "@/lib/portal/candidateOptions";
 import { avatarColor, initials } from "@/lib/portal/format";
 import type { Candidate, CandidateUpdate } from "@/lib/supabase/candidates.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
@@ -79,13 +84,24 @@ function draftFromCandidate(c: Candidate): Draft {
 }
 
 export function RealCandidateDrawer({ candidateId }: { candidateId: string | null }) {
-  const { realCandidates, closeRealCandidateDrawer, saveRealCandidate, archiveRealCandidate, restoreRealCandidate } =
-    usePortal();
+  const {
+    realCandidates,
+    closeRealCandidateDrawer,
+    saveRealCandidate,
+    archiveRealCandidate,
+    restoreRealCandidate,
+    listOptions,
+  } = usePortal();
 
   const candidate = candidateId ? realCandidates.find((c) => c.id === candidateId) : undefined;
 
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const cityOptions = activeListOptions(listOptions, "city");
+  const recruiterOptions = activeListOptions(listOptions, "recruiter");
+  const managerOptions = activeListOptions(listOptions, "manager");
+  const coordinatorOptions = activeListOptions(listOptions, "coordinator");
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset local draft when the selected candidate changes
@@ -170,7 +186,12 @@ export function RealCandidateDrawer({ candidateId }: { candidateId: string | nul
                 </div>
                 <div className={primitives.field}>
                   <label>Город</label>
-                  <input value={draft.city} onChange={(e) => set("city", e.target.value)} />
+                  <input list="drawer-cities" value={draft.city} onChange={(e) => set("city", e.target.value)} />
+                  <datalist id="drawer-cities">
+                    {cityOptions.map((o) => (
+                      <option key={o.id} value={o.value} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
               <div className={primitives.field}>
@@ -193,8 +214,8 @@ export function RealCandidateDrawer({ candidateId }: { candidateId: string | nul
                   <label>Рекрутер</label>
                   <input list="drawer-recruiters" value={draft.recruiter} onChange={(e) => set("recruiter", e.target.value)} />
                   <datalist id="drawer-recruiters">
-                    {RECRUITERS.map((r) => (
-                      <option key={r} value={r} />
+                    {recruiterOptions.map((o) => (
+                      <option key={o.id} value={o.value} />
                     ))}
                   </datalist>
                 </div>
@@ -202,8 +223,8 @@ export function RealCandidateDrawer({ candidateId }: { candidateId: string | nul
                   <label>Менеджер</label>
                   <input list="drawer-managers" value={draft.manager} onChange={(e) => set("manager", e.target.value)} />
                   <datalist id="drawer-managers">
-                    {MANAGERS.map((m) => (
-                      <option key={m} value={m} />
+                    {managerOptions.map((o) => (
+                      <option key={o.id} value={o.value} />
                     ))}
                   </datalist>
                 </div>
@@ -217,8 +238,8 @@ export function RealCandidateDrawer({ candidateId }: { candidateId: string | nul
                     onChange={(e) => set("coordinator", e.target.value)}
                   />
                   <datalist id="drawer-coordinators">
-                    {COORDINATORS.map((c) => (
-                      <option key={c} value={c} />
+                    {coordinatorOptions.map((o) => (
+                      <option key={o.id} value={o.value} />
                     ))}
                   </datalist>
                 </div>

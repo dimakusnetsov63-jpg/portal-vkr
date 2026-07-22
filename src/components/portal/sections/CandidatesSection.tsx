@@ -11,8 +11,13 @@ import { Panel } from "@/components/portal/ui/Panel";
 import { StatCard } from "@/components/portal/ui/StatCard";
 import { EmptyState, ErrorState, SkeletonRows } from "@/components/portal/ui/StateViews";
 import { useHorizontalScrollSync } from "@/components/portal/ui/useHorizontalScrollSync";
-import { RECRUITERS } from "@/lib/portal/constants";
-import { CANDIDATE_PROJECTS, CANDIDATE_STAGES, medicalBookLabel, stageColor } from "@/lib/portal/candidateOptions";
+import {
+  activeListOptions,
+  CANDIDATE_PROJECTS,
+  CANDIDATE_STAGES,
+  medicalBookLabel,
+  stageColor,
+} from "@/lib/portal/candidateOptions";
 import { avatarColor, fmtDateTime, initials } from "@/lib/portal/format";
 import type { Candidate, CandidateInsert, CandidateProject } from "@/lib/supabase/candidates.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
@@ -331,12 +336,15 @@ function AddCandidateModal({
   onClose: () => void;
   onSubmit: (input: CandidateInsert) => Promise<boolean>;
 }) {
-  const { pushToast } = usePortal();
+  const { pushToast, listOptions } = usePortal();
   const [fullName, setFullName] = useState("");
   const [project, setProject] = useState<CandidateProject>(CANDIDATE_PROJECTS[0]);
   const [city, setCity] = useState("");
   const [recruiter, setRecruiter] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const cityOptions = activeListOptions(listOptions, "city");
+  const recruiterOptions = activeListOptions(listOptions, "recruiter");
 
   async function handleSave() {
     if (!fullName.trim()) {
@@ -390,15 +398,20 @@ function AddCandidateModal({
         </div>
         <div className={primitives.field}>
           <label>Город</label>
-          <input type="text" value={city} onChange={(e) => setCity(e.target.value)} />
+          <input list="add-candidate-cities" type="text" value={city} onChange={(e) => setCity(e.target.value)} />
+          <datalist id="add-candidate-cities">
+            {cityOptions.map((o) => (
+              <option key={o.id} value={o.value} />
+            ))}
+          </datalist>
         </div>
       </div>
       <div className={primitives.field}>
         <label>Рекрутер</label>
         <input list="add-candidate-recruiters" value={recruiter} onChange={(e) => setRecruiter(e.target.value)} />
         <datalist id="add-candidate-recruiters">
-          {RECRUITERS.map((r) => (
-            <option key={r} value={r} />
+          {recruiterOptions.map((o) => (
+            <option key={o.id} value={o.value} />
           ))}
         </datalist>
       </div>
