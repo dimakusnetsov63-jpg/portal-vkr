@@ -11,26 +11,31 @@ import { Panel } from "@/components/portal/ui/Panel";
 import { StatCard } from "@/components/portal/ui/StatCard";
 import { EmptyState, ErrorState, SkeletonRows } from "@/components/portal/ui/StateViews";
 import { useHorizontalScrollSync } from "@/components/portal/ui/useHorizontalScrollSync";
-import { CITIES, PROJECTS, RECRUITERS, STAGES, projectById, stageById } from "@/lib/portal/constants";
+import { RECRUITERS } from "@/lib/portal/constants";
+import { CANDIDATE_PROJECTS, CANDIDATE_STAGES, medicalBookLabel, stageColor } from "@/lib/portal/candidateOptions";
 import { avatarColor, fmtDateTime, initials } from "@/lib/portal/format";
-import type { Candidate, NewCandidateInput, StageId } from "@/lib/portal/types";
+import type { Candidate, CandidateInsert, CandidateProject } from "@/lib/supabase/candidates.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import styles from "./CandidatesSection.module.css";
-
-type DemoState = "normal" | "loading" | "empty" | "error";
 
 const PAGE_SIZE = 20;
 
 export function CandidatesSection() {
-  const { candidates, addCandidate, openCandidateDrawer, pushToast, setContextAction } = usePortal();
+  const {
+    realCandidates,
+    realCandidatesLoading,
+    realCandidatesError,
+    refreshRealCandidates,
+    addRealCandidate,
+    openRealCandidateDrawer,
+    pushToast,
+    setContextAction,
+  } = usePortal();
 
   const [search, setSearch] = useState("");
   const [projectFilter, setProjectFilter] = useState("");
-  const [cityFilter, setCityFilter] = useState("");
-  const [stageFilter, setStageFilter] = useState<StageId | "">("");
-  const [recruiterFilter, setRecruiterFilter] = useState("");
-  const [dateFilter, setDateFilter] = useState("");
-  const [demoState, setDemoState] = useState<DemoState>("normal");
+  const [stageFilter, setStageFilter] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -42,54 +47,69 @@ export function CandidatesSection() {
   function resetFilters() {
     setSearch("");
     setProjectFilter("");
-    setCityFilter("");
     setStageFilter("");
-    setRecruiterFilter("");
-    setDateFilter("");
+    setShowArchived(false);
     setVisible(PAGE_SIZE);
   }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return candidates.filter((c) => {
-      if (q && !(c.fio.toLowerCase().includes(q) || c.id.toLowerCase().includes(q))) return false;
+    return realCandidates.filter((c) => {
+      if (!showArchived && c.archived_at) return false;
       if (projectFilter && c.project !== projectFilter) return false;
-      if (cityFilter && c.city !== cityFilter) return false;
-      if (stageFilter && c.stage !== stageFilter) return false;
-      if (recruiterFilter && c.recruiter !== recruiterFilter) return false;
-      if (dateFilter && c.responseAt.toDateString() !== new Date(dateFilter).toDateString()) return false;
+      if (stageFilter && (c.stage ?? "") !== stageFilter) return false;
+      if (q) {
+        const haystack = [c.full_name, c.phone, c.telegram_tag, c.max_tag, c.external_id, c.city]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
       return true;
     });
-  }, [candidates, search, projectFilter, cityFilter, stageFilter, recruiterFilter, dateFilter]);
+  }, [realCandidates, search, projectFilter, stageFilter, showArchived]);
 
-  const total = candidates.length;
-  const invited = candidates.filter((c) =>
-    (["invited", "interview", "processing", "confirmed", "first_shift"] as StageId[]).includes(c.stage),
-  ).length;
-  const processed = candidates.filter((c) => (["processing", "confirmed", "first_shift"] as StageId[]).includes(c.stage)).length;
-  const shifted = candidates.filter((c) => c.stage === "first_shift").length;
+  const activeCount = realCandidates.filter((c) => !c.archived_at).length;
+  const withFirstShift = realCandidates.filter((c) => !c.archived_at && c.first_shift_at).length;
+  const withMedicalBook = realCandidates.filter((c) => !c.archived_at && c.has_medical_book === true).length;
+  const archivedCount = realCandidates.filter((c) => c.archived_at).length;
 
   function exportCsv() {
-    const header = ["ФИО", "Проект", "Город", "Стадия", "Рекрутер", "Менеджер", "Координатор", "ID", "Отклик", "Приглашение", "Оформление", "1-я смена"];
+    const header = [
+      "ФИО",
+      "External ID",
+      "Проект",
+      "Город",
+      "Стадия",
+      "Рекрутер",
+      "Менеджер",
+      "Координатор",
+      "Телефон",
+      "Telegram",
+      "MAX",
+      "Медкнижка",
+      "1-я смена",
+      "Архивирован",
+    ];
     const lines = [header.join(";")].concat(
-      filtered.map((c) => {
-        const proj = projectById(c.project);
-        const stage = stageById(c.stage);
-        return [
-          c.fio,
-          proj?.name ?? "",
-          c.city,
-          stage.name,
-          c.recruiter,
-          c.manager,
-          c.coordinator,
-          c.id,
-          fmtDateTime(c.responseAt) ?? "",
-          fmtDateTime(c.invitedAt) ?? "",
-          fmtDateTime(c.processedAt) ?? "",
-          fmtDateTime(c.firstShiftAt) ?? "",
-        ].join(";");
-      }),
+      filtered.map((c) =>
+        [
+          c.full_name,
+          c.external_id ?? "",
+          c.project,
+          c.city ?? "",
+          c.stage ?? "",
+          c.recruiter ?? "",
+          c.manager ?? "",
+          c.coordinator ?? "",
+          c.phone ?? "",
+          c.telegram_tag ?? "",
+          c.max_tag ?? "",
+          medicalBookLabel(c.has_medical_book),
+          c.first_shift_at ? (fmtDateTime(new Date(c.first_shift_at)) ?? "") : "",
+          c.archived_at ? "да" : "нет",
+        ].join(";"),
+      ),
     );
     const blob = new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -105,22 +125,22 @@ export function CandidatesSection() {
 
   return (
     <>
-      <PageHead eyebrow="Подбор">Единый реестр кандидатов и история движения по этапам найма.</PageHead>
+      <PageHead eyebrow="Подбор">Реестр кандидатов на реальных данных — от прибытия на проект до архивации.</PageHead>
 
       <div className={primitives.statGrid}>
-        <StatCard value={total.toLocaleString("ru-RU")} label="Отклики" />
-        <StatCard value={invited.toLocaleString("ru-RU")} label={`Приглашены · ${Math.round((invited / total) * 100)}%`} />
-        <StatCard value={processed.toLocaleString("ru-RU")} label={`Оформление · ${Math.round((processed / invited) * 100)}%`} />
-        <StatCard value={shifted.toLocaleString("ru-RU")} label={`1-я смена · ${Math.round((shifted / processed) * 100)}%`} />
+        <StatCard value={activeCount.toLocaleString("ru-RU")} label="Активные" />
+        <StatCard value={withFirstShift.toLocaleString("ru-RU")} label="С 1-й сменой" />
+        <StatCard value={withMedicalBook.toLocaleString("ru-RU")} label="Есть медкнижка" />
+        <StatCard value={archivedCount.toLocaleString("ru-RU")} label="В архиве" />
       </div>
 
       <Panel>
         <div className={primitives.toolbar}>
-          <div className={primitives.searchField} style={{ minWidth: 220 }}>
+          <div className={primitives.searchField} style={{ minWidth: 240 }}>
             <Icon name="search" size={15} />
             <input
               type="text"
-              placeholder="Поиск по ФИО или ID"
+              placeholder="Поиск по ФИО, телефону, telegram, ID, городу"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -137,24 +157,9 @@ export function CandidatesSection() {
             }}
           >
             <option value="">Все проекты</option>
-            {PROJECTS.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className={primitives.select}
-            value={cityFilter}
-            onChange={(e) => {
-              setCityFilter(e.target.value);
-              setVisible(PAGE_SIZE);
-            }}
-          >
-            <option value="">Все города</option>
-            {CITIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
+            {CANDIDATE_PROJECTS.map((p) => (
+              <option key={p} value={p}>
+                {p}
               </option>
             ))}
           </select>
@@ -162,54 +167,32 @@ export function CandidatesSection() {
             className={primitives.select}
             value={stageFilter}
             onChange={(e) => {
-              setStageFilter(e.target.value as StageId | "");
+              setStageFilter(e.target.value);
               setVisible(PAGE_SIZE);
             }}
           >
             <option value="">Все стадии</option>
-            {STAGES.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
+            {CANDIDATE_STAGES.map((s) => (
+              <option key={s} value={s}>
+                {s}
               </option>
             ))}
           </select>
-          <select
-            className={primitives.select}
-            value={recruiterFilter}
-            onChange={(e) => {
-              setRecruiterFilter(e.target.value);
-              setVisible(PAGE_SIZE);
-            }}
-          >
-            <option value="">Все рекрутеры</option>
-            {RECRUITERS.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-          <input
-            type="date"
-            className={`${primitives.select} ${primitives.dateInput}`}
-            value={dateFilter}
-            onChange={(e) => {
-              setDateFilter(e.target.value);
-              setVisible(PAGE_SIZE);
-            }}
-          />
+          <label className={styles.archiveToggle}>
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => {
+                setShowArchived(e.target.checked);
+                setVisible(PAGE_SIZE);
+              }}
+            />
+            Показывать архив
+          </label>
           <Button variant="ghost" size="sm" onClick={resetFilters}>
             Сбросить
           </Button>
           <div className={primitives.spacer} />
-          <div className={primitives.demoStateControl}>
-            Состояние:
-            <select value={demoState} onChange={(e) => setDemoState(e.target.value as DemoState)}>
-              <option value="normal">Обычное</option>
-              <option value="loading">Загрузка</option>
-              <option value="empty">Пустой результат</option>
-              <option value="error">Ошибка</option>
-            </select>
-          </div>
           <Button size="sm" onClick={exportCsv}>
             <Icon name="download" size={14} />
             Экспорт
@@ -220,23 +203,27 @@ export function CandidatesSection() {
           </Button>
         </div>
 
-        {demoState === "loading" && <SkeletonRows rows={9} />}
-        {demoState === "error" && <ErrorState onRetry={() => setDemoState("normal")} />}
-        {demoState !== "loading" &&
-          demoState !== "error" &&
-          (demoState === "empty" || filtered.length === 0 ? (
-            <EmptyState title="Кандидаты не найдены" text="Измените условия поиска или сбросьте фильтры." onReset={resetFilters} />
+        {realCandidatesLoading && <SkeletonRows rows={9} />}
+        {!realCandidatesLoading && realCandidatesError && <ErrorState onRetry={refreshRealCandidates} />}
+        {!realCandidatesLoading &&
+          !realCandidatesError &&
+          (filtered.length === 0 ? (
+            <EmptyState
+              title="Кандидаты не найдены"
+              text="Измените условия поиска, сбросьте фильтры или добавьте первого кандидата."
+              onReset={resetFilters}
+            />
           ) : (
             <CandidatesTable
               rows={visibleRows}
               total={filtered.length}
-              onRowClick={openCandidateDrawer}
+              onRowClick={openRealCandidateDrawer}
               onLoadMore={() => setVisible((v) => v + PAGE_SIZE)}
             />
           ))}
       </Panel>
 
-      {modalOpen && <AddCandidateModal onClose={() => setModalOpen(false)} onSubmit={addCandidate} />}
+      {modalOpen && <AddCandidateModal onClose={() => setModalOpen(false)} onSubmit={addRealCandidate} />}
     </>
   );
 }
@@ -269,57 +256,52 @@ function CandidatesTable({
               <th>Рекрутер</th>
               <th>Менеджер</th>
               <th>Координатор</th>
-              <th>ID</th>
-              <th>Отклик</th>
-              <th>Приглашение</th>
-              <th>Оформление</th>
+              <th>External ID</th>
               <th>1-я смена</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((c) => {
-              const stage = stageById(c.stage);
-              const proj = projectById(c.project);
-              return (
-                <tr key={c.id} onClick={() => onRowClick(c.id)}>
-                  <td className={styles.colSticky}>
-                    <div className={styles.nameCell}>
-                      <div
-                        style={{
-                          width: 26,
-                          height: 26,
-                          fontSize: 10,
-                          borderRadius: "50%",
-                          background: avatarColor(c.fio),
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontWeight: 700,
-                          flex: "none",
-                        }}
-                      >
-                        {initials(c.fio)}
-                      </div>
-                      {c.fio}
+            {rows.map((c) => (
+              <tr key={c.id} onClick={() => onRowClick(c.id)}>
+                <td className={styles.colSticky}>
+                  <div className={styles.nameCell}>
+                    <div
+                      style={{
+                        width: 26,
+                        height: 26,
+                        fontSize: 10,
+                        borderRadius: "50%",
+                        background: avatarColor(c.full_name),
+                        color: "#fff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontWeight: 700,
+                        flex: "none",
+                      }}
+                    >
+                      {initials(c.full_name)}
                     </div>
-                  </td>
-                  <td>{proj?.name ?? "—"}</td>
-                  <td>{c.city}</td>
-                  <td>
-                    <Badge color={stage.color}>{stage.name}</Badge>
-                  </td>
-                  <td className={primitives.muted}>{c.recruiter}</td>
-                  <td className={primitives.muted}>{c.manager}</td>
-                  <td className={primitives.muted}>{c.coordinator}</td>
-                  <td className={`${primitives.mono} ${primitives.muted}`}>{c.id}</td>
-                  <td className={primitives.mono}>{fmtDateTime(c.responseAt) ?? "—"}</td>
-                  <td className={primitives.mono}>{fmtDateTime(c.invitedAt) ?? "—"}</td>
-                  <td className={primitives.mono}>{fmtDateTime(c.processedAt) ?? "—"}</td>
-                  <td className={primitives.mono}>{fmtDateTime(c.firstShiftAt) ?? "—"}</td>
-                </tr>
-              );
-            })}
+                    {c.full_name}
+                    {c.archived_at && (
+                      <span className={primitives.muted} style={{ fontSize: 11 }}>
+                        (вышел)
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td>{c.project}</td>
+                <td>{c.city || "—"}</td>
+                <td>
+                  <Badge color={stageColor(c.stage)}>{c.stage ?? "Не начал"}</Badge>
+                </td>
+                <td className={primitives.muted}>{c.recruiter || "—"}</td>
+                <td className={primitives.muted}>{c.manager || "—"}</td>
+                <td className={primitives.muted}>{c.coordinator || "—"}</td>
+                <td className={`${primitives.mono} ${primitives.muted}`}>{c.external_id || "—"}</td>
+                <td className={primitives.mono}>{c.first_shift_at ? fmtDateTime(new Date(c.first_shift_at)) : "—"}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -347,24 +329,29 @@ function AddCandidateModal({
   onSubmit,
 }: {
   onClose: () => void;
-  onSubmit: (input: NewCandidateInput) => void;
+  onSubmit: (input: CandidateInsert) => Promise<boolean>;
 }) {
-  const [fio, setFio] = useState("");
-  const [projectId, setProjectId] = useState(PROJECTS[0].id);
-  const [city, setCity] = useState(PROJECTS[0].cities[0]);
-  const [recruiter, setRecruiter] = useState(RECRUITERS[0]);
-  const [stage, setStage] = useState<StageId>("response");
   const { pushToast } = usePortal();
+  const [fullName, setFullName] = useState("");
+  const [project, setProject] = useState<CandidateProject>(CANDIDATE_PROJECTS[0]);
+  const [city, setCity] = useState("");
+  const [recruiter, setRecruiter] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const project = PROJECTS.find((p) => p.id === projectId) ?? PROJECTS[0];
-
-  function handleSave() {
-    if (!fio.trim()) {
+  async function handleSave() {
+    if (!fullName.trim()) {
       pushToast("Укажите ФИО кандидата", "error");
       return;
     }
-    onSubmit({ fio: fio.trim(), project: projectId, city, recruiter, stage });
-    onClose();
+    setSaving(true);
+    const ok = await onSubmit({
+      full_name: fullName.trim(),
+      project,
+      city: city.trim() || null,
+      recruiter: recruiter.trim() || null,
+    });
+    setSaving(false);
+    if (ok) onClose();
   }
 
   return (
@@ -375,67 +362,50 @@ function AddCandidateModal({
       footer={
         <>
           <Button onClick={onClose}>Отмена</Button>
-          <Button variant="primary" onClick={handleSave}>
-            Добавить
+          <Button variant="primary" onClick={handleSave} disabled={saving}>
+            {saving ? "Сохранение…" : "Добавить"}
           </Button>
         </>
       }
     >
       <div className={primitives.field}>
         <label>ФИО</label>
-        <input type="text" placeholder="Иванов Иван Иванович" value={fio} onChange={(e) => setFio(e.target.value)} />
+        <input
+          type="text"
+          placeholder="Иванов Иван Иванович"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+        />
       </div>
       <div className={primitives.fieldRow}>
         <div className={primitives.field}>
           <label>Проект</label>
-          <select
-            value={projectId}
-            onChange={(e) => {
-              const p = PROJECTS.find((x) => x.id === e.target.value) ?? PROJECTS[0];
-              setProjectId(p.id);
-              setCity(p.cities[0]);
-            }}
-          >
-            {PROJECTS.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
+          <select value={project} onChange={(e) => setProject(e.target.value as CandidateProject)}>
+            {CANDIDATE_PROJECTS.map((p) => (
+              <option key={p} value={p}>
+                {p}
               </option>
             ))}
           </select>
         </div>
         <div className={primitives.field}>
           <label>Город</label>
-          <select value={city} onChange={(e) => setCity(e.target.value)}>
-            {project.cities.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+          <input type="text" value={city} onChange={(e) => setCity(e.target.value)} />
         </div>
       </div>
-      <div className={primitives.fieldRow}>
-        <div className={primitives.field}>
-          <label>Рекрутер</label>
-          <select value={recruiter} onChange={(e) => setRecruiter(e.target.value)}>
-            {RECRUITERS.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className={primitives.field}>
-          <label>Стадия</label>
-          <select value={stage} onChange={(e) => setStage(e.target.value as StageId)}>
-            {STAGES.slice(0, 3).map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className={primitives.field}>
+        <label>Рекрутер</label>
+        <input list="add-candidate-recruiters" value={recruiter} onChange={(e) => setRecruiter(e.target.value)} />
+        <datalist id="add-candidate-recruiters">
+          {RECRUITERS.map((r) => (
+            <option key={r} value={r} />
+          ))}
+        </datalist>
       </div>
+      <p style={{ fontSize: 12, color: "var(--text-3)" }}>
+        Остальные поля (телефон, стадия, медкнижка, даты и т.д.) можно заполнить после создания — откройте карточку
+        кандидата.
+      </p>
     </Modal>
   );
 }

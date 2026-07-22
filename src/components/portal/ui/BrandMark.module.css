@@ -1,0 +1,26 @@
+.brandMark {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: linear-gradient(155deg, var(--accent), #3aa0ff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  flex: none;
+}
+.brandText {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.brandText b {
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+.brandText span {
+  font-size: 11px;
+  color: var(--text-3);
+}

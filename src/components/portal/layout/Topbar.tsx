@@ -20,9 +20,23 @@ const NOTIF_ICO_CLASS = {
   info: dropdownStyles.notifIcoInfo,
 };
 
+function userInitials(email: string | null): string {
+  if (!email) return "?";
+  const local = email.split("@")[0];
+  return local.slice(0, 2).toUpperCase();
+}
+
 export function Topbar() {
-  const { activePage, goto, openMobileSidebar, notifications, markAllNotificationsRead, contextAction } =
-    usePortal();
+  const {
+    activePage,
+    goto,
+    openMobileSidebar,
+    notifications,
+    markAllNotificationsRead,
+    contextAction,
+    authEmail,
+    signOut,
+  } = usePortal();
 
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -129,18 +143,18 @@ export function Topbar() {
             onClick={() => setOpenMenu((m) => (m === "profile" ? null : "profile"))}
           >
             <div className={styles.avatar} style={{ background: "#5856d6" }}>
-              ДК
+              {userInitials(authEmail)}
             </div>
           </button>
           {openMenu === "profile" && (
             <DropdownPanel narrow>
               <div className={dropdownStyles.profileHead}>
                 <div className={styles.avatar} style={{ background: "#5856d6" }}>
-                  ДК
+                  {userInitials(authEmail)}
                 </div>
                 <div>
-                  <b>Дмитрий Кузнецов</b>
-                  <div>dmitry@staffflow.pro</div>
+                  <b>Сотрудник</b>
+                  <div>{authEmail ?? "Не авторизован"}</div>
                 </div>
               </div>
               <button
@@ -152,6 +166,16 @@ export function Topbar() {
               >
                 <Icon name="gear" size={16} />
                 Настройки
+              </button>
+              <button
+                className={dropdownStyles.profileItem}
+                onClick={() => {
+                  setOpenMenu(null);
+                  signOut();
+                }}
+              >
+                <Icon name="logout" size={16} />
+                Выйти
               </button>
             </DropdownPanel>
           )}

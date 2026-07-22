@@ -1,0 +1,68 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 20px;
+}
+
+.form {
+  padding: 28px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.brandMark {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.brandText {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.brandText b {
+  font-size: 13.5px;
+}
+.brandText span {
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.title {
+  font-size: 19px;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.error {
+  font-size: 12.5px;
+  color: var(--red);
+  background: var(--red-soft);
+  border-radius: 9px;
+  padding: 9px 11px;
+}
+
+.submit {
+  width: 100%;
+  justify-content: center;
+  margin-top: 4px;
+}

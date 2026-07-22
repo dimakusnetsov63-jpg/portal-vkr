@@ -73,6 +73,21 @@
   height: 1px;
 }
 
+.archiveToggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.archiveToggle input {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+}
+
 .pager {
   display: flex;
   align-items: center;

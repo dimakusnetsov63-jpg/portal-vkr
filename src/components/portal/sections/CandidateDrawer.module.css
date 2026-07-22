@@ -167,3 +167,18 @@
   border-color: var(--accent);
   background: var(--surface);
 }
+
+.commentTextarea {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  outline: none;
+  background: var(--surface-2);
+  font: inherit;
+  resize: vertical;
+}
+.commentTextarea:focus {
+  border-color: var(--accent);
+  background: var(--surface);
+}

@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 import { MANAGERS, COORDINATORS } from "@/lib/portal/constants";
 import { generateCandidates } from "@/lib/portal/generateCandidates";
 import { INITIAL_NOTIFICATIONS } from "@/lib/portal/notifications";
@@ -23,6 +24,19 @@ import type {
   Toast,
   ToastType,
 } from "@/lib/portal/types";
+import { createClient } from "@/lib/supabase/client";
+import {
+  archiveCandidate,
+  createCandidate,
+  listCandidates,
+  restoreCandidate,
+  updateCandidate,
+} from "@/lib/supabase/candidatesRepo";
+import type {
+  Candidate as RealCandidate,
+  CandidateInsert,
+  CandidateUpdate,
+} from "@/lib/supabase/candidates.types";
 
 const staffRng = createRng(20260722);
 
@@ -55,6 +69,22 @@ interface PortalContextValue {
 
   contextAction: ContextAction | null;
   setContextAction: (action: ContextAction | null) => void;
+
+  authEmail: string | null;
+  signOut: () => Promise<void>;
+
+  realCandidates: RealCandidate[];
+  realCandidatesLoading: boolean;
+  realCandidatesError: string | null;
+  refreshRealCandidates: () => Promise<void>;
+  addRealCandidate: (input: CandidateInsert) => Promise<boolean>;
+  saveRealCandidate: (id: string, patch: CandidateUpdate) => Promise<boolean>;
+  archiveRealCandidate: (id: string) => Promise<void>;
+  restoreRealCandidate: (id: string) => Promise<void>;
+
+  selectedRealCandidateId: string | null;
+  openRealCandidateDrawer: (id: string) => void;
+  closeRealCandidateDrawer: () => void;
 }
 
 export interface ContextAction {
@@ -64,7 +94,14 @@ export interface ContextAction {
 
 const PortalContext = createContext<PortalContextValue | null>(null);
 
-export function PortalProvider({ children }: { children: ReactNode }) {
+export function PortalProvider({
+  children,
+  initialUserEmail,
+}: {
+  children: ReactNode;
+  initialUserEmail: string | null;
+}) {
+  const router = useRouter();
   const [activePage, setActivePage] = useState<PortalPage>("overview");
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [candidates, setCandidates] = useState<Candidate[]>(() => generateCandidates());
@@ -75,6 +112,13 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   const [contextAction, setContextAction] = useState<ContextAction | null>(null);
   const toastSeq = useRef(0);
   const candidateSeq = useRef(0);
+
+  const [authEmail] = useState<string | null>(initialUserEmail);
+
+  const [realCandidates, setRealCandidates] = useState<RealCandidate[]>([]);
+  const [realCandidatesLoading, setRealCandidatesLoading] = useState(true);
+  const [realCandidatesError, setRealCandidatesError] = useState<string | null>(null);
+  const [selectedRealCandidateId, setSelectedRealCandidateId] = useState<string | null>(null);
 
   const goto = useCallback((page: PortalPage) => {
     setActivePage(page);
@@ -137,6 +181,88 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   const openCandidateDrawer = useCallback((id: string) => setSelectedCandidateId(id), []);
   const closeCandidateDrawer = useCallback(() => setSelectedCandidateId(null), []);
 
+  const signOut = useCallback(async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.replace("/login");
+  }, [router]);
+
+  const refreshRealCandidates = useCallback(async () => {
+    setRealCandidatesLoading(true);
+    setRealCandidatesError(null);
+    try {
+      setRealCandidates(await listCandidates());
+    } catch (e) {
+      setRealCandidatesError(e instanceof Error ? e.message : "Не удалось загрузить кандидатов");
+    } finally {
+      setRealCandidatesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data load on mount
+    refreshRealCandidates();
+  }, [refreshRealCandidates]);
+
+  const addRealCandidate = useCallback(
+    async (input: CandidateInsert) => {
+      try {
+        const created = await createCandidate(input);
+        setRealCandidates((prev) => [created, ...prev]);
+        pushToast("Кандидат добавлен");
+        return true;
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось добавить кандидата", "error");
+        return false;
+      }
+    },
+    [pushToast],
+  );
+
+  const saveRealCandidate = useCallback(
+    async (id: string, patch: CandidateUpdate) => {
+      try {
+        const updated = await updateCandidate(id, patch);
+        setRealCandidates((prev) => prev.map((c) => (c.id === id ? updated : c)));
+        pushToast("Изменения сохранены");
+        return true;
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось сохранить изменения", "error");
+        return false;
+      }
+    },
+    [pushToast],
+  );
+
+  const archiveRealCandidate = useCallback(
+    async (id: string) => {
+      try {
+        const updated = await archiveCandidate(id);
+        setRealCandidates((prev) => prev.map((c) => (c.id === id ? updated : c)));
+        pushToast("Кандидат отмечен как вышедший");
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось архивировать кандидата", "error");
+      }
+    },
+    [pushToast],
+  );
+
+  const restoreRealCandidate = useCallback(
+    async (id: string) => {
+      try {
+        const updated = await restoreCandidate(id);
+        setRealCandidates((prev) => prev.map((c) => (c.id === id ? updated : c)));
+        pushToast("Кандидат восстановлен из архива");
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось восстановить кандидата", "error");
+      }
+    },
+    [pushToast],
+  );
+
+  const openRealCandidateDrawer = useCallback((id: string) => setSelectedRealCandidateId(id), []);
+  const closeRealCandidateDrawer = useCallback(() => setSelectedRealCandidateId(null), []);
+
   const markNotificationRead = useCallback((id: number) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   }, []);
@@ -175,6 +301,19 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       toggleDensity,
       contextAction,
       setContextAction,
+      authEmail,
+      signOut,
+      realCandidates,
+      realCandidatesLoading,
+      realCandidatesError,
+      refreshRealCandidates,
+      addRealCandidate,
+      saveRealCandidate,
+      archiveRealCandidate,
+      restoreRealCandidate,
+      selectedRealCandidateId,
+      openRealCandidateDrawer,
+      closeRealCandidateDrawer,
     }),
     [
       activePage,
@@ -197,6 +336,19 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       densityCompact,
       toggleDensity,
       contextAction,
+      authEmail,
+      signOut,
+      realCandidates,
+      realCandidatesLoading,
+      realCandidatesError,
+      refreshRealCandidates,
+      addRealCandidate,
+      saveRealCandidate,
+      archiveRealCandidate,
+      restoreRealCandidate,
+      selectedRealCandidateId,
+      openRealCandidateDrawer,
+      closeRealCandidateDrawer,
     ],
   );
 

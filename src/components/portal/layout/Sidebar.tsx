@@ -2,11 +2,18 @@
 
 import { usePortal } from "@/components/portal/context/PortalContext";
 import { NAV_ITEMS } from "@/lib/portal/constants";
+import { BrandMark } from "@/components/portal/ui/BrandMark";
 import { Icon } from "@/components/portal/ui/Icon";
 import styles from "./Sidebar.module.css";
 
+function userInitials(email: string | null): string {
+  if (!email) return "?";
+  const local = email.split("@")[0];
+  return local.slice(0, 2).toUpperCase();
+}
+
 export function Sidebar() {
-  const { activePage, goto, mobileSidebarOpen, closeMobileSidebar, notifications } = usePortal();
+  const { activePage, goto, mobileSidebarOpen, closeMobileSidebar, notifications, authEmail } = usePortal();
   const unread = notifications.filter((n) => !n.read).length;
 
   return (
@@ -17,11 +24,7 @@ export function Sidebar() {
         aria-label="Основная навигация"
       >
         <div className={styles.brand}>
-          <div className={styles.brandMark}>SF</div>
-          <div className={styles.brandText}>
-            <b>StaffFlow Pro</b>
-            <span>Портал подбора персонала</span>
-          </div>
+          <BrandMark />
         </div>
 
         <nav className={styles.nav}>
@@ -45,11 +48,11 @@ export function Sidebar() {
         <div className={styles.foot}>
           <button className={styles.userChip} onClick={() => goto("settings")}>
             <div className={styles.avatar} style={{ background: "#5856d6" }}>
-              ДК
+              {userInitials(authEmail)}
             </div>
             <div className={styles.who}>
-              <b>Дмитрий Кузнецов</b>
-              <span>HR-директор</span>
+              <b>{authEmail ?? "Не авторизован"}</b>
+              <span>Сотрудник</span>
             </div>
           </button>
         </div>
