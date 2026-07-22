@@ -3,7 +3,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { supabaseEnv } from "./env";
 import type { Database } from "./database.types";
 
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/forgot-password", "/update-password"];
+
+// Reachable even for an authenticated request. /update-password must stay
+// reachable because completing a password-recovery flow establishes a
+// session (via the emailed link) before the new password is actually set —
+// redirecting that request to "/" would strand the user mid-recovery.
+const ALWAYS_ACCESSIBLE_PATHS = ["/update-password"];
 
 /**
  * Refreshes the Supabase session cookies on every request and gates access:
@@ -35,6 +41,7 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const isPublicPath = PUBLIC_PATHS.some((path) => request.nextUrl.pathname.startsWith(path));
+  const isAlwaysAccessible = ALWAYS_ACCESSIBLE_PATHS.some((path) => request.nextUrl.pathname.startsWith(path));
 
   // Build a redirect that preserves any auth cookies refreshed by getUser().
   // Returning a bare NextResponse.redirect would drop the rotated session
@@ -53,7 +60,7 @@ export async function updateSession(request: NextRequest) {
     return redirectTo("/login");
   }
 
-  if (user && isPublicPath) {
+  if (user && isPublicPath && !isAlwaysAccessible) {
     return redirectTo("/");
   }
 

@@ -1,33 +1,27 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/portal/ui/Button";
 import { Panel } from "@/components/portal/ui/Panel";
 import primitives from "@/components/portal/ui/primitives.module.css";
-import styles from "./login.module.css";
+import styles from "@/app/login/login.module.css";
 
-export default function LoginPage() {
-  const router = useRouter();
+export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<"idle" | "sent" | "error">("idle");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setError(null);
+    setStatus("idle");
     setLoading(true);
     const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/update-password`,
+    });
     setLoading(false);
-    if (signInError) {
-      setError("Неверный email или пароль");
-      return;
-    }
-    setPassword("");
-    router.replace("/");
+    setStatus(error ? "error" : "sent");
   }
 
   return (
@@ -42,12 +36,15 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <h1 className={styles.title}>Вход</h1>
+          <h1 className={styles.title}>Восстановление пароля</h1>
+          <p style={{ fontSize: 13, color: "var(--text-3)", marginTop: -8 }}>
+            Укажите email — пришлём ссылку для сброса пароля.
+          </p>
 
           <div className={primitives.field}>
-            <label htmlFor="login-email">Email</label>
+            <label htmlFor="forgot-email">Email</label>
             <input
-              id="login-email"
+              id="forgot-email"
               type="email"
               autoComplete="username"
               required
@@ -55,26 +52,22 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
-          <div className={primitives.field}>
-            <label htmlFor="login-password">Пароль</label>
-            <input
-              id="login-password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
 
-          {error && <p className={styles.error}>{error}</p>}
+          {status === "sent" && (
+            <p className={styles.success}>
+              Если такой email зарегистрирован, письмо со ссылкой уже отправлено. Проверьте почту.
+            </p>
+          )}
+          {status === "error" && (
+            <p className={styles.error}>Не удалось отправить письмо. Попробуйте ещё раз позже.</p>
+          )}
 
           <Button type="submit" variant="primary" disabled={loading} className={styles.submit}>
-            {loading ? "Входим…" : "Войти"}
+            {loading ? "Отправляем…" : "Отправить ссылку"}
           </Button>
 
-          <a href="/forgot-password" className={styles.link}>
-            Забыли пароль?
+          <a href="/login" className={styles.link}>
+            Вернуться ко входу
           </a>
         </form>
       </Panel>
