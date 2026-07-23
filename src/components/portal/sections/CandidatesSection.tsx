@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePortal } from "@/components/portal/context/PortalContext";
 import { Badge } from "@/components/portal/ui/Badge";
 import { Button } from "@/components/portal/ui/Button";
+import { Combobox } from "@/components/portal/ui/Combobox";
 import { Icon } from "@/components/portal/ui/Icon";
 import { Modal } from "@/components/portal/ui/Modal";
 import { PageHead } from "@/components/portal/ui/PageHead";
@@ -343,8 +344,8 @@ function AddCandidateModal({
   const [recruiter, setRecruiter] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const cityOptions = activeListOptions(listOptions, "city");
-  const recruiterOptions = activeListOptions(listOptions, "recruiter");
+  const cityOptions = activeListOptions(listOptions, "city").map((o) => o.value);
+  const recruiterOptions = activeListOptions(listOptions, "recruiter").map((o) => o.value);
 
   async function handleSave() {
     if (!fullName.trim()) {
@@ -398,22 +399,12 @@ function AddCandidateModal({
         </div>
         <div className={primitives.field}>
           <label>Город</label>
-          <input list="add-candidate-cities" type="text" value={city} onChange={(e) => setCity(e.target.value)} />
-          <datalist id="add-candidate-cities">
-            {cityOptions.map((o) => (
-              <option key={o.id} value={o.value} />
-            ))}
-          </datalist>
+          <Combobox value={city} onChange={setCity} options={cityOptions} />
         </div>
       </div>
       <div className={primitives.field}>
         <label>Рекрутер</label>
-        <input list="add-candidate-recruiters" value={recruiter} onChange={(e) => setRecruiter(e.target.value)} />
-        <datalist id="add-candidate-recruiters">
-          {recruiterOptions.map((o) => (
-            <option key={o.id} value={o.value} />
-          ))}
-        </datalist>
+        <Combobox value={recruiter} onChange={setRecruiter} options={recruiterOptions} />
       </div>
       <p style={{ fontSize: 12, color: "var(--text-3)" }}>
         Остальные поля (телефон, стадия, медкнижка, даты и т.д.) можно заполнить после создания — откройте карточку
