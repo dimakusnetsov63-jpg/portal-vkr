@@ -23,15 +23,8 @@
 .brandMark {
   width: 34px;
   height: 34px;
-  border-radius: 9px;
-  background: var(--accent);
-  color: #fff;
-  font-weight: 700;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   flex: none;
+  display: block;
 }
 
 .brandText {

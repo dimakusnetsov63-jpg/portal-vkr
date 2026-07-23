@@ -139,10 +139,10 @@ export function CandidatesSection() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "staffflow-candidates.csv";
+    a.download = "vkr-candidates.csv";
     a.click();
     URL.revokeObjectURL(url);
-    pushToast("Экспорт сформирован: staffflow-candidates.csv");
+    pushToast("Экспорт сформирован: vkr-candidates.csv");
   }
 
   const visibleRows = filtered.slice(0, visible);

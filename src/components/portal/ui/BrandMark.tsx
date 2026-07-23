@@ -1,11 +1,11 @@
 import styles from "./BrandMark.module.css";
 
-export function BrandMark({ subtitle = "Портал подбора персонала" }: { subtitle?: string }) {
+export function BrandMark({ subtitle = "Ваш кадровый ресурс" }: { subtitle?: string }) {
   return (
     <>
-      <div className={styles.brandMark}>SF</div>
+      <img src="/logo.svg" alt="ВКР" className={styles.brandMark} />
       <div className={styles.brandText}>
-        <b>StaffFlow Pro</b>
+        <b>ВКР</b>
         <span>{subtitle}</span>
       </div>
     </>

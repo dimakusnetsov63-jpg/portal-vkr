@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "StaffFlow Pro — портал управления подбором",
+  title: "ВКР — Ваш кадровый ресурс",
   description:
     "Единый портал управления массовым подбором и аутсорсингом линейного персонала",
 };

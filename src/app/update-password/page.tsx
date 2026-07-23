@@ -101,10 +101,10 @@ export default function UpdatePasswordPage() {
       <Panel style={{ maxWidth: 360, width: "100%" }}>
         <div className={styles.form}>
           <div className={styles.brand}>
-            <div className={styles.brandMark}>SF</div>
+            <img src="/logo.svg" alt="ВКР" className={styles.brandMark} />
             <div className={styles.brandText}>
-              <b>StaffFlow Pro</b>
-              <span>Портал подбора персонала</span>
+              <b>ВКР</b>
+              <span>Ваш кадровый ресурс</span>
             </div>
           </div>
 

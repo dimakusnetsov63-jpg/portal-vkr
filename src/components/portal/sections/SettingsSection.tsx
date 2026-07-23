@@ -59,7 +59,7 @@ export function SettingsSection() {
 
   const [name, setName] = useState("Дмитрий Кузнецов");
   const [role, setRole] = useState("HR-директор");
-  const [email, setEmail] = useState("dmitry@staffflow.pro");
+  const [email, setEmail] = useState("dmitry@vkr.pro");
   const [phone, setPhone] = useState("+7 999 123-45-67");
 
   const [integrations, setIntegrations] = useState(INITIAL_INTEGRATIONS);

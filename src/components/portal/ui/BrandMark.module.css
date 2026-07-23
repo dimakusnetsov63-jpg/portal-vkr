@@ -1,15 +1,8 @@
 .brandMark {
   width: 32px;
   height: 32px;
-  border-radius: 9px;
-  background: linear-gradient(155deg, var(--accent), #3aa0ff);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: 700;
-  font-size: 14px;
   flex: none;
+  display: block;
 }
 .brandText {
   display: flex;
