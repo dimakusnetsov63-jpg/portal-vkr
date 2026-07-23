@@ -7,6 +7,11 @@ export const CANDIDATE_PROJECTS: readonly CandidateProject[] = Constants.public.
 export const CANDIDATE_STAGES: readonly CandidateStage[] = Constants.public.Enums.candidate_stage;
 export const CANDIDATE_LIST_TYPES: readonly CandidateListType[] = Constants.public.Enums.candidate_list_type;
 
+/** Stages counted as a successful outcome (arrived-but-not-started is not). */
+export const SUCCESSFUL_STAGES: readonly CandidateStage[] = CANDIDATE_STAGES.filter(
+  (s) => s !== "Прибыл на проект",
+);
+
 export const LIST_TYPE_LABELS: Record<CandidateListType, string> = {
   recruiter: "Рекрутеры",
   manager: "Менеджеры",

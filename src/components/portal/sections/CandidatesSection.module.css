@@ -1,3 +1,17 @@
+/* Stat cards (3-up variant, scoped here so it doesn't affect other sections'
+   shared 4-column primitives.statGrid). */
+.statGrid3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+@media (max-width: 720px) {
+  .statGrid3 {
+    grid-template-columns: 1fr;
+  }
+}
+
 .table {
   border-collapse: separate;
   border-spacing: 0;

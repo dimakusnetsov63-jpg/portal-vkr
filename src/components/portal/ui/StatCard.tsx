@@ -4,6 +4,8 @@ import styles from "./primitives.module.css";
 export interface StatCardProps {
   icon?: IconName;
   value: string | number;
+  /** Optional line rendered between the value and the label, e.g. a percentage. */
+  sublabel?: string;
   label: string;
   delta?: string;
   deltaTone?: "up" | "down" | "flat";
@@ -15,7 +17,7 @@ const DELTA_CLASS = {
   flat: styles.statDeltaFlat,
 };
 
-export function StatCard({ icon, value, label, delta, deltaTone = "flat" }: StatCardProps) {
+export function StatCard({ icon, value, sublabel, label, delta, deltaTone = "flat" }: StatCardProps) {
   return (
     <div className={styles.statCard}>
       {(icon || delta) && (
@@ -31,6 +33,7 @@ export function StatCard({ icon, value, label, delta, deltaTone = "flat" }: Stat
         </div>
       )}
       <div className={styles.statValue}>{value}</div>
+      {sublabel && <div className={styles.statSubValue}>{sublabel}</div>}
       <div className={styles.statLabel}>{label}</div>
     </div>
   );

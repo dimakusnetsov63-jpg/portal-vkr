@@ -18,6 +18,7 @@ import {
   CANDIDATE_STAGES,
   medicalBookLabel,
   stageColor,
+  SUCCESSFUL_STAGES,
 } from "@/lib/portal/candidateOptions";
 import { avatarColor, fmtDateTime, initials } from "@/lib/portal/format";
 import type { Candidate, CandidateInsert, CandidateProject } from "@/lib/supabase/candidates.types";
@@ -75,10 +76,27 @@ export function CandidatesSection() {
     });
   }, [realCandidates, search, projectFilter, stageFilter, showArchived]);
 
-  const activeCount = realCandidates.filter((c) => !c.archived_at).length;
-  const withFirstShift = realCandidates.filter((c) => !c.archived_at && c.first_shift_at).length;
-  const withMedicalBook = realCandidates.filter((c) => !c.archived_at && c.has_medical_book === true).length;
-  const archivedCount = realCandidates.filter((c) => c.archived_at).length;
+  const stats = useMemo(() => {
+    const total = filtered.length;
+    let awaiting = 0;
+    let successful = 0;
+    let medical = 0;
+    for (const c of filtered) {
+      const isSuccessful = Boolean(c.first_shift_at) || (c.stage != null && SUCCESSFUL_STAGES.includes(c.stage));
+      if (isSuccessful) successful += 1;
+      else awaiting += 1;
+      if (c.has_medical_book === true) medical += 1;
+    }
+    const pct = (n: number) => (total === 0 ? 0 : Math.round((n / total) * 100));
+    return {
+      awaiting,
+      awaitingPct: pct(awaiting),
+      successful,
+      successfulPct: pct(successful),
+      medical,
+      medicalPct: pct(medical),
+    };
+  }, [filtered]);
 
   function exportCsv() {
     const header = [
@@ -133,11 +151,22 @@ export function CandidatesSection() {
     <>
       <PageHead eyebrow="Подбор">Реестр кандидатов на реальных данных — от прибытия на проект до архивации.</PageHead>
 
-      <div className={primitives.statGrid}>
-        <StatCard value={activeCount.toLocaleString("ru-RU")} label="Активные" />
-        <StatCard value={withFirstShift.toLocaleString("ru-RU")} label="С 1-й сменой" />
-        <StatCard value={withMedicalBook.toLocaleString("ru-RU")} label="Есть медкнижка" />
-        <StatCard value={archivedCount.toLocaleString("ru-RU")} label="В архиве" />
+      <div className={styles.statGrid3}>
+        <StatCard
+          value={stats.awaiting.toLocaleString("ru-RU")}
+          sublabel={`${stats.awaitingPct}% от выборки`}
+          label="Ожидают выхода"
+        />
+        <StatCard
+          value={stats.successful.toLocaleString("ru-RU")}
+          sublabel={`${stats.successfulPct}% от выборки`}
+          label="Успешно вышли"
+        />
+        <StatCard
+          value={stats.medical.toLocaleString("ru-RU")}
+          sublabel={`${stats.medicalPct}% от выборки`}
+          label="Есть медкнижка"
+        />
       </div>
 
       <Panel>
