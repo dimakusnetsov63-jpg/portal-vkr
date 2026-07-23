@@ -17,7 +17,7 @@ import {
 import { avatarColor, initials } from "@/lib/portal/format";
 import type { Candidate, CandidateUpdate } from "@/lib/supabase/candidates.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
-import styles from "./CandidateDrawer.module.css";
+import styles from "../CandidateDrawer.module.css";
 
 const TIMELINE_FIELDS: { key: "invitation_at" | "registration_at" | "first_shift_at"; label: string }[] = [
   { key: "invitation_at", label: "Приглашение" },
