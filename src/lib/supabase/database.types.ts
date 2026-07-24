@@ -171,6 +171,57 @@ export type Database = {
         }
         Relationships: []
       }
+      staffing_demand_history: {
+        Row: {
+          action: Database["public"]["Enums"]["staffing_demand_history_action"]
+          changed_at: string
+          changed_by: string | null
+          city: string
+          demand_date: string | null
+          id: string
+          new_comment: string | null
+          new_quantity: number | null
+          new_status: string | null
+          old_comment: string | null
+          old_quantity: number | null
+          old_status: string | null
+          project: string
+          staffing_demand_id: string | null
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["staffing_demand_history_action"]
+          changed_at?: string
+          changed_by?: string | null
+          city: string
+          demand_date?: string | null
+          id?: string
+          new_comment?: string | null
+          new_quantity?: number | null
+          new_status?: string | null
+          old_comment?: string | null
+          old_quantity?: number | null
+          old_status?: string | null
+          project: string
+          staffing_demand_id?: string | null
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["staffing_demand_history_action"]
+          changed_at?: string
+          changed_by?: string | null
+          city?: string
+          demand_date?: string | null
+          id?: string
+          new_comment?: string | null
+          new_quantity?: number | null
+          new_status?: string | null
+          old_comment?: string | null
+          old_quantity?: number | null
+          old_status?: string | null
+          project?: string
+          staffing_demand_id?: string | null
+        }
+        Relationships: []
+      }
       staffing_demand_rows: {
         Row: {
           city: string
@@ -229,6 +280,7 @@ export type Database = {
         | "Отработал 1 смену"
         | "Отработал 10 смен"
         | "Завершил вахту"
+      staffing_demand_history_action: "insert" | "update" | "delete"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -380,6 +432,7 @@ export const Constants = {
         "Отработал 10 смен",
         "Завершил вахту",
       ],
+      staffing_demand_history_action: ["insert", "update", "delete"],
     },
   },
 } as const

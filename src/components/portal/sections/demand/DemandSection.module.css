@@ -512,3 +512,55 @@
 .modalFootSpacer {
   flex: 1;
 }
+
+/* ---- cell change history ---- */
+.historyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 0;
+  font-size: 13px;
+  color: var(--text-2);
+  text-align: center;
+}
+.historyList {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.historyItem {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 0;
+  border-top: 1px solid var(--border);
+}
+.historyItem:first-child {
+  border-top: none;
+}
+.historyItemHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.historyAction {
+  font-size: 13px;
+  font-weight: 700;
+}
+.historyDate {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.historyChange {
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+}
+.historyBy {
+  font-size: 11.5px;
+  color: var(--text-3);
+}

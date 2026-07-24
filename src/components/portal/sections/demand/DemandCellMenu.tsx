@@ -6,6 +6,7 @@ import { Button } from "@/components/portal/ui/Button";
 import { Icon } from "@/components/portal/ui/Icon";
 import { Modal } from "@/components/portal/ui/Modal";
 import { currentWeekTargets, nextDayTarget, next7DaysTargets, untilDateTargets } from "./demandCopy";
+import { DemandHistoryDrawer } from "./DemandHistoryDrawer";
 import styles from "./DemandSection.module.css";
 
 function pluralizeCells(n: number): string {
@@ -33,6 +34,7 @@ export function DemandCellMenu({
   const [open, setOpen] = useState(false);
   const [untilDate, setUntilDate] = useState(date);
   const [confirm, setConfirm] = useState<{ label: string; targets: string[] } | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -108,7 +110,20 @@ export function DemandCellMenu({
               До даты
             </button>
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              setHistoryOpen(true);
+            }}
+          >
+            История изменений
+          </button>
         </div>
+      )}
+
+      {historyOpen && (
+        <DemandHistoryDrawer project={project} city={city} date={date} onClose={() => setHistoryOpen(false)} />
       )}
 
       {confirm && (
