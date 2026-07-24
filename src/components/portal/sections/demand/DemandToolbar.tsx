@@ -3,6 +3,7 @@
 import { Button } from "@/components/portal/ui/Button";
 import { Icon } from "@/components/portal/ui/Icon";
 import { CANDIDATE_PROJECTS } from "@/lib/portal/candidateOptions";
+import { DEMAND_ROW_STATUSES, DEMAND_ROW_STATUS_LABELS, type DemandRowStatus } from "./demandRowMeta";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import styles from "./DemandSection.module.css";
 
@@ -16,6 +17,8 @@ export function DemandToolbar({
   cityOptions,
   filledOnly,
   onFilledOnlyChange,
+  rowStatus,
+  onRowStatusChange,
   onReset,
   onAdd,
   onToday,
@@ -34,6 +37,8 @@ export function DemandToolbar({
   cityOptions: string[];
   filledOnly: boolean;
   onFilledOnlyChange: (value: boolean) => void;
+  rowStatus: DemandRowStatus | "";
+  onRowStatusChange: (value: DemandRowStatus | "") => void;
   onReset: () => void;
   onAdd: () => void;
   onToday: () => void;
@@ -67,6 +72,18 @@ export function DemandToolbar({
         {cityOptions.map((c) => (
           <option key={c} value={c}>
             {c}
+          </option>
+        ))}
+      </select>
+      <select
+        className={primitives.select}
+        value={rowStatus}
+        onChange={(e) => onRowStatusChange(e.target.value as DemandRowStatus | "")}
+      >
+        <option value="">Все статусы</option>
+        {DEMAND_ROW_STATUSES.map((s) => (
+          <option key={s} value={s}>
+            {DEMAND_ROW_STATUS_LABELS[s]}
           </option>
         ))}
       </select>

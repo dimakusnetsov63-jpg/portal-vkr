@@ -94,7 +94,10 @@ supabase/
    `renameListOption`, `setListOptionActive`, `reorderListOption`).
 4. **Потребность (Supabase):** `demandRows` + `demandWindow` (окно дат по
    умолчанию — сегодня −14/+45 дней) + CRUD (`upsertDemandCell`,
-   `deleteDemandCell`, `addDemandBulk`), `refreshDemand`.
+   `deleteDemandCell`, `addDemandBulk`, `bulkSetDemandCells`),
+   `refreshDemand`. Отдельно — метаданные строки проект+город:
+   `demandRowMeta` + `updateDemandRowMeta`, `refreshDemandRowMeta`
+   (статус/комментарий, не привязаны к дате).
 
 Плюс кросс-раздельное: навигация (`activePage`), тосты, уведомления, `authEmail`,
 `signOut`, плотность таблиц.
@@ -151,7 +154,11 @@ UI (Section/*.tsx)
 видимый период (без полного перекрёстного произведения) — только режим
 «День» реализован, Неделя/Месяц не подключены. Проекты — из enum
 `candidate_project` (тот же источник, что у кандидатов), города — из
-`candidate_list_options` (`type = city`). Редактирование ячейки — upsert/delete
+`candidate_list_options` (`type = city`). Каждая строка город+проект
+дополнительно несёт статус и комментарий (`staffing_demand_rows`,
+`DemandRowStatusBadge`/`DemandRowCommentButton` в `DemandCityRow`) — не
+привязаны к дате, не копируются вместе со значениями потребности.
+Редактирование ячейки — upsert/delete
 по (`project`, `city`, `demand_date`) через `staffingDemandRepo.ts`.
 
 ## Mock и real-данные

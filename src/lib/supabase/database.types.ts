@@ -171,6 +171,36 @@ export type Database = {
         }
         Relationships: []
       }
+      staffing_demand_rows: {
+        Row: {
+          city: string
+          comment: string | null
+          created_at: string
+          id: string
+          project: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          city: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          project: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          city?: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          project?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

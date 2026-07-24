@@ -10,9 +10,10 @@
 
 ## Таблицы
 
-Подтверждены три таблицы в схеме `public`: `candidates`,
-`candidate_list_options` и `staffing_demand`. Auth-таблицы (`auth.users` и
-т.п.) управляются Supabase и в миграциях проекта не описаны.
+Подтверждены четыре таблицы в схеме `public`: `candidates`,
+`candidate_list_options`, `staffing_demand` и `staffing_demand_rows`.
+Auth-таблицы (`auth.users` и т.п.) управляются Supabase и в миграциях
+проекта не описаны.
 
 ### `public.candidates`
 
@@ -102,6 +103,40 @@ upsert.
 себя непредсказуемо через PostgREST, а с обычным индексом `onConflict:
 "project,city,demand_date"` работает предсказуемо.
 
+### `public.staffing_demand_rows`
+
+Метаданные строки «проект+город» в разделе «Потребность»: статус и
+комментарий, **не привязанные к дате** — в отличие от `staffing_demand`,
+где строка = проект+город+дата. Запись создаётся только при первом
+изменении статуса/комментария; её отсутствие в UI трактуется как
+`status = active`, `comment = null`.
+
+| Поле | Тип | Null | Примечание |
+|------|-----|------|-----------|
+| `id` | uuid | not null | PK, `gen_random_uuid()` |
+| `project` | text | **not null** | Свободный текст — здесь **не** enum `candidate_project` (сознательное отличие от `staffing_demand`, так задано) |
+| `city` | text | **not null** | Свободный текст, без FK |
+| `status` | text | **not null** | `default 'active'`; `check (status in ('active','paused','closed'))` |
+| `comment` | text | nullable | `check (comment is null or char_length(comment) <= 2000)`; приложение приводит `""` к `null` перед записью |
+| `created_at` | timestamptz | not null | `default now()` |
+| `updated_at` | timestamptz | not null | `default now()`, обновляется триггером |
+
+**Ограничение:** `unique (project, city)`. **Индексы:** по `project`,
+`city`, `status`.
+
+**Триггер:** `trg_staffing_demand_rows_set_updated_at` — переиспользует
+тот же `set_candidates_updated_at()`.
+
+**Почему `status` через `CHECK`, а не enum:** список статусов проще
+расширить (добавить значение) без миграции типа `ALTER TYPE ... ADD
+VALUE` — просто пересоздать/дополнить `CHECK`. Сужение до конкретных
+трёх строковых значений на уровне TypeScript делает приложение
+(`demandRowMeta.ts`), а не сгенерированные типы (там `status: string`).
+
+**Не удаляется физически** — как и `candidate_list_options`, без
+delete-политики: очистка комментария — это `UPDATE comment = null`, не
+удаление строки; статус тоже меняется только через `UPDATE`.
+
 ## Enum-типы
 
 | Enum | Значения |
@@ -123,8 +158,10 @@ upsert.
   миграции; функции hard-delete в репозитории нет.
 - **Потребность (`staffing_demand`) удаляется физически** — это единственное
   исключение из общего правила soft-delete, см. раздел таблицы выше.
-- `updated_at` в `candidates` и `staffing_demand` поддерживается триггером
-  автоматически.
+- **Метаданные строки (`staffing_demand_rows`) не удаляются вовсе** —
+  только `UPDATE` статуса/комментария, delete-политики нет.
+- `updated_at` в `candidates`, `staffing_demand` и `staffing_demand_rows`
+  поддерживается триггером автоматически.
 
 ## Репозитории (data-слой)
 
@@ -137,10 +174,14 @@ upsert.
 - [`staffingDemandRepo.ts`](../src/lib/supabase/staffingDemandRepo.ts):
   `listStaffingDemand`, `upsertStaffingDemandCell`, `deleteStaffingDemandCell`,
   `bulkUpsertStaffingDemand`.
+- [`staffingDemandRowsRepo.ts`](../src/lib/supabase/staffingDemandRowsRepo.ts):
+  `listStaffingDemandRowsMeta`, `upsertStaffingDemandRowMeta` (upsert по
+  `onConflict: "project,city"`). Функции удаления нет — не требуется.
 
 Типы: [`candidates.types.ts`](../src/lib/supabase/candidates.types.ts),
 [`candidateListOptions.types.ts`](../src/lib/supabase/candidateListOptions.types.ts),
-[`staffingDemand.types.ts`](../src/lib/supabase/staffingDemand.types.ts)
+[`staffingDemand.types.ts`](../src/lib/supabase/staffingDemand.types.ts),
+[`staffingDemandRows.types.ts`](../src/lib/supabase/staffingDemandRows.types.ts)
 — выведены из `database.types.ts` (`Row`/`Insert`/`Update`/`Enums`).
 
 ## Переменные окружения
@@ -157,12 +198,13 @@ upsert.
 
 ## Безопасность (RLS)
 
-- Все три таблицы: **RLS включён**, политики только для роли `authenticated`.
-  `using (true)` / `with check (true)` безопасны здесь, потому что применяются
-  к уже авторизованной роли, а не к `anon` — неавторизованный доступ запрещён
-  по умолчанию.
+- Все четыре таблицы: **RLS включён**, политики только для роли
+  `authenticated`. `using (true)` / `with check (true)` безопасны здесь,
+  потому что применяются к уже авторизованной роли, а не к `anon` —
+  неавторизованный доступ запрещён по умолчанию.
 - `staffing_demand` — единственная таблица с **delete**-политикой для
   `authenticated` (нужна для физического удаления ячеек, см. выше).
+  `staffing_demand_rows` — без delete-политики, как `candidate_list_options`.
 - Политики `anon` **не создаются** ни для одной таблицы.
 - В коде используется **только publishable-ключ** (и в браузере, и на сервере);
   `service_role` в приложении не применяется. Доступ регулируется RLS + auth.

@@ -7,6 +7,9 @@ import { repeatWeekRows } from "./demandCopy";
 import { DemandCell } from "./DemandCell";
 import type { DemandColumn, DemandMatrixData } from "./demandAggregate";
 import { cityPeriodTotal } from "./demandMetrics";
+import { getRowMeta } from "./demandRowMeta";
+import { DemandRowCommentButton } from "./DemandRowCommentButton";
+import { DemandRowStatusBadge } from "./DemandRowStatusBadge";
 import styles from "./DemandSection.module.css";
 
 export function DemandCityRow({
@@ -22,10 +25,11 @@ export function DemandCityRow({
   matrix: DemandMatrixData;
   onSaveCell: (project: string, city: string, dateIso: string, next: number | null) => Promise<boolean>;
 }) {
-  const { bulkSetDemandCells, pushToast } = usePortal();
+  const { bulkSetDemandCells, pushToast, demandRowMeta } = usePortal();
   const dates = matrix[project]?.[city] ?? {};
   const total = cityPeriodTotal(dates);
   const todayIso = toIsoDate(new Date());
+  const meta = getRowMeta(demandRowMeta, project, city);
 
   async function handleRepeatWeek() {
     const { from } = getWeekRange();
@@ -43,7 +47,11 @@ export function DemandCityRow({
       <td className={styles.colSticky}>
         <div className={styles.cityCell}>
           <Icon name="mapPin" size={13} />
-          {city}
+          <span className={styles.cityName} title={city}>
+            {city}
+          </span>
+          <DemandRowStatusBadge project={project} city={city} status={meta.status} />
+          <DemandRowCommentButton project={project} city={city} comment={meta.comment} />
           <button
             type="button"
             className={styles.repeatWeekButton}

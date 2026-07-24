@@ -9,6 +9,7 @@ const FULL_STATE: DemandUrlState = {
   filled: true,
   from: "2026-07-20",
   to: "2026-08-30",
+  rowStatus: "paused",
 };
 
 describe("serializeDemandParams", () => {
@@ -21,13 +22,20 @@ describe("serializeDemandParams", () => {
     expect(params.get("filled")).toBe("1");
     expect(params.get("from")).toBe("2026-07-20");
     expect(params.get("to")).toBe("2026-08-30");
+    expect(params.get("rowStatus")).toBe("paused");
   });
 
   it("omits falsy/empty fields instead of writing them empty", () => {
-    const params = serializeDemandParams({ section: "demand", project: "", filled: false });
+    const params = serializeDemandParams({ section: "demand", project: "", filled: false, rowStatus: "" });
     expect(params.get("project")).toBeNull();
     expect(params.get("filled")).toBeNull();
+    expect(params.get("rowStatus")).toBeNull();
     expect(params.get("section")).toBe("demand");
+  });
+
+  it('does not write a "rowStatus" param for "all statuses" (empty string)', () => {
+    const params = serializeDemandParams({ ...FULL_STATE, rowStatus: "" });
+    expect(params.has("rowStatus")).toBe(false);
   });
 
   it("produces params that round-trip through parseDemandParams", () => {
@@ -61,5 +69,14 @@ describe("parseDemandParams", () => {
 
   it("returns an empty object for an empty query string", () => {
     expect(parseDemandParams(new URLSearchParams(""))).toEqual({});
+  });
+
+  it("reads a valid rowStatus", () => {
+    expect(parseDemandParams(new URLSearchParams("rowStatus=paused")).rowStatus).toBe("paused");
+  });
+
+  it("ignores an unknown rowStatus value", () => {
+    const parsed = parseDemandParams(new URLSearchParams("rowStatus=archived"));
+    expect(parsed.rowStatus).toBeUndefined();
   });
 });

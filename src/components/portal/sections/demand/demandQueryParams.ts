@@ -1,9 +1,11 @@
+import { isDemandRowStatus, type DemandRowStatus } from "./demandRowMeta";
+
 /**
  * URL-restorable state for the "Потребность" section.
  *
- * `status`/`active` (from the full ТЗ) are added in a later stage, once the
- * `status` column exists — see demand/README.md. This stage covers the
- * fields that don't depend on it.
+ * `rowStatus` is the row-level (project+city) status filter from Этап 2B —
+ * deliberately not named `status`, to avoid ambiguity with any future
+ * per-cell/date status concept.
  */
 export interface DemandUrlState {
   section: string;
@@ -13,6 +15,7 @@ export interface DemandUrlState {
   filled: boolean;
   from: string;
   to: string;
+  rowStatus: DemandRowStatus | "";
 }
 
 /** Builds a URLSearchParams from whichever fields are set (falsy/empty values are omitted, not written as empty). */
@@ -25,6 +28,7 @@ export function serializeDemandParams(state: Partial<DemandUrlState>): URLSearch
   if (state.filled) params.set("filled", "1");
   if (state.from) params.set("from", state.from);
   if (state.to) params.set("to", state.to);
+  if (state.rowStatus) params.set("rowStatus", state.rowStatus);
   return params;
 }
 
@@ -45,5 +49,7 @@ export function parseDemandParams(params: URLSearchParams): Partial<DemandUrlSta
   if (from) result.from = from;
   const to = params.get("to");
   if (to) result.to = to;
+  const rowStatus = params.get("rowStatus");
+  if (rowStatus && isDemandRowStatus(rowStatus)) result.rowStatus = rowStatus;
   return result;
 }

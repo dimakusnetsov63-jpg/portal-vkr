@@ -53,6 +53,9 @@ import {
 import type { StaffingDemandRow } from "@/lib/supabase/staffingDemand.types";
 import { defaultDemandWindow, type DemandWindow } from "@/lib/portal/demandWindow";
 import { buildBulkRows } from "@/components/portal/sections/demand/demandAggregate";
+import { listStaffingDemandRowsMeta, upsertStaffingDemandRowMeta } from "@/lib/supabase/staffingDemandRowsRepo";
+import type { StaffingDemandRowMeta } from "@/lib/supabase/staffingDemandRows.types";
+import { demandRowMetaKey, mergeRowMetaPatch, type DemandRowStatus } from "@/components/portal/sections/demand/demandRowMeta";
 
 const staffRng = createRng(20260722);
 
@@ -129,6 +132,16 @@ interface PortalContextValue {
   bulkSetDemandCells: (
     rows: { project: string; city: string; demand_date: string; planned_count: number }[],
   ) => Promise<boolean>;
+
+  demandRowMeta: StaffingDemandRowMeta[];
+  demandRowMetaLoading: boolean;
+  demandRowMetaError: string | null;
+  refreshDemandRowMeta: () => Promise<void>;
+  updateDemandRowMeta: (
+    project: string,
+    city: string,
+    patch: { status?: DemandRowStatus; comment?: string | null },
+  ) => Promise<boolean>;
 }
 
 export interface ContextAction {
@@ -173,6 +186,11 @@ export function PortalProvider({
   const [demandLoading, setDemandLoading] = useState(true);
   const [demandError, setDemandError] = useState<string | null>(null);
   const [demandWindow, setDemandWindow] = useState<DemandWindow>(() => defaultDemandWindow());
+
+  const [demandRowMeta, setDemandRowMeta] = useState<StaffingDemandRowMeta[]>([]);
+  const [demandRowMetaLoading, setDemandRowMetaLoading] = useState(true);
+  const [demandRowMetaError, setDemandRowMetaError] = useState<string | null>(null);
+  const demandRowMetaSavingRef = useRef<Set<string>>(new Set());
 
   // Restore the active section from `?section=` once, after mount (client
   // only). Initial state above always renders "overview" — matching the
@@ -538,6 +556,54 @@ export function PortalProvider({
     [pushToast],
   );
 
+  const refreshDemandRowMeta = useCallback(async () => {
+    setDemandRowMetaLoading(true);
+    setDemandRowMetaError(null);
+    try {
+      setDemandRowMeta(await listStaffingDemandRowsMeta());
+    } catch (e) {
+      setDemandRowMetaError(e instanceof Error ? e.message : "Не удалось загрузить статусы и комментарии");
+    } finally {
+      setDemandRowMetaLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data load on mount
+    refreshDemandRowMeta();
+  }, [refreshDemandRowMeta]);
+
+  const updateDemandRowMeta = useCallback(
+    async (project: string, city: string, patch: { status?: DemandRowStatus; comment?: string | null }) => {
+      const key = demandRowMetaKey(project, city);
+      if (demandRowMetaSavingRef.current.has(key)) {
+        pushToast("Сохранение уже выполняется", "error");
+        return false;
+      }
+      demandRowMetaSavingRef.current.add(key);
+      try {
+        const existing = demandRowMeta.find((m) => m.project === project && m.city === city);
+        const merged = mergeRowMetaPatch(
+          existing ? { status: existing.status as DemandRowStatus, comment: existing.comment } : undefined,
+          patch,
+        );
+        const saved = await upsertStaffingDemandRowMeta(project, city, merged.status, merged.comment);
+        setDemandRowMeta((prev) => {
+          const idx = prev.findIndex((m) => m.project === project && m.city === city);
+          return idx >= 0 ? prev.map((m, i) => (i === idx ? saved : m)) : [...prev, saved];
+        });
+        return true;
+      } catch (e) {
+        const fallback = patch.status !== undefined ? "Не удалось сохранить статус" : "Не удалось сохранить комментарий";
+        pushToast(e instanceof Error ? e.message : fallback, "error");
+        return false;
+      } finally {
+        demandRowMetaSavingRef.current.delete(key);
+      }
+    },
+    [demandRowMeta, pushToast],
+  );
+
   const markNotificationRead = useCallback((id: number) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   }, []);
@@ -607,6 +673,11 @@ export function PortalProvider({
       deleteDemandCell,
       addDemandBulk,
       bulkSetDemandCells,
+      demandRowMeta,
+      demandRowMetaLoading,
+      demandRowMetaError,
+      refreshDemandRowMeta,
+      updateDemandRowMeta,
     }),
     [
       activePage,
@@ -660,6 +731,11 @@ export function PortalProvider({
       deleteDemandCell,
       addDemandBulk,
       bulkSetDemandCells,
+      demandRowMeta,
+      demandRowMetaLoading,
+      demandRowMetaError,
+      refreshDemandRowMeta,
+      updateDemandRowMeta,
     ],
   );
 

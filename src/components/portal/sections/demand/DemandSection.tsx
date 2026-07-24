@@ -16,6 +16,7 @@ import { DemandToolbar } from "./DemandToolbar";
 import { buildDemandMatrix, filterGroupsByCellPredicate, getDayColumns, listVisibleProjectCities } from "./demandAggregate";
 import { filterDemandRows } from "./demandFilters";
 import { parseDemandParams, serializeDemandParams } from "./demandQueryParams";
+import { filterGroupsByRowStatus, type DemandRowStatus } from "./demandRowMeta";
 import styles from "./DemandSection.module.css";
 
 export function DemandSection() {
@@ -30,6 +31,7 @@ export function DemandSection() {
     deleteDemandCell,
     addDemandBulk,
     listOptions,
+    demandRowMeta,
     setContextAction,
   } = usePortal();
 
@@ -41,6 +43,7 @@ export function DemandSection() {
   const [projectFilter, setProjectFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
   const [filledOnly, setFilledOnly] = useState(false);
+  const [rowStatusFilter, setRowStatusFilter] = useState<DemandRowStatus | "">("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [scrollToTodayTick, setScrollToTodayTick] = useState(0);
@@ -60,6 +63,7 @@ export function DemandSection() {
     if (parsed.city) setCityFilter(parsed.city);
     if (parsed.q) setSearch(parsed.q);
     if (parsed.filled !== undefined) setFilledOnly(parsed.filled);
+    if (parsed.rowStatus) setRowStatusFilter(parsed.rowStatus);
     if (parsed.from && parsed.to) setDemandWindow({ from: parsed.from, to: parsed.to });
     setInitializedFromUrl(true);
   }, [initializedFromUrl, searchParams, setDemandWindow]);
@@ -75,9 +79,20 @@ export function DemandSection() {
       filled: filledOnly,
       from: demandWindow.from,
       to: demandWindow.to,
+      rowStatus: rowStatusFilter,
     });
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [initializedFromUrl, projectFilter, cityFilter, search, filledOnly, demandWindow, pathname, router]);
+  }, [
+    initializedFromUrl,
+    projectFilter,
+    cityFilter,
+    search,
+    filledOnly,
+    rowStatusFilter,
+    demandWindow,
+    pathname,
+    router,
+  ]);
 
   const cityOptions = useMemo(() => activeListOptions(listOptions, "city").map((o) => o.value), [listOptions]);
 
@@ -99,18 +114,24 @@ export function DemandSection() {
     return Array.from(byProject.entries()).map(([project, cities]) => ({ project, cities }));
   }, [visible]);
 
-  const grouped = useMemo(
+  const groupedByCell = useMemo(
     () => (filledOnly ? filterGroupsByCellPredicate(groupedRaw, matrix, (v) => v > 0) : groupedRaw),
     [groupedRaw, matrix, filledOnly],
   );
 
-  const filtersActive = Boolean(search || projectFilter || cityFilter || filledOnly);
+  const grouped = useMemo(
+    () => (rowStatusFilter ? filterGroupsByRowStatus(groupedByCell, demandRowMeta, rowStatusFilter) : groupedByCell),
+    [groupedByCell, demandRowMeta, rowStatusFilter],
+  );
+
+  const filtersActive = Boolean(search || projectFilter || cityFilter || filledOnly || rowStatusFilter);
 
   function resetFilters() {
     setSearch("");
     setProjectFilter("");
     setCityFilter("");
     setFilledOnly(false);
+    setRowStatusFilter("");
   }
 
   function toggleCollapsed(project: string) {
@@ -165,6 +186,8 @@ export function DemandSection() {
           cityOptions={cityOptions}
           filledOnly={filledOnly}
           onFilledOnlyChange={setFilledOnly}
+          rowStatus={rowStatusFilter}
+          onRowStatusChange={setRowStatusFilter}
           onReset={resetFilters}
           onAdd={() => setModalOpen(true)}
           onToday={handleToday}
