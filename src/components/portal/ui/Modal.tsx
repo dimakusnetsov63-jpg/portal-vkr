@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "./Icon";
 import styles from "./Modal.module.css";
 
@@ -28,9 +29,15 @@ export function Modal({
     return () => document.removeEventListener("keydown", onKeydown);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  // Rendered via a portal straight to <body>: this is the only reliable way
+  // to escape `position: sticky` ancestors (e.g. the demand matrix's sticky
+  // first column), which create their own stacking context and would
+  // otherwise trap the overlay behind other sticky elements (like the
+  // matrix's sticky header/footer rows) regardless of this component's own
+  // z-index.
+  return createPortal(
     <div
       className={styles.overlay}
       onClick={(e) => {
@@ -47,6 +54,7 @@ export function Modal({
         <div className={styles.modalBody}>{children}</div>
         {footer && <div className={styles.modalFoot}>{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

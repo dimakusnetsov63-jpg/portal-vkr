@@ -440,15 +440,14 @@
   opacity: 0.6;
 }
 .rowStatusPanel {
-  position: absolute;
-  top: 100%;
-  left: 0;
+  /* position: fixed + top/left are set inline (computed from the trigger's
+     bounding rect) — this panel is portaled to <body>, see
+     DemandRowStatusBadge.tsx, so it isn't laid out relative to .rowStatusWrap. */
   z-index: 10;
   display: flex;
   flex-direction: column;
   min-width: 130px;
   padding: 6px;
-  margin-top: 4px;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface);
