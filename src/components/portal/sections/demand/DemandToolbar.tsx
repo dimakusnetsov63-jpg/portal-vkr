@@ -4,6 +4,7 @@ import { Button } from "@/components/portal/ui/Button";
 import { Icon } from "@/components/portal/ui/Icon";
 import { CANDIDATE_PROJECTS } from "@/lib/portal/candidateOptions";
 import primitives from "@/components/portal/ui/primitives.module.css";
+import styles from "./DemandSection.module.css";
 
 export function DemandToolbar({
   search,
@@ -13,8 +14,16 @@ export function DemandToolbar({
   city,
   onCityChange,
   cityOptions,
+  filledOnly,
+  onFilledOnlyChange,
   onReset,
   onAdd,
+  onToday,
+  onPrevWeek,
+  onCurrentWeek,
+  onNextWeek,
+  onExpandAll,
+  onCollapseAll,
 }: {
   search: string;
   onSearchChange: (value: string) => void;
@@ -23,8 +32,16 @@ export function DemandToolbar({
   city: string;
   onCityChange: (value: string) => void;
   cityOptions: string[];
+  filledOnly: boolean;
+  onFilledOnlyChange: (value: boolean) => void;
   onReset: () => void;
   onAdd: () => void;
+  onToday: () => void;
+  onPrevWeek: () => void;
+  onCurrentWeek: () => void;
+  onNextWeek: () => void;
+  onExpandAll: () => void;
+  onCollapseAll: () => void;
 }) {
   return (
     <div className={primitives.toolbar}>
@@ -53,10 +70,38 @@ export function DemandToolbar({
           </option>
         ))}
       </select>
+      <label className={styles.filledToggle}>
+        <input type="checkbox" checked={filledOnly} onChange={(e) => onFilledOnlyChange(e.target.checked)} />
+        Только заполненные
+      </label>
       <Button variant="ghost" size="sm" onClick={onReset}>
         Сбросить
       </Button>
+
       <div className={primitives.spacer} />
+
+      <Button variant="ghost" size="sm" onClick={onExpandAll}>
+        Развернуть все
+      </Button>
+      <Button variant="ghost" size="sm" onClick={onCollapseAll}>
+        Свернуть все
+      </Button>
+
+      <div className={primitives.seg}>
+        <button type="button" className={primitives.segButton} onClick={onPrevWeek}>
+          ← Неделя
+        </button>
+        <button type="button" className={primitives.segButton} onClick={onCurrentWeek}>
+          Текущая
+        </button>
+        <button type="button" className={primitives.segButton} onClick={onNextWeek}>
+          Неделя →
+        </button>
+      </div>
+      <Button variant="ghost" size="sm" onClick={onToday}>
+        Сегодня
+      </Button>
+
       <Button variant="primary" size="sm" onClick={onAdd}>
         <Icon name="plus" size={14} />
         Добавить потребность

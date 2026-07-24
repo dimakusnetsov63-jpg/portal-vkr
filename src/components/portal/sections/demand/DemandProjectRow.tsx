@@ -2,6 +2,7 @@
 
 import { Icon } from "@/components/portal/ui/Icon";
 import { avatarColor } from "@/lib/portal/format";
+import { toIsoDate } from "@/lib/portal/demandWindow";
 import { DemandCityRow } from "./DemandCityRow";
 import type { DemandColumn, DemandMatrixData } from "./demandAggregate";
 import { cityPeriodTotal } from "./demandMetrics";
@@ -25,6 +26,7 @@ export function DemandProjectRow({
   onSaveCell: (project: string, city: string, dateIso: string, next: number | null) => Promise<boolean>;
 }) {
   const total = cities.reduce((sum, city) => sum + cityPeriodTotal(matrix[project]?.[city]), 0);
+  const todayIso = toIsoDate(new Date());
 
   return (
     <>
@@ -41,7 +43,7 @@ export function DemandProjectRow({
           </div>
         </td>
         {columns.map((col) => (
-          <td key={col.key} />
+          <td key={col.key} className={col.key === todayIso ? styles.dateColToday : ""} />
         ))}
         <td className={styles.totalColSticky}>{total || ""}</td>
       </tr>

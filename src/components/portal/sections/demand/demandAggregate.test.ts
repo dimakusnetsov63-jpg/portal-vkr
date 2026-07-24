@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { StaffingDemandRow } from "@/lib/supabase/staffingDemand.types";
 import {
+  buildBulkRows,
   buildDemandMatrix,
   demandLevelForValue,
+  filterGroupsByCellPredicate,
   getDayColumns,
   isValidPlannedCount,
   listVisibleProjectCities,
@@ -116,5 +118,64 @@ describe("isValidPlannedCount", () => {
   });
   it("rejects NaN", () => {
     expect(isValidPlannedCount(Number.NaN)).toBe(false);
+  });
+});
+
+describe("buildBulkRows", () => {
+  it("builds one row per (city × date) with the same planned_count", () => {
+    const rows = buildBulkRows({
+      project: "Самокат",
+      cities: ["Москва", "Казань"],
+      fromDate: "2026-07-24",
+      toDate: "2026-07-25",
+      plannedCount: 5,
+    });
+    expect(rows).toEqual([
+      { project: "Самокат", city: "Москва", demand_date: "2026-07-24", planned_count: 5 },
+      { project: "Самокат", city: "Москва", demand_date: "2026-07-25", planned_count: 5 },
+      { project: "Самокат", city: "Казань", demand_date: "2026-07-24", planned_count: 5 },
+      { project: "Самокат", city: "Казань", demand_date: "2026-07-25", planned_count: 5 },
+    ]);
+  });
+
+  it("returns an empty array when no cities are selected", () => {
+    expect(
+      buildBulkRows({ project: "Самокат", cities: [], fromDate: "2026-07-24", toDate: "2026-07-25", plannedCount: 5 }),
+    ).toEqual([]);
+  });
+});
+
+describe("filterGroupsByCellPredicate", () => {
+  const matrix = buildDemandMatrix([
+    makeRow({ project: "Самокат", city: "Москва", demand_date: "2026-07-24", planned_count: 5 }),
+    makeRow({ project: "Самокат", city: "Казань", demand_date: "2026-07-24", planned_count: 0 }),
+    makeRow({ project: "Купер", city: "Москва", demand_date: "2026-07-24", planned_count: 0 }),
+  ]);
+  const grouped = [
+    { project: "Самокат", cities: ["Москва", "Казань"] },
+    { project: "Купер", cities: ["Москва"] },
+  ];
+
+  it("keeps a row as soon as one of its cells satisfies the predicate", () => {
+    const result = filterGroupsByCellPredicate(grouped, matrix, (v) => v > 0);
+    expect(result).toEqual([{ project: "Самокат", cities: ["Москва"] }]);
+  });
+
+  it("drops a whole project group when none of its cities qualify", () => {
+    const result = filterGroupsByCellPredicate(grouped, matrix, (v) => v > 0);
+    expect(result.some((g) => g.project === "Купер")).toBe(false);
+  });
+
+  it("does not require every date to qualify, only at least one", () => {
+    const twoDateMatrix = buildDemandMatrix([
+      makeRow({ project: "Самокат", city: "Москва", demand_date: "2026-07-24", planned_count: 0 }),
+      makeRow({ project: "Самокат", city: "Москва", demand_date: "2026-07-25", planned_count: 3 }),
+    ]);
+    const result = filterGroupsByCellPredicate(
+      [{ project: "Самокат", cities: ["Москва"] }],
+      twoDateMatrix,
+      (v) => v > 0,
+    );
+    expect(result).toEqual([{ project: "Самокат", cities: ["Москва"] }]);
   });
 });

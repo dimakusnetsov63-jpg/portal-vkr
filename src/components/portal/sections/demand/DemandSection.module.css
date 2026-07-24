@@ -296,3 +296,125 @@
   justify-content: center;
   padding-bottom: 28px;
 }
+
+/* ---- today column + row/cell hover ---- */
+.dateColToday {
+  background: var(--accent-soft);
+}
+.demandCellToday {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.cityRow:hover .cityCell {
+  background: var(--surface-hover);
+}
+.demandCell:hover {
+  filter: brightness(0.97);
+}
+
+/* ---- per-city "repeat next week" button ---- */
+.repeatWeekButton {
+  margin-left: auto;
+  background: none;
+  border: none;
+  display: flex;
+  padding: 3px;
+  border-radius: 5px;
+  color: var(--text-3);
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+.cityRow:hover .repeatWeekButton {
+  opacity: 1;
+}
+.repeatWeekButton:hover {
+  background: var(--surface-hover);
+  color: var(--text-1);
+}
+
+/* ---- per-cell "…" actions menu ---- */
+.cellMenuWrap {
+  position: absolute;
+  bottom: 2px;
+  right: 3px;
+}
+.cellMenuTrigger {
+  background: none;
+  border: none;
+  display: flex;
+  padding: 1px;
+  border-radius: 4px;
+  color: var(--text-3);
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+.demandCell:hover .cellMenuTrigger,
+.demandCell:focus-within .cellMenuTrigger {
+  opacity: 1;
+}
+.cellMenuTrigger:hover {
+  background: var(--surface-hover);
+  color: var(--text-1);
+}
+.cellMenuPanel {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-s);
+  text-align: left;
+  white-space: nowrap;
+}
+.cellMenuPanel button {
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 7px 8px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+.cellMenuPanel button:hover {
+  background: var(--surface-hover);
+}
+.cellMenuUntil {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 8px;
+}
+.cellMenuUntil input {
+  flex: 1;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  padding: 0 6px;
+  font-size: 12px;
+}
+.cellMenuUntil button {
+  padding: 6px 8px !important;
+  white-space: nowrap;
+}
+
+/* ---- toolbar: "только заполненные" toggle ---- */
+.filledToggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.filledToggle input {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+}

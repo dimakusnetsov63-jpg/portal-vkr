@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { usePortal } from "@/components/portal/context/PortalContext";
 import { Button } from "@/components/portal/ui/Button";
 import { Icon } from "@/components/portal/ui/Icon";
@@ -8,11 +9,13 @@ import { PageHead } from "@/components/portal/ui/PageHead";
 import { Panel } from "@/components/portal/ui/Panel";
 import { EmptyState, ErrorState, SkeletonRows } from "@/components/portal/ui/StateViews";
 import { activeListOptions } from "@/lib/portal/candidateOptions";
+import { defaultDemandWindow, getWeekRange, isWeekWindow, shiftWindow } from "@/lib/portal/demandWindow";
 import { AddDemandModal } from "./AddDemandModal";
 import { DemandMatrix } from "./DemandMatrix";
 import { DemandToolbar } from "./DemandToolbar";
-import { buildDemandMatrix, getDayColumns, listVisibleProjectCities } from "./demandAggregate";
+import { buildDemandMatrix, filterGroupsByCellPredicate, getDayColumns, listVisibleProjectCities } from "./demandAggregate";
 import { filterDemandRows } from "./demandFilters";
+import { parseDemandParams, serializeDemandParams } from "./demandQueryParams";
 import styles from "./DemandSection.module.css";
 
 export function DemandSection() {
@@ -21,6 +24,7 @@ export function DemandSection() {
     demandLoading,
     demandError,
     demandWindow,
+    setDemandWindow,
     refreshDemand,
     upsertDemandCell,
     deleteDemandCell,
@@ -29,16 +33,51 @@ export function DemandSection() {
     setContextAction,
   } = usePortal();
 
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [search, setSearch] = useState("");
   const [projectFilter, setProjectFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
+  const [filledOnly, setFilledOnly] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [modalOpen, setModalOpen] = useState(false);
+  const [scrollToTodayTick, setScrollToTodayTick] = useState(0);
+  const [initializedFromUrl, setInitializedFromUrl] = useState(false);
 
   useEffect(() => {
     setContextAction({ label: "Добавить потребность", onClick: () => setModalOpen(true) });
     return () => setContextAction(null);
   }, [setContextAction]);
+
+  // Read the initial state from the URL once, after mount.
+  useEffect(() => {
+    if (initializedFromUrl) return;
+    const parsed = parseDemandParams(searchParams);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time restore from the URL on mount
+    if (parsed.project) setProjectFilter(parsed.project);
+    if (parsed.city) setCityFilter(parsed.city);
+    if (parsed.q) setSearch(parsed.q);
+    if (parsed.filled !== undefined) setFilledOnly(parsed.filled);
+    if (parsed.from && parsed.to) setDemandWindow({ from: parsed.from, to: parsed.to });
+    setInitializedFromUrl(true);
+  }, [initializedFromUrl, searchParams, setDemandWindow]);
+
+  // Keep the URL in sync with the current filters/window, once initialized.
+  useEffect(() => {
+    if (!initializedFromUrl) return;
+    const params = serializeDemandParams({
+      section: "demand",
+      project: projectFilter,
+      city: cityFilter,
+      q: search,
+      filled: filledOnly,
+      from: demandWindow.from,
+      to: demandWindow.to,
+    });
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [initializedFromUrl, projectFilter, cityFilter, search, filledOnly, demandWindow, pathname, router]);
 
   const cityOptions = useMemo(() => activeListOptions(listOptions, "city").map((o) => o.value), [listOptions]);
 
@@ -51,7 +90,7 @@ export function DemandSection() {
   const matrix = useMemo(() => buildDemandMatrix(filtered), [filtered]);
   const columns = useMemo(() => getDayColumns(demandWindow.from, demandWindow.to), [demandWindow]);
 
-  const grouped = useMemo(() => {
+  const groupedRaw = useMemo(() => {
     const byProject = new Map<string, string[]>();
     for (const { project, city } of visible) {
       if (!byProject.has(project)) byProject.set(project, []);
@@ -60,16 +99,51 @@ export function DemandSection() {
     return Array.from(byProject.entries()).map(([project, cities]) => ({ project, cities }));
   }, [visible]);
 
-  const filtersActive = Boolean(search || projectFilter || cityFilter);
+  const grouped = useMemo(
+    () => (filledOnly ? filterGroupsByCellPredicate(groupedRaw, matrix, (v) => v > 0) : groupedRaw),
+    [groupedRaw, matrix, filledOnly],
+  );
+
+  const filtersActive = Boolean(search || projectFilter || cityFilter || filledOnly);
 
   function resetFilters() {
     setSearch("");
     setProjectFilter("");
     setCityFilter("");
+    setFilledOnly(false);
   }
 
   function toggleCollapsed(project: string) {
     setCollapsed((prev) => ({ ...prev, [project]: !prev[project] }));
+  }
+
+  function expandAll() {
+    setCollapsed({});
+  }
+
+  function collapseAll() {
+    setCollapsed(Object.fromEntries(groupedRaw.map((g) => [g.project, true])));
+  }
+
+  function handleToday() {
+    setDemandWindow(defaultDemandWindow());
+    setScrollToTodayTick((t) => t + 1);
+  }
+
+  function currentWeekBase() {
+    return isWeekWindow(demandWindow) ? demandWindow : getWeekRange();
+  }
+
+  function handlePrevWeek() {
+    setDemandWindow(shiftWindow(currentWeekBase(), -7));
+  }
+
+  function handleNextWeek() {
+    setDemandWindow(shiftWindow(currentWeekBase(), 7));
+  }
+
+  function handleCurrentWeek() {
+    setDemandWindow(getWeekRange());
   }
 
   function handleSaveCell(project: string, city: string, dateIso: string, next: number | null) {
@@ -89,8 +163,16 @@ export function DemandSection() {
           city={cityFilter}
           onCityChange={setCityFilter}
           cityOptions={cityOptions}
+          filledOnly={filledOnly}
+          onFilledOnlyChange={setFilledOnly}
           onReset={resetFilters}
           onAdd={() => setModalOpen(true)}
+          onToday={handleToday}
+          onPrevWeek={handlePrevWeek}
+          onCurrentWeek={handleCurrentWeek}
+          onNextWeek={handleNextWeek}
+          onExpandAll={expandAll}
+          onCollapseAll={collapseAll}
         />
 
         {demandLoading && <SkeletonRows rows={8} />}
@@ -123,6 +205,7 @@ export function DemandSection() {
               collapsed={collapsed}
               onToggleCollapse={toggleCollapsed}
               onSaveCell={handleSaveCell}
+              scrollToTodaySignal={scrollToTodayTick}
             />
           ))}
       </Panel>

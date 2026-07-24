@@ -10,8 +10,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
-import { MANAGERS, COORDINATORS } from "@/lib/portal/constants";
+import { useRouter, useSearchParams } from "next/navigation";
+import { MANAGERS, COORDINATORS, NAV_ITEMS } from "@/lib/portal/constants";
 import { generateCandidates } from "@/lib/portal/generateCandidates";
 import { INITIAL_NOTIFICATIONS } from "@/lib/portal/notifications";
 import { pick } from "@/lib/portal/random";
@@ -51,7 +51,8 @@ import {
   upsertStaffingDemandCell,
 } from "@/lib/supabase/staffingDemandRepo";
 import type { StaffingDemandRow } from "@/lib/supabase/staffingDemand.types";
-import { defaultDemandWindow, enumerateIsoDates, type DemandWindow } from "@/lib/portal/demandWindow";
+import { defaultDemandWindow, type DemandWindow } from "@/lib/portal/demandWindow";
+import { buildBulkRows } from "@/components/portal/sections/demand/demandAggregate";
 
 const staffRng = createRng(20260722);
 
@@ -114,6 +115,7 @@ interface PortalContextValue {
   demandLoading: boolean;
   demandError: string | null;
   demandWindow: DemandWindow;
+  setDemandWindow: (window: DemandWindow) => void;
   refreshDemand: () => Promise<void>;
   upsertDemandCell: (project: string, city: string, demandDate: string, plannedCount: number) => Promise<boolean>;
   deleteDemandCell: (project: string, city: string, demandDate: string) => Promise<boolean>;
@@ -124,6 +126,9 @@ interface PortalContextValue {
     toDate: string;
     plannedCount: number;
   }) => Promise<boolean>;
+  bulkSetDemandCells: (
+    rows: { project: string; city: string; demand_date: string; planned_count: number }[],
+  ) => Promise<boolean>;
 }
 
 export interface ContextAction {
@@ -141,6 +146,7 @@ export function PortalProvider({
   initialUserEmail: string | null;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activePage, setActivePage] = useState<PortalPage>("overview");
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [candidates, setCandidates] = useState<Candidate[]>(() => generateCandidates());
@@ -166,7 +172,23 @@ export function PortalProvider({
   const [demandRows, setDemandRows] = useState<StaffingDemandRow[]>([]);
   const [demandLoading, setDemandLoading] = useState(true);
   const [demandError, setDemandError] = useState<string | null>(null);
-  const [demandWindow] = useState<DemandWindow>(() => defaultDemandWindow());
+  const [demandWindow, setDemandWindow] = useState<DemandWindow>(() => defaultDemandWindow());
+
+  // Restore the active section from `?section=` once, after mount (client
+  // only). Initial state above always renders "overview" — matching the
+  // server-rendered markup — so this never causes a hydration mismatch. The
+  // effect never re-runs itself (empty deps) and nothing here writes
+  // `section` back into the URL, so there is no update loop with the
+  // section's own filter-writing effect (see DemandSection.tsx).
+  useEffect(() => {
+    const section = searchParams.get("section");
+    const valid = NAV_ITEMS.some((n) => n.id === section);
+    if (valid) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time restore from the URL on mount
+      setActivePage(section as PortalPage);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run exactly once, on mount
+  }, []);
 
   const goto = useCallback((page: PortalPage) => {
     setActivePage(page);
@@ -474,20 +496,12 @@ export function PortalProvider({
 
   const addDemandBulk = useCallback(
     async (input: { project: string; cities: string[]; fromDate: string; toDate: string; plannedCount: number }) => {
-      const dates = enumerateIsoDates(input.fromDate, input.toDate);
-      const rows = input.cities.flatMap((city) =>
-        dates.map((demand_date) => ({
-          project: input.project as CandidateProject,
-          city,
-          demand_date,
-          planned_count: input.plannedCount,
-        })),
-      );
+      const rows = buildBulkRows(input).map((r) => ({ ...r, project: r.project as CandidateProject }));
       try {
         const saved = await bulkUpsertStaffingDemand(rows);
         setDemandRows((prev) => {
           const key = (r: { project: string; city: string; demand_date: string }) =>
-            `${r.project} ${r.city} ${r.demand_date}`;
+            `${r.project} ${r.city} ${r.demand_date}`;
           const savedKeys = new Set(saved.map(key));
           return [...prev.filter((r) => !savedKeys.has(key(r))), ...saved];
         });
@@ -495,6 +509,29 @@ export function PortalProvider({
         return true;
       } catch (e) {
         pushToast(e instanceof Error ? e.message : "Не удалось добавить потребность", "error");
+        return false;
+      }
+    },
+    [pushToast],
+  );
+
+  /** Generic bulk write for copy actions ("Скопировать на 7 дней", "Повторить строку на следующую неделю", …): sets specific (project, city, date) cells to specific values, unlike `addDemandBulk`'s city × date-range cross-product. */
+  const bulkSetDemandCells = useCallback(
+    async (rows: { project: string; city: string; demand_date: string; planned_count: number }[]) => {
+      if (rows.length === 0) return true;
+      try {
+        const saved = await bulkUpsertStaffingDemand(
+          rows.map((r) => ({ ...r, project: r.project as CandidateProject })),
+        );
+        setDemandRows((prev) => {
+          const key = (r: { project: string; city: string; demand_date: string }) =>
+            `${r.project} ${r.city} ${r.demand_date}`;
+          const savedKeys = new Set(saved.map(key));
+          return [...prev.filter((r) => !savedKeys.has(key(r))), ...saved];
+        });
+        return true;
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось скопировать потребность", "error");
         return false;
       }
     },
@@ -564,10 +601,12 @@ export function PortalProvider({
       demandLoading,
       demandError,
       demandWindow,
+      setDemandWindow,
       refreshDemand,
       upsertDemandCell,
       deleteDemandCell,
       addDemandBulk,
+      bulkSetDemandCells,
     }),
     [
       activePage,
@@ -615,10 +654,12 @@ export function PortalProvider({
       demandLoading,
       demandError,
       demandWindow,
+      setDemandWindow,
       refreshDemand,
       upsertDemandCell,
       deleteDemandCell,
       addDemandBulk,
+      bulkSetDemandCells,
     ],
   );
 

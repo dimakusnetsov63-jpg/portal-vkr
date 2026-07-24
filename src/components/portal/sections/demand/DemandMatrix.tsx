@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import { useHorizontalScrollSync } from "@/components/portal/ui/useHorizontalScrollSync";
+import { toIsoDate } from "@/lib/portal/demandWindow";
 import { DemandProjectRow } from "./DemandProjectRow";
 import type { DemandColumn, DemandMatrixData } from "./demandAggregate";
 import { grandPeriodTotal, grandTotalsByColumn } from "./demandMetrics";
@@ -13,6 +15,7 @@ export function DemandMatrix({
   collapsed,
   onToggleCollapse,
   onSaveCell,
+  scrollToTodaySignal,
 }: {
   grouped: { project: string; cities: string[] }[];
   columns: DemandColumn[];
@@ -20,11 +23,21 @@ export function DemandMatrix({
   collapsed: Record<string, boolean>;
   onToggleCollapse: (project: string) => void;
   onSaveCell: (project: string, city: string, dateIso: string, next: number | null) => Promise<boolean>;
+  /** Bumped by the "Сегодня" button to trigger a scroll to today's column. */
+  scrollToTodaySignal?: number;
 }) {
   const { scrollRef, fakeRef, innerWidth } = useHorizontalScrollSync();
   const visible = grouped.flatMap((g) => g.cities.map((city) => ({ project: g.project, city })));
   const columnTotals = grandTotalsByColumn(matrix, visible, columns);
   const grandTotal = grandPeriodTotal(matrix, visible);
+  const todayIso = toIsoDate(new Date());
+
+  useEffect(() => {
+    if (!scrollToTodaySignal) return;
+    const el = scrollRef.current?.querySelector<HTMLElement>('[data-today="true"]');
+    el?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- scrollRef is stable, only the signal should retrigger this
+  }, [scrollToTodaySignal]);
 
   return (
     <div className={styles.tableWrap}>
@@ -36,7 +49,8 @@ export function DemandMatrix({
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`${styles.headCell} ${styles.dateCol} ${col.weekend ? styles.dateColWeekend : ""}`}
+                  data-today={col.key === todayIso ? "true" : undefined}
+                  className={`${styles.headCell} ${styles.dateCol} ${col.weekend ? styles.dateColWeekend : ""} ${col.key === todayIso ? styles.dateColToday : ""}`}
                 >
                   {col.label}
                   <span className={styles.dow}>{col.sub}</span>
@@ -63,7 +77,10 @@ export function DemandMatrix({
             <tr>
               <td className={`${styles.footCell} ${styles.projectCol}`}>Итого по всем проектам</td>
               {columns.map((col, i) => (
-                <td key={col.key} className={`${styles.footCell} ${styles.dateCol}`}>
+                <td
+                  key={col.key}
+                  className={`${styles.footCell} ${styles.dateCol} ${col.key === todayIso ? styles.dateColToday : ""}`}
+                >
                   {columnTotals[i] || ""}
                 </td>
               ))}

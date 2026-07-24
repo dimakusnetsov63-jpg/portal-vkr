@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { demandLevelForValue, isValidPlannedCount, type DemandCellLevel } from "./demandAggregate";
+import { demandLevelForValue, type DemandCellLevel } from "./demandAggregate";
+import { resolveCellCommit } from "./demandCellEdit";
+import { DemandCellMenu } from "./DemandCellMenu";
 import styles from "./DemandSection.module.css";
 
 const LEVEL_CLASS: Record<DemandCellLevel, string> = {
@@ -13,11 +15,19 @@ const LEVEL_CLASS: Record<DemandCellLevel, string> = {
 };
 
 export function DemandCell({
+  project,
+  city,
+  date,
   value,
+  isToday,
   onSave,
 }: {
+  project: string;
+  city: string;
+  date: string;
   /** null = potребность не выставлена (no row). */
   value: number | null;
+  isToday?: boolean;
   onSave: (next: number | null) => Promise<boolean>;
 }) {
   const [editing, setEditing] = useState(false);
@@ -40,12 +50,10 @@ export function DemandCell({
     setEditing(true);
   }
 
-  async function commit() {
-    const raw = draft.trim();
-    setEditing(false);
-
-    if (raw === "") {
-      if (value === null) return;
+  async function apply(raw: string) {
+    const action = resolveCellCommit(raw, value);
+    if (action.type === "noop") return;
+    if (action.type === "delete") {
       setPending(null);
       setSaving(true);
       await onSave(null);
@@ -53,15 +61,17 @@ export function DemandCell({
       setPending(undefined);
       return;
     }
-
-    const parsed = Number(raw);
-    if (!isValidPlannedCount(parsed) || parsed === value) return;
-
-    setPending(parsed);
+    setPending(action.value);
     setSaving(true);
-    await onSave(parsed);
+    await onSave(action.value);
     setSaving(false);
     setPending(undefined);
+  }
+
+  async function commit() {
+    const raw = draft;
+    setEditing(false);
+    await apply(raw);
   }
 
   function handleBlur() {
@@ -75,6 +85,15 @@ export function DemandCell({
   function cancel() {
     skipBlurRef.current = true;
     setEditing(false);
+  }
+
+  function handleViewKeyDown(e: React.KeyboardEvent<HTMLTableCellElement>) {
+    if (e.key === "Delete" || e.key === "Backspace") {
+      e.preventDefault();
+      if (value !== null) apply("");
+    } else if (e.key === "Enter") {
+      startEdit();
+    }
   }
 
   if (editing) {
@@ -107,12 +126,17 @@ export function DemandCell({
 
   return (
     <td
-      className={`${styles.demandCell} ${LEVEL_CLASS[level]} ${saving ? styles.demandCellSaving : ""}`}
+      className={`${styles.demandCell} ${LEVEL_CLASS[level]} ${saving ? styles.demandCellSaving : ""} ${isToday ? styles.demandCellToday : ""}`}
       onClick={startEdit}
+      onKeyDown={handleViewKeyDown}
+      tabIndex={0}
       title={displayValue === null ? "Потребность не выставлена" : `Потребность: ${displayValue}`}
     >
       {displayValue === null ? "" : displayValue}
       {saving && <span className={styles.savingDot} />}
+      {displayValue !== null && !saving && (
+        <DemandCellMenu project={project} city={city} date={date} value={displayValue} />
+      )}
     </td>
   );
 }

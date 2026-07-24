@@ -38,3 +38,26 @@ export function defaultDemandWindow(today: Date = new Date()): DemandWindow {
     to: addIsoDays(todayIso, DEMAND_WINDOW_DAYS_AFTER),
   };
 }
+
+/** Monday-start (Mon..Sun) week containing `iso` (defaults to today). */
+export function getWeekRange(iso: string = toIsoDate(new Date())): DemandWindow {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dow = new Date(y, m - 1, d).getDay();
+  const mondayOffset = dow === 0 ? -6 : 1 - dow;
+  const from = addIsoDays(iso, mondayOffset);
+  return { from, to: addIsoDays(from, 6) };
+}
+
+/** Shifts both endpoints of a window by `days` (may be negative), preserving its span. */
+export function shiftWindow(window: DemandWindow, days: number): DemandWindow {
+  return { from: addIsoDays(window.from, days), to: addIsoDays(window.to, days) };
+}
+
+export function windowSpanDays(window: DemandWindow): number {
+  return enumerateIsoDates(window.from, window.to).length;
+}
+
+/** True when the window is exactly one Mon..Sun week (as opposed to the default rolling window). */
+export function isWeekWindow(window: DemandWindow): boolean {
+  return windowSpanDays(window) === 7;
+}

@@ -72,8 +72,8 @@ export function AddDemandModal({
       pushToast("Дата начала должна быть не позже даты окончания", "error");
       return;
     }
-    if (!Number.isInteger(plannedCount) || plannedCount < 0) {
-      pushToast("Количество должно быть целым числом от 0", "error");
+    if (!Number.isInteger(plannedCount) || plannedCount <= 0) {
+      pushToast("Количество должно быть целым числом больше 0", "error");
       return;
     }
     setSaving(true);
@@ -149,7 +149,7 @@ export function AddDemandModal({
         <label>Количество сотрудников (на каждый день и город)</label>
         <input
           type="number"
-          min={0}
+          min={1}
           value={plannedCount}
           onChange={(e) => setPlannedCount(parseInt(e.target.value || "0", 10))}
         />
