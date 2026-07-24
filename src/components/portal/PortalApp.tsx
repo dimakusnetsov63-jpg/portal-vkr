@@ -6,7 +6,7 @@ import { Topbar } from "@/components/portal/layout/Topbar";
 import { MobileTabBar } from "@/components/portal/layout/MobileTabBar";
 import { ToastStack } from "@/components/portal/ui/ToastStack";
 import { OverviewSection } from "@/components/portal/sections/OverviewSection";
-import { DemandSection } from "@/components/portal/sections/DemandSection";
+import { DemandSection } from "@/components/portal/sections/demand";
 import { CandidatesSection, RealCandidateDrawer } from "@/components/portal/sections/candidates";
 import { CandidateDrawer } from "@/components/portal/sections/CandidateDrawer";
 import { VacanciesSection } from "@/components/portal/sections/VacanciesSection";

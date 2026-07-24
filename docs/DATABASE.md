@@ -10,9 +10,9 @@
 
 ## Таблицы
 
-Подтверждены две таблицы в схеме `public`: `candidates` и
-`candidate_list_options`. Auth-таблицы (`auth.users` и т.п.) управляются
-Supabase и в миграциях проекта не описаны.
+Подтверждены три таблицы в схеме `public`: `candidates`,
+`candidate_list_options` и `staffing_demand`. Auth-таблицы (`auth.users` и
+т.п.) управляются Supabase и в миграциях проекта не описаны.
 
 ### `public.candidates`
 
@@ -70,6 +70,38 @@ has_medical_book, created_at, archived_at) + GIN trigram-индекс по `full
 **Ограничение:** `unique (list_type, value)` — в рамках одного типа значения
 не повторяются. **Индексы:** по `list_type` и по `(list_type, sort_order)`.
 
+### `public.staffing_demand`
+
+Плановая потребность в персонале по проекту/городу/дню для раздела
+«Потребность». **Без soft-delete** (в отличие от остальных таблиц) —
+очистка ячейки в UI физически удаляет строку, значение обновляется обычным
+upsert.
+
+| Поле | Тип | Null | Примечание |
+|------|-----|------|-----------|
+| `id` | uuid | not null | PK, `gen_random_uuid()` |
+| `project` | enum `candidate_project` | **not null** | Тот же enum, что и у кандидатов |
+| `city` | text | **not null** | Свободный текст, без FK на `candidate_list_options` |
+| `demand_date` | date | **not null** | |
+| `planned_count` | integer | **not null** | `check (planned_count >= 0)`; отсутствие строки = «не задано» |
+| `created_at` | timestamptz | not null | `default now()` |
+| `updated_at` | timestamptz | not null | `default now()`, обновляется триггером |
+
+**Ограничение:** `unique (project, city, demand_date)` (обычный, не partial —
+см. примечание ниже). **Индексы:** по `demand_date`, `project`, `city`.
+
+**Триггер:** `trg_staffing_demand_set_updated_at` — переиспользует
+`set_candidates_updated_at()` из миграции `candidates`.
+
+**Почему без soft-delete:** запись потребности не несёт исторической/
+аудиторской ценности после снятия значения, поэтому очистка ячейки — обычный
+`DELETE`, а не `archived_at`. Это осознанное отличие от `candidates`/
+`candidate_list_options`. Также именно поэтому здесь используется **обычный**
+`unique`-констрейнт, а не partial unique index по `archived_at is null`:
+связка Supabase-JS `.upsert(...).onConflict(...)` с partial index может вести
+себя непредсказуемо через PostgREST, а с обычным индексом `onConflict:
+"project,city,demand_date"` работает предсказуемо.
+
 ## Enum-типы
 
 | Enum | Значения |
@@ -89,7 +121,10 @@ has_medical_book, created_at, archived_at) + GIN trigram-индекс по `full
 - **Справочники не удаляются физически** — деактивируются через
   `is_active = false`. `DELETE`-политика была намеренно удалена в последней
   миграции; функции hard-delete в репозитории нет.
-- `updated_at` в `candidates` поддерживается триггером автоматически.
+- **Потребность (`staffing_demand`) удаляется физически** — это единственное
+  исключение из общего правила soft-delete, см. раздел таблицы выше.
+- `updated_at` в `candidates` и `staffing_demand` поддерживается триггером
+  автоматически.
 
 ## Репозитории (data-слой)
 
@@ -99,9 +134,13 @@ has_medical_book, created_at, archived_at) + GIN trigram-индекс по `full
   `listCandidateListOptions`, `createCandidateListOption`,
   `updateCandidateListOption` (переименование / `is_active` / `sort_order`).
   Функции hard-delete нет намеренно.
+- [`staffingDemandRepo.ts`](../src/lib/supabase/staffingDemandRepo.ts):
+  `listStaffingDemand`, `upsertStaffingDemandCell`, `deleteStaffingDemandCell`,
+  `bulkUpsertStaffingDemand`.
 
 Типы: [`candidates.types.ts`](../src/lib/supabase/candidates.types.ts),
-[`candidateListOptions.types.ts`](../src/lib/supabase/candidateListOptions.types.ts)
+[`candidateListOptions.types.ts`](../src/lib/supabase/candidateListOptions.types.ts),
+[`staffingDemand.types.ts`](../src/lib/supabase/staffingDemand.types.ts)
 — выведены из `database.types.ts` (`Row`/`Insert`/`Update`/`Enums`).
 
 ## Переменные окружения
@@ -118,10 +157,12 @@ has_medical_book, created_at, archived_at) + GIN trigram-индекс по `full
 
 ## Безопасность (RLS)
 
-- Обе таблицы: **RLS включён**, политики только для роли `authenticated`.
+- Все три таблицы: **RLS включён**, политики только для роли `authenticated`.
   `using (true)` / `with check (true)` безопасны здесь, потому что применяются
   к уже авторизованной роли, а не к `anon` — неавторизованный доступ запрещён
   по умолчанию.
+- `staffing_demand` — единственная таблица с **delete**-политикой для
+  `authenticated` (нужна для физического удаления ячеек, см. выше).
 - Политики `anon` **не создаются** ни для одной таблицы.
 - В коде используется **только publishable-ключ** (и в браузере, и на сервере);
   `service_role` в приложении не применяется. Доступ регулируется RLS + auth.

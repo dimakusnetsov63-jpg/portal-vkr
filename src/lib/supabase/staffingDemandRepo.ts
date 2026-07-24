@@ -1,0 +1,61 @@
+import { createClient } from "./client";
+import type { CandidateProject } from "./candidates.types";
+import type { StaffingDemandRow } from "./staffingDemand.types";
+
+/** All active demand rows whose demand_date falls in [fromDate, toDate] (both ISO, inclusive) — one query for the whole visible period. */
+export async function listStaffingDemand(fromDate: string, toDate: string): Promise<StaffingDemandRow[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("staffing_demand")
+    .select("*")
+    .gte("demand_date", fromDate)
+    .lte("demand_date", toDate)
+    .order("demand_date", { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
+/** Upsert one cell, keyed on (project, city, demand_date) via the table's unique constraint. */
+export async function upsertStaffingDemandCell(
+  project: CandidateProject,
+  city: string,
+  demandDate: string,
+  plannedCount: number,
+): Promise<StaffingDemandRow> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("staffing_demand")
+    .upsert(
+      { project, city, demand_date: demandDate, planned_count: plannedCount },
+      { onConflict: "project,city,demand_date" },
+    )
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/** Physically remove one cell (clearing it back to "not set"). No-op if the row doesn't exist. */
+export async function deleteStaffingDemandCell(project: CandidateProject, city: string, demandDate: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("staffing_demand")
+    .delete()
+    .eq("project", project)
+    .eq("city", city)
+    .eq("demand_date", demandDate);
+  if (error) throw error;
+}
+
+/** Bulk upsert for the "Добавить потребность" modal: one row per (city × date) in the range, same planned_count for all. */
+export async function bulkUpsertStaffingDemand(
+  rows: { project: CandidateProject; city: string; demand_date: string; planned_count: number }[],
+): Promise<StaffingDemandRow[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("staffing_demand")
+    .upsert(rows, { onConflict: "project,city,demand_date" })
+    .select();
+  if (error) throw error;
+  return data;
+}

@@ -35,6 +35,7 @@ import {
 import type {
   Candidate as RealCandidate,
   CandidateInsert,
+  CandidateProject,
   CandidateUpdate,
 } from "@/lib/supabase/candidates.types";
 import {
@@ -43,6 +44,14 @@ import {
   updateCandidateListOption,
 } from "@/lib/supabase/candidateListOptionsRepo";
 import type { CandidateListOption, CandidateListType } from "@/lib/supabase/candidateListOptions.types";
+import {
+  bulkUpsertStaffingDemand,
+  deleteStaffingDemandCell,
+  listStaffingDemand,
+  upsertStaffingDemandCell,
+} from "@/lib/supabase/staffingDemandRepo";
+import type { StaffingDemandRow } from "@/lib/supabase/staffingDemand.types";
+import { defaultDemandWindow, enumerateIsoDates, type DemandWindow } from "@/lib/portal/demandWindow";
 
 const staffRng = createRng(20260722);
 
@@ -100,6 +109,21 @@ interface PortalContextValue {
   renameListOption: (id: string, value: string) => Promise<boolean>;
   setListOptionActive: (id: string, active: boolean) => Promise<void>;
   reorderListOption: (id: string, direction: "up" | "down") => Promise<void>;
+
+  demandRows: StaffingDemandRow[];
+  demandLoading: boolean;
+  demandError: string | null;
+  demandWindow: DemandWindow;
+  refreshDemand: () => Promise<void>;
+  upsertDemandCell: (project: string, city: string, demandDate: string, plannedCount: number) => Promise<boolean>;
+  deleteDemandCell: (project: string, city: string, demandDate: string) => Promise<boolean>;
+  addDemandBulk: (input: {
+    project: string;
+    cities: string[];
+    fromDate: string;
+    toDate: string;
+    plannedCount: number;
+  }) => Promise<boolean>;
 }
 
 export interface ContextAction {
@@ -138,6 +162,11 @@ export function PortalProvider({
   const [listOptions, setListOptions] = useState<CandidateListOption[]>([]);
   const [listOptionsLoading, setListOptionsLoading] = useState(true);
   const [listOptionsError, setListOptionsError] = useState<string | null>(null);
+
+  const [demandRows, setDemandRows] = useState<StaffingDemandRow[]>([]);
+  const [demandLoading, setDemandLoading] = useState(true);
+  const [demandError, setDemandError] = useState<string | null>(null);
+  const [demandWindow] = useState<DemandWindow>(() => defaultDemandWindow());
 
   const goto = useCallback((page: PortalPage) => {
     setActivePage(page);
@@ -393,6 +422,85 @@ export function PortalProvider({
     [listOptions, pushToast],
   );
 
+  const refreshDemand = useCallback(async () => {
+    setDemandLoading(true);
+    setDemandError(null);
+    try {
+      setDemandRows(await listStaffingDemand(demandWindow.from, demandWindow.to));
+    } catch (e) {
+      setDemandError(e instanceof Error ? e.message : "Не удалось загрузить потребность");
+    } finally {
+      setDemandLoading(false);
+    }
+  }, [demandWindow]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data load on mount
+    refreshDemand();
+  }, [refreshDemand]);
+
+  const upsertDemandCell = useCallback(
+    async (project: string, city: string, demandDate: string, plannedCount: number) => {
+      try {
+        const saved = await upsertStaffingDemandCell(project as CandidateProject, city, demandDate, plannedCount);
+        setDemandRows((prev) => {
+          const idx = prev.findIndex((r) => r.project === project && r.city === city && r.demand_date === demandDate);
+          return idx >= 0 ? prev.map((r, i) => (i === idx ? saved : r)) : [...prev, saved];
+        });
+        return true;
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось сохранить потребность", "error");
+        return false;
+      }
+    },
+    [pushToast],
+  );
+
+  const deleteDemandCell = useCallback(
+    async (project: string, city: string, demandDate: string) => {
+      try {
+        await deleteStaffingDemandCell(project as CandidateProject, city, demandDate);
+        setDemandRows((prev) =>
+          prev.filter((r) => !(r.project === project && r.city === city && r.demand_date === demandDate)),
+        );
+        return true;
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось удалить потребность", "error");
+        return false;
+      }
+    },
+    [pushToast],
+  );
+
+  const addDemandBulk = useCallback(
+    async (input: { project: string; cities: string[]; fromDate: string; toDate: string; plannedCount: number }) => {
+      const dates = enumerateIsoDates(input.fromDate, input.toDate);
+      const rows = input.cities.flatMap((city) =>
+        dates.map((demand_date) => ({
+          project: input.project as CandidateProject,
+          city,
+          demand_date,
+          planned_count: input.plannedCount,
+        })),
+      );
+      try {
+        const saved = await bulkUpsertStaffingDemand(rows);
+        setDemandRows((prev) => {
+          const key = (r: { project: string; city: string; demand_date: string }) =>
+            `${r.project} ${r.city} ${r.demand_date}`;
+          const savedKeys = new Set(saved.map(key));
+          return [...prev.filter((r) => !savedKeys.has(key(r))), ...saved];
+        });
+        pushToast("Потребность добавлена");
+        return true;
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось добавить потребность", "error");
+        return false;
+      }
+    },
+    [pushToast],
+  );
+
   const markNotificationRead = useCallback((id: number) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   }, []);
@@ -452,6 +560,14 @@ export function PortalProvider({
       renameListOption,
       setListOptionActive,
       reorderListOption,
+      demandRows,
+      demandLoading,
+      demandError,
+      demandWindow,
+      refreshDemand,
+      upsertDemandCell,
+      deleteDemandCell,
+      addDemandBulk,
     }),
     [
       activePage,
@@ -495,6 +611,14 @@ export function PortalProvider({
       renameListOption,
       setListOptionActive,
       reorderListOption,
+      demandRows,
+      demandLoading,
+      demandError,
+      demandWindow,
+      refreshDemand,
+      upsertDemandCell,
+      deleteDemandCell,
+      addDemandBulk,
     ],
   );
 

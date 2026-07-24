@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       candidate_list_options: {
@@ -112,6 +137,36 @@ export type Database = {
           source?: string | null
           stage?: Database["public"]["Enums"]["candidate_stage"] | null
           telegram_tag?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      staffing_demand: {
+        Row: {
+          city: string
+          created_at: string
+          demand_date: string
+          id: string
+          planned_count: number
+          project: Database["public"]["Enums"]["candidate_project"]
+          updated_at: string
+        }
+        Insert: {
+          city: string
+          created_at?: string
+          demand_date: string
+          id?: string
+          planned_count: number
+          project: Database["public"]["Enums"]["candidate_project"]
+          updated_at?: string
+        }
+        Update: {
+          city?: string
+          created_at?: string
+          demand_date?: string
+          id?: string
+          planned_count?: number
+          project?: Database["public"]["Enums"]["candidate_project"]
           updated_at?: string
         }
         Relationships: []
@@ -269,6 +324,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       candidate_list_type: ["recruiter", "manager", "coordinator", "city"],

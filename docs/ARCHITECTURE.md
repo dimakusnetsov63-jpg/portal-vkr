@@ -40,7 +40,6 @@ src/
                              #   Combobox, Icon, PageHead, ToastStack, …
     sections/
       OverviewSection.tsx
-      DemandSection.tsx
       VacanciesSection.tsx
       MarketingSection.tsx
       AnalyticsSection.tsx   (+ AnalyticsTabs.tsx)
@@ -48,6 +47,7 @@ src/
       SettingsSection.tsx
       CandidateDrawer.tsx    # mock-дровер (используется CommandPalette)
       candidates/            # раздел «Кандидаты» (real-данные)
+      demand/                # раздел «Потребность» (real-данные)
   lib/
     portal/                  # constants, format, candidateOptions,
                              #   mock-генераторы, vacancyData (генерируемый)
@@ -92,6 +92,9 @@ supabase/
    `selectedRealCandidateId`.
 3. **Справочники:** `listOptions` + операции (`addListOption`,
    `renameListOption`, `setListOptionActive`, `reorderListOption`).
+4. **Потребность (Supabase):** `demandRows` + `demandWindow` (окно дат по
+   умолчанию — сегодня −14/+45 дней) + CRUD (`upsertDemandCell`,
+   `deleteDemandCell`, `addDemandBulk`), `refreshDemand`.
 
 Плюс кросс-раздельное: навигация (`activePage`), тосты, уведомления, `authEmail`,
 `signOut`, плотность таблиц.
@@ -111,9 +114,9 @@ supabase/
 
 Переключаются клиентски (`NAV_ITEMS` в `lib/portal/constants.ts`): Обзор,
 Потребность, Кандидаты, Описание вакансий, Маркетинг, Аналитика, Уведомления,
-Настройки. На реальные данные Supabase переведён только раздел **Кандидаты**
-(и справочники в Настройках); остальные работают на mock-данных / статических
-данных (`vacancyData`).
+Настройки. На реальные данные Supabase переведены разделы **Кандидаты** и
+**Потребность** (и справочники в Настройках); остальные работают на
+mock-данных / статических данных (`vacancyData`).
 
 ## Data-flow
 
@@ -137,11 +140,27 @@ UI (Section/*.tsx)
 Карточку рисует `RealCandidateDrawer`. Подробности —
 [`../src/components/portal/sections/candidates/README.md`](../src/components/portal/sections/candidates/README.md).
 
+## Структура раздела «Потребность»
+
+Оркестратор `DemandSection` берёт `demandRows`/`demandWindow` из контекста,
+прогоняет через чистые `filterDemandRows` → `listVisibleProjectCities` →
+`buildDemandMatrix` (`demand/demandAggregate.ts`), считает итоги
+(`demand/demandMetrics.ts`), и композитит `DemandToolbar` + `DemandMatrix`
+(→ `DemandProjectRow` → `DemandCityRow` → `DemandCell`) + `AddDemandModal`.
+Показываются только пары проект+город, по которым уже есть запись за
+видимый период (без полного перекрёстного произведения) — только режим
+«День» реализован, Неделя/Месяц не подключены. Проекты — из enum
+`candidate_project` (тот же источник, что у кандидатов), города — из
+`candidate_list_options` (`type = city`). Редактирование ячейки — upsert/delete
+по (`project`, `city`, `demand_date`) через `staffingDemandRepo.ts`.
+
 ## Mock и real-данные
 
-- **Real (Supabase):** кандидаты и справочники списков.
+- **Real (Supabase):** кандидаты, справочники списков, потребность.
 - **Mock (`lib/portal/generate*.ts`, `constants.ts`):** данные для Обзора,
-  Потребности, Маркетинга, Аналитики и legacy-слоя кандидатов в контексте.
+  Маркетинга, Аналитики и legacy-слоя кандидатов в контексте
+  (`generateDemand.ts` тоже остаётся — его использует только
+  `AnalyticsTabs`, к разделу «Потребность» отношения больше не имеет).
 - **Статические (`lib/portal/vacancyData.ts`):** описания вакансий,
   сгенерированы из Excel — файл не редактируется вручную.
 
@@ -151,10 +170,12 @@ Supabase — отдельная будущая работа.
 ## Зоны технического долга
 
 - Крупный `PortalContext` (см. выше).
-- Разделы `Demand`/`Settings` монолитны (по 3 компонента в файле) — можно
-  разбить по образцу раздела кандидатов при необходимости.
+- Раздел `Settings` монолитен (3 компонента в файле) — можно разбить по
+  образцу раздела кандидатов при необходимости.
 - Часть разделов ещё на mock-данных.
 - Auth-страницы дублируют брендблок (кандидат на общий `AuthShell`).
+- Режимы «Неделя»/«Месяц» в «Потребности» не реализованы (осознанно
+  отложены на следующий этап, см. `demand/demandAggregate.ts`).
 
 Тех-долг фиксируется, но не исправляется «заодно» — только по отдельной задаче.
 
