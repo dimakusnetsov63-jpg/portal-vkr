@@ -5,7 +5,7 @@
 (редактирование, архивирование/восстановление).
 
 Общий контекст — [`../../../../../CLAUDE.md`](../../../../../CLAUDE.md) и
-[`docs/ARCHITECTURE.md`](../../../../../docs/ARCHITECTURE.md).
+[`docs/architecture/system.md`](../../../../../docs/architecture/system.md).
 
 ## Состав файлов
 

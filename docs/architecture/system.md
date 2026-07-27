@@ -1,7 +1,7 @@
 # Архитектура портала ВКР
 
 Технический обзор портала «ВКР — Ваш кадровый ресурс». Быстрый постоянный
-контекст — в [`../CLAUDE.md`](../CLAUDE.md).
+контекст — в [`../CLAUDE.md`](../../CLAUDE.md).
 
 ## Назначение
 
@@ -12,7 +12,7 @@
 ## Общая архитектура
 
 - **Next.js 16 App Router** с серверными и клиентскими компонентами.
-- Точка входа портала — роут `/` ([`src/app/page.tsx`](../src/app/page.tsx)):
+- Точка входа портала — роут `/` ([`src/app/page.tsx`](../../src/app/page.tsx)):
   серверный компонент, получает текущего пользователя через серверный
   Supabase-клиент и рендерит `<PortalApp initialUserEmail=… />`.
 - Портал — **SPA внутри одного роута**: разделы не имеют отдельных URL,
@@ -68,7 +68,7 @@ supabase/
 | `/forgot-password` | `app/forgot-password/page.tsx` | Публичный |
 | `/update-password` | `app/update-password/page.tsx` | Публичный (recovery-сессия) |
 
-Защиту и обновление сессии выполняет [`src/proxy.ts`](../src/proxy.ts)
+Защиту и обновление сессии выполняет [`src/proxy.ts`](../../src/proxy.ts)
 (в Next.js 16 middleware-файл называется `proxy`).
 
 ## Layout
@@ -80,7 +80,7 @@ supabase/
 
 ## Контекст
 
-[`PortalContext.tsx`](../src/components/portal/context/PortalContext.tsx) —
+[`PortalContext.tsx`](../../src/components/portal/context/PortalContext.tsx) —
 единый клиентский стор (React Context + `useState`/`useCallback`/`useMemo`).
 Содержит три слоя данных:
 
@@ -141,7 +141,7 @@ UI (Section/*.tsx)
 `realCandidates` из контекста, прогоняет через чистую `filterCandidates`, считает
 `calculateCandidateMetrics`, и композитит `CandidatesTable` + `AddCandidateModal`.
 Карточку рисует `RealCandidateDrawer`. Подробности —
-[`../src/components/portal/sections/candidates/README.md`](../src/components/portal/sections/candidates/README.md).
+[`../src/components/portal/sections/candidates/README.md`](../../src/components/portal/sections/candidates/README.md).
 
 ## Структура раздела «Потребность»
 

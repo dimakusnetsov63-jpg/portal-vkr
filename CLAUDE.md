@@ -3,6 +3,39 @@
 Постоянный контекст для Claude Code при работе с этим репозиторием. Держите
 документ компактным; подробности — в [`docs/`](docs/).
 
+## 0. Правила работы с документацией
+
+Перед реализацией любой задачи:
+
+1. Прочитать [`docs/README.md`](docs/README.md) — карта документации.
+2. Проверить [`docs/tasks/current.md`](docs/tasks/current.md) — что уже в работе.
+3. Прочитать требования затронутого раздела — [`docs/requirements/`](docs/requirements/).
+4. Если задача трогает данные — [`docs/database/schema.md`](docs/database/schema.md)
+   и [`docs/database/migrations.md`](docs/database/migrations.md).
+
+После завершения задачи:
+
+5. Обновить документацию **в том же коммите**, что и код.
+6. Перенести задачу в [`docs/tasks/completed.md`](docs/tasks/completed.md).
+
+Что именно обновлять:
+
+| Что изменилось | Что править |
+|---|---|
+| Бизнес-правило | `docs/requirements/*.md` |
+| Схема БД | `docs/database/schema.md`, `migrations.md` |
+| Политики доступа | `docs/database/policies.md` |
+| Архитектура | `docs/architecture/*.md` |
+| Значимое техническое решение | новый ADR в `docs/architecture/decisions/` |
+| Внутреннее устройство раздела | `src/components/portal/sections/*/README.md` |
+| Заметное для пользователя изменение | `docs/changelog/CHANGELOG.md` |
+
+Крупная задача оформляется отдельным файлом по шаблону
+[`docs/tasks/TEMPLATE.md`](docs/tasks/TEMPLATE.md).
+
+Не создавать пустые файлы-заглушки и не описывать только то, что работает:
+известные ограничения проговариваются явно.
+
 ## 1. Назначение проекта
 
 **«ВКР — Ваш кадровый ресурс»** — внутренний портал для управления

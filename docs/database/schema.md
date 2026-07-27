@@ -1,8 +1,8 @@
 # База данных (Supabase / Postgres)
 
 Схема описана по реальным миграциям в
-[`../supabase/migrations/`](../supabase/migrations/) и сгенерированным типам
-[`../src/lib/supabase/database.types.ts`](../src/lib/supabase/database.types.ts).
+[`../supabase/migrations/`](../../supabase/migrations/) и сгенерированным типам
+[`../src/lib/supabase/database.types.ts`](../../src/lib/supabase/database.types.ts).
 Секреты, реальный URL проекта и значения ключей сюда не записываются.
 
 Источник истины — миграции. Если что-то не подтверждено миграцией или типами,
@@ -227,29 +227,29 @@ city + position + свежие сверху).
 
 ## Репозитории (data-слой)
 
-- [`candidatesRepo.ts`](../src/lib/supabase/candidatesRepo.ts): `listCandidates`,
+- [`candidatesRepo.ts`](../../src/lib/supabase/candidatesRepo.ts): `listCandidates`,
   `createCandidate`, `updateCandidate`, `archiveCandidate`, `restoreCandidate`.
-- [`candidateListOptionsRepo.ts`](../src/lib/supabase/candidateListOptionsRepo.ts):
+- [`candidateListOptionsRepo.ts`](../../src/lib/supabase/candidateListOptionsRepo.ts):
   `listCandidateListOptions`, `createCandidateListOption`,
   `updateCandidateListOption` (переименование / `is_active` / `sort_order`).
   Функции hard-delete нет намеренно.
-- [`staffingDemandRepo.ts`](../src/lib/supabase/staffingDemandRepo.ts):
+- [`staffingDemandRepo.ts`](../../src/lib/supabase/staffingDemandRepo.ts):
   `listStaffingDemand`, `upsertStaffingDemandCell`, `deleteStaffingDemandCell`,
   `bulkUpsertStaffingDemand` — все, кроме `listStaffingDemand`, принимают
   `position` (upsert по `onConflict: "project,city,position,demand_date"`).
-- [`staffingDemandRowsRepo.ts`](../src/lib/supabase/staffingDemandRowsRepo.ts):
+- [`staffingDemandRowsRepo.ts`](../../src/lib/supabase/staffingDemandRowsRepo.ts):
   `listStaffingDemandRowsMeta`, `upsertStaffingDemandRowMeta` (принимает
   `position`, upsert по `onConflict: "project,city,position"`). Функции
   удаления нет — не требуется.
-- [`staffingDemandHistoryRepo.ts`](../src/lib/supabase/staffingDemandHistoryRepo.ts):
+- [`staffingDemandHistoryRepo.ts`](../../src/lib/supabase/staffingDemandHistoryRepo.ts):
   `listStaffingDemandCellHistory(project, city, position, demandDate)` —
   только чтение, вызывается лениво при открытии `DemandHistoryDrawer`.
 
-Типы: [`candidates.types.ts`](../src/lib/supabase/candidates.types.ts),
-[`candidateListOptions.types.ts`](../src/lib/supabase/candidateListOptions.types.ts),
-[`staffingDemand.types.ts`](../src/lib/supabase/staffingDemand.types.ts),
-[`staffingDemandRows.types.ts`](../src/lib/supabase/staffingDemandRows.types.ts),
-[`staffingDemandHistory.types.ts`](../src/lib/supabase/staffingDemandHistory.types.ts)
+Типы: [`candidates.types.ts`](../../src/lib/supabase/candidates.types.ts),
+[`candidateListOptions.types.ts`](../../src/lib/supabase/candidateListOptions.types.ts),
+[`staffingDemand.types.ts`](../../src/lib/supabase/staffingDemand.types.ts),
+[`staffingDemandRows.types.ts`](../../src/lib/supabase/staffingDemandRows.types.ts),
+[`staffingDemandHistory.types.ts`](../../src/lib/supabase/staffingDemandHistory.types.ts)
 — выведены из `database.types.ts` (`Row`/`Insert`/`Update`/`Enums`).
 
 ## Переменные окружения
@@ -260,39 +260,19 @@ city + position + свежие сверху).
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 
 Читаются только через статический `process.env.X` в
-[`env.ts`](../src/lib/supabase/env.ts) (динамический `process.env[name]` не
+[`env.ts`](../../src/lib/supabase/env.ts) (динамический `process.env[name]` не
 инлайнится Turbopack в клиентский бандл). Реальные значения в документацию не
 записываются. На Vercel эти же переменные заданы в настройках проекта.
 
 ## Безопасность (RLS)
 
-- Все пять таблиц: **RLS включён**, политики только для роли
-  `authenticated`. `using (true)` / `with check (true)` безопасны здесь,
-  потому что применяются к уже авторизованной роли, а не к `anon` —
-  неавторизованный доступ запрещён по умолчанию.
-- `staffing_demand` — единственная таблица с **delete**-политикой для
-  `authenticated` (нужна для физического удаления ячеек, см. выше).
-  `staffing_demand_rows` — без delete-политики, как `candidate_list_options`.
-  `staffing_demand_history` — только `select` для `authenticated`; запись
-  идёт исключительно через `SECURITY DEFINER`-триггеры, не через API.
-- Политики `anon` **не создаются** ни для одной таблицы.
-- В коде используется **только publishable-ключ** (и в браузере, и на сервере);
-  `service_role` в приложении не применяется. Доступ регулируется RLS + auth.
-  (Примечание: комментарий в самой первой миграции упоминает `service_role` как
-  временную модель до появления auth — она уже неактуальна, текущий код на
-  publishable-ключе.)
-- Учётные записи сотрудников заводятся вручную в Supabase Dashboard;
-  самостоятельной регистрации нет.
+Вынесено в отдельный документ — [`policies.md`](policies.md): состав политик
+по таблицам, модель доступа, известные ограничения.
 
-## Правила миграций и генерации типов
+## Миграции
 
-1. Любое изменение схемы — **новая** миграция в `supabase/migrations/`
-   (не править существующие применённые миграции).
-2. После применения миграции — **регенерация** типов:
-   `supabase gen types typescript` → `src/lib/supabase/database.types.ts`.
-3. `database.types.ts` — **генерируемый файл, вручную не редактируется.**
-4. Не менять названия полей/enum без отдельного согласования и миграции.
-5. Названия существующих проектов и стадий менять нельзя (жёстко заданы бизнесом).
+Правила изменения схемы, порядок применения и полный список миграций —
+[`migrations.md`](migrations.md).
 
 ## Генерируемые файлы
 

@@ -1,7 +1,7 @@
 # Разработка
 
 Практический workflow для портала ВКР. Правила и архитектура —
-[`../CLAUDE.md`](../CLAUDE.md) и [`ARCHITECTURE.md`](ARCHITECTURE.md).
+[`../CLAUDE.md`](../CLAUDE.md) и [`architecture/system.md`](architecture/system.md).
 
 ## Запуск проекта
 
@@ -81,7 +81,7 @@ npm run build      # production-сборка (next build)
 - После изменения — регенерация типов.
 - Названия существующих полей и enum не менять без отдельного согласования.
 - Значения проектов/стадий заданы бизнесом дословно — не переименовывать.
-- Подробнее — [`DATABASE.md`](DATABASE.md).
+- Подробнее — [`database/schema.md`](database/schema.md).
 
 ## Безопасный рефакторинг
 
