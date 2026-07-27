@@ -12,10 +12,12 @@ import styles from "./DemandSection.module.css";
 export function DemandRowCommentButton({
   project,
   city,
+  position,
   comment,
 }: {
   project: string;
   city: string;
+  position: string;
   comment: string | null;
 }) {
   const { updateDemandRowMeta, pushToast } = usePortal();
@@ -35,7 +37,7 @@ export function DemandRowCommentButton({
     }
     if (saving) return;
     setSaving(true);
-    const ok = await updateDemandRowMeta(project, city, { comment: normalizeComment(draft) });
+    const ok = await updateDemandRowMeta(project, city, position, { comment: normalizeComment(draft) });
     setSaving(false);
     if (ok) setOpen(false);
   }
@@ -43,7 +45,7 @@ export function DemandRowCommentButton({
   async function handleDelete() {
     if (saving) return;
     setSaving(true);
-    const ok = await updateDemandRowMeta(project, city, { comment: null });
+    const ok = await updateDemandRowMeta(project, city, position, { comment: null });
     setSaving(false);
     if (ok) setOpen(false);
   }
@@ -69,7 +71,7 @@ export function DemandRowCommentButton({
         <Modal
           open
           onClose={() => setOpen(false)}
-          title={`Комментарий — ${project}, ${city}`}
+          title={`Комментарий — ${project}, ${city}, ${position}`}
           footer={
             <>
               {comment && (

@@ -9,8 +9,24 @@ export interface DemandColumn {
   weekend: boolean;
 }
 
-/** matrix[project][city][isoDate] = plannedCount. */
-export type DemandMatrixData = Record<string, Record<string, Record<string, number>>>;
+/** matrix[project][city][position][isoDate] = plannedCount. */
+export type DemandMatrixData = Record<string, Record<string, Record<string, Record<string, number>>>>;
+
+/** One project's grouped rows, each city expanded into its visible positions — the shape rendered by DemandMatrix/DemandProjectRow/DemandCityGroupRow. */
+export interface DemandGroupedProject {
+  project: string;
+  cities: { city: string; positions: string[] }[];
+}
+
+/**
+ * Stable composite key for (project, city) — used to key city-level collapse
+ * state in DemandSection (independent of the project-level collapse state).
+ * JSON.stringify rather than a delimiter-joined string, same reasoning as
+ * demandRowMetaKey — avoids collisions when a value contains the delimiter.
+ */
+export function demandCityGroupKey(project: string, city: string): string {
+  return JSON.stringify([project, city]);
+}
 
 /** Reshapes flat Supabase rows into the nested matrix the table renders from. */
 export function buildDemandMatrix(rows: StaffingDemandRow[]): DemandMatrixData {
@@ -18,22 +34,28 @@ export function buildDemandMatrix(rows: StaffingDemandRow[]): DemandMatrixData {
   for (const row of rows) {
     matrix[row.project] ??= {};
     matrix[row.project][row.city] ??= {};
-    matrix[row.project][row.city][row.demand_date] = row.planned_count;
+    matrix[row.project][row.city][row.position] ??= {};
+    matrix[row.project][row.city][row.position][row.demand_date] = row.planned_count;
   }
   return matrix;
 }
 
-/** Distinct (project, city) pairs that have at least one row, sorted for stable display. No full cross-product of all known projects/cities. */
-export function listVisibleProjectCities(rows: StaffingDemandRow[]): { project: string; city: string }[] {
+/** Distinct (project, city, position) triples that have at least one row, sorted for stable display. No full cross-product of all known projects/cities/positions. */
+export function listVisibleRows(rows: StaffingDemandRow[]): { project: string; city: string; position: string }[] {
   const seen = new Set<string>();
-  const result: { project: string; city: string }[] = [];
+  const result: { project: string; city: string; position: string }[] = [];
   for (const row of rows) {
-    const key = `${row.project} ${row.city}`;
+    const key = JSON.stringify([row.project, row.city, row.position]);
     if (seen.has(key)) continue;
     seen.add(key);
-    result.push({ project: row.project, city: row.city });
+    result.push({ project: row.project, city: row.city, position: row.position });
   }
-  result.sort((a, b) => a.project.localeCompare(b.project, "ru") || a.city.localeCompare(b.city, "ru"));
+  result.sort(
+    (a, b) =>
+      a.project.localeCompare(b.project, "ru") ||
+      a.city.localeCompare(b.city, "ru") ||
+      a.position.localeCompare(b.position, "ru"),
+  );
   return result;
 }
 
@@ -71,41 +93,59 @@ export function isValidPlannedCount(value: number): boolean {
   return Number.isInteger(value) && value >= 0;
 }
 
-/** Pure row-building for the "Добавить потребность" bulk form: one row per (city × date) in the range, same count for all. */
+/** Above this many rows, "Добавить потребность" asks for an extra confirmation before saving — a bulk add across several cities/positions/dates multiplies fast and can otherwise overwrite far more than intended in one click. */
+export const DEMAND_BULK_CONFIRM_THRESHOLD = 100;
+
+export function isLargeBulkCount(totalCount: number): boolean {
+  return totalCount > DEMAND_BULK_CONFIRM_THRESHOLD;
+}
+
+/** Pure row-building for the "Добавить потребность" bulk form: one row per (city × position × date) in the range, same count for all. */
 export function buildBulkRows(input: {
   project: string;
   cities: string[];
+  positions: string[];
   fromDate: string;
   toDate: string;
   plannedCount: number;
-}): { project: string; city: string; demand_date: string; planned_count: number }[] {
+}): { project: string; city: string; position: string; demand_date: string; planned_count: number }[] {
   const dates = enumerateIsoDates(input.fromDate, input.toDate);
   return input.cities.flatMap((city) =>
-    dates.map((demand_date) => ({
-      project: input.project,
-      city,
-      demand_date,
-      planned_count: input.plannedCount,
-    })),
+    input.positions.flatMap((position) =>
+      dates.map((demand_date) => ({
+        project: input.project,
+        city,
+        position,
+        demand_date,
+        planned_count: input.plannedCount,
+      })),
+    ),
   );
 }
 
 /**
- * Keeps only the (project, city) groups where at least one cell in the
- * visible window satisfies `predicate` — e.g. "Только заполненные"
- * (`cell > 0`). Operates at the row level: a group is kept as soon as one of
+ * Keeps only the (project, city, position) rows where at least one cell in
+ * the visible window satisfies `predicate` — e.g. "Только заполненные"
+ * (`cell > 0`). Operates at the row level: a row is kept as soon as one of
  * its cells qualifies, it does not require every date to qualify, and it
  * never hides individual cells within a kept row.
  */
 export function filterGroupsByCellPredicate(
-  grouped: { project: string; cities: string[] }[],
+  grouped: DemandGroupedProject[],
   matrix: DemandMatrixData,
   predicate: (cell: number) => boolean,
-): { project: string; cities: string[] }[] {
+): DemandGroupedProject[] {
   return grouped
     .map((g) => ({
       project: g.project,
-      cities: g.cities.filter((city) => Object.values(matrix[g.project]?.[city] ?? {}).some(predicate)),
+      cities: g.cities
+        .map((c) => ({
+          city: c.city,
+          positions: c.positions.filter((position) =>
+            Object.values(matrix[g.project]?.[c.city]?.[position] ?? {}).some(predicate),
+          ),
+        }))
+        .filter((c) => c.positions.length > 0),
     }))
     .filter((g) => g.cities.length > 0);
 }

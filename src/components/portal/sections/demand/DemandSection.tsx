@@ -13,7 +13,13 @@ import { defaultDemandWindow, getWeekRange, isWeekWindow, shiftWindow } from "@/
 import { AddDemandModal } from "./AddDemandModal";
 import { DemandMatrix } from "./DemandMatrix";
 import { DemandToolbar } from "./DemandToolbar";
-import { buildDemandMatrix, filterGroupsByCellPredicate, getDayColumns, listVisibleProjectCities } from "./demandAggregate";
+import {
+  buildDemandMatrix,
+  demandCityGroupKey,
+  filterGroupsByCellPredicate,
+  getDayColumns,
+  listVisibleRows,
+} from "./demandAggregate";
 import { filterDemandRows } from "./demandFilters";
 import { parseDemandParams, serializeDemandParams } from "./demandQueryParams";
 import { filterGroupsByRowStatus, type DemandRowStatus } from "./demandRowMeta";
@@ -42,9 +48,11 @@ export function DemandSection() {
   const [search, setSearch] = useState("");
   const [projectFilter, setProjectFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
+  const [positionFilter, setPositionFilter] = useState("");
   const [filledOnly, setFilledOnly] = useState(false);
   const [rowStatusFilter, setRowStatusFilter] = useState<DemandRowStatus | "">("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [collapsedCities, setCollapsedCities] = useState<Record<string, boolean>>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [scrollToTodayTick, setScrollToTodayTick] = useState(0);
   const [initializedFromUrl, setInitializedFromUrl] = useState(false);
@@ -61,6 +69,7 @@ export function DemandSection() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time restore from the URL on mount
     if (parsed.project) setProjectFilter(parsed.project);
     if (parsed.city) setCityFilter(parsed.city);
+    if (parsed.position) setPositionFilter(parsed.position);
     if (parsed.q) setSearch(parsed.q);
     if (parsed.filled !== undefined) setFilledOnly(parsed.filled);
     if (parsed.rowStatus) setRowStatusFilter(parsed.rowStatus);
@@ -75,6 +84,7 @@ export function DemandSection() {
       section: "demand",
       project: projectFilter,
       city: cityFilter,
+      position: positionFilter,
       q: search,
       filled: filledOnly,
       from: demandWindow.from,
@@ -86,6 +96,7 @@ export function DemandSection() {
     initializedFromUrl,
     projectFilter,
     cityFilter,
+    positionFilter,
     search,
     filledOnly,
     rowStatusFilter,
@@ -95,23 +106,29 @@ export function DemandSection() {
   ]);
 
   const cityOptions = useMemo(() => activeListOptions(listOptions, "city").map((o) => o.value), [listOptions]);
+  const positionOptions = useMemo(() => activeListOptions(listOptions, "position").map((o) => o.value), [listOptions]);
 
   const filtered = useMemo(
-    () => filterDemandRows(demandRows, { search, project: projectFilter, city: cityFilter }),
-    [demandRows, search, projectFilter, cityFilter],
+    () => filterDemandRows(demandRows, { search, project: projectFilter, city: cityFilter, position: positionFilter }),
+    [demandRows, search, projectFilter, cityFilter, positionFilter],
   );
 
-  const visible = useMemo(() => listVisibleProjectCities(filtered), [filtered]);
+  const visible = useMemo(() => listVisibleRows(filtered), [filtered]);
   const matrix = useMemo(() => buildDemandMatrix(filtered), [filtered]);
   const columns = useMemo(() => getDayColumns(demandWindow.from, demandWindow.to), [demandWindow]);
 
   const groupedRaw = useMemo(() => {
-    const byProject = new Map<string, string[]>();
-    for (const { project, city } of visible) {
-      if (!byProject.has(project)) byProject.set(project, []);
-      byProject.get(project)!.push(city);
+    const byProject = new Map<string, Map<string, string[]>>();
+    for (const { project, city, position } of visible) {
+      if (!byProject.has(project)) byProject.set(project, new Map());
+      const byCity = byProject.get(project)!;
+      if (!byCity.has(city)) byCity.set(city, []);
+      byCity.get(city)!.push(position);
     }
-    return Array.from(byProject.entries()).map(([project, cities]) => ({ project, cities }));
+    return Array.from(byProject.entries()).map(([project, byCity]) => ({
+      project,
+      cities: Array.from(byCity.entries()).map(([city, positions]) => ({ city, positions })),
+    }));
   }, [visible]);
 
   const groupedByCell = useMemo(
@@ -124,12 +141,13 @@ export function DemandSection() {
     [groupedByCell, demandRowMeta, rowStatusFilter],
   );
 
-  const filtersActive = Boolean(search || projectFilter || cityFilter || filledOnly || rowStatusFilter);
+  const filtersActive = Boolean(search || projectFilter || cityFilter || positionFilter || filledOnly || rowStatusFilter);
 
   function resetFilters() {
     setSearch("");
     setProjectFilter("");
     setCityFilter("");
+    setPositionFilter("");
     setFilledOnly(false);
     setRowStatusFilter("");
   }
@@ -138,8 +156,14 @@ export function DemandSection() {
     setCollapsed((prev) => ({ ...prev, [project]: !prev[project] }));
   }
 
+  function toggleCityCollapsed(project: string, city: string) {
+    const key = demandCityGroupKey(project, city);
+    setCollapsedCities((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
   function expandAll() {
     setCollapsed({});
+    setCollapsedCities({});
   }
 
   function collapseAll() {
@@ -167,13 +191,15 @@ export function DemandSection() {
     setDemandWindow(getWeekRange());
   }
 
-  function handleSaveCell(project: string, city: string, dateIso: string, next: number | null) {
-    return next === null ? deleteDemandCell(project, city, dateIso) : upsertDemandCell(project, city, dateIso, next);
+  function handleSaveCell(project: string, city: string, position: string, dateIso: string, next: number | null) {
+    return next === null
+      ? deleteDemandCell(project, city, position, dateIso)
+      : upsertDemandCell(project, city, position, dateIso, next);
   }
 
   return (
     <>
-      <PageHead eyebrow="Планирование">Матрица потребности в персонале по проектам, городам и датам.</PageHead>
+      <PageHead eyebrow="Планирование">Матрица потребности в персонале по проектам, городам, должностям и датам.</PageHead>
 
       <Panel>
         <DemandToolbar
@@ -184,6 +210,9 @@ export function DemandSection() {
           city={cityFilter}
           onCityChange={setCityFilter}
           cityOptions={cityOptions}
+          position={positionFilter}
+          onPositionChange={setPositionFilter}
+          positionOptions={positionOptions}
           filledOnly={filledOnly}
           onFilledOnlyChange={setFilledOnly}
           rowStatus={rowStatusFilter}
@@ -227,6 +256,8 @@ export function DemandSection() {
               matrix={matrix}
               collapsed={collapsed}
               onToggleCollapse={toggleCollapsed}
+              collapsedCities={collapsedCities}
+              onToggleCityCollapse={toggleCityCollapsed}
               onSaveCell={handleSaveCell}
               scrollToTodaySignal={scrollToTodayTick}
             />

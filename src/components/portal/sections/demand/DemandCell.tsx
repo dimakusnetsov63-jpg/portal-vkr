@@ -17,6 +17,7 @@ const LEVEL_CLASS: Record<DemandCellLevel, string> = {
 export function DemandCell({
   project,
   city,
+  position,
   date,
   value,
   isToday,
@@ -24,6 +25,7 @@ export function DemandCell({
 }: {
   project: string;
   city: string;
+  position: string;
   date: string;
   /** null = potребность не выставлена (no row). */
   value: number | null;
@@ -135,7 +137,7 @@ export function DemandCell({
       {displayValue === null ? "" : displayValue}
       {saving && <span className={styles.savingDot} />}
       {displayValue !== null && !saving && (
-        <DemandCellMenu project={project} city={city} date={date} value={displayValue} />
+        <DemandCellMenu project={project} city={city} position={position} date={date} value={displayValue} />
       )}
     </td>
   );

@@ -10,10 +10,10 @@
 
 ## Таблицы
 
-Подтверждены четыре таблицы в схеме `public`: `candidates`,
-`candidate_list_options`, `staffing_demand` и `staffing_demand_rows`.
-Auth-таблицы (`auth.users` и т.п.) управляются Supabase и в миграциях
-проекта не описаны.
+Подтверждены пять таблиц в схеме `public`: `candidates`,
+`candidate_list_options`, `staffing_demand`, `staffing_demand_rows` и
+`staffing_demand_history`. Auth-таблицы (`auth.users` и т.п.) управляются
+Supabase и в миграциях проекта не описаны.
 
 ### `public.candidates`
 
@@ -27,6 +27,7 @@ Auth-таблицы (`auth.users` и т.п.) управляются Supabase и 
 | `full_name` | text | **not null** | ФИО одной строкой |
 | `project` | enum `candidate_project` | **not null** | Ограничен перечислением |
 | `city` | text | nullable | |
+| `position` | text | nullable | Должность. Свободный текст, подсказки — `candidate_list_options` (`list_type = position`) |
 | `stage` | enum `candidate_stage` | nullable | NULL = стадия ещё не достигнута |
 | `recruiter` | text | nullable | Свободный текст (подсказки — в справочниках) |
 | `manager` | text | nullable | Свободный текст |
@@ -56,8 +57,16 @@ has_medical_book, created_at, archived_at) + GIN trigram-индекс по `full
 ### `public.candidate_list_options`
 
 Редактируемые списки-подсказки для свободнотекстовых полей кандидата
-(recruiter/manager/coordinator/city). **Не ограничивает** значения в
+(recruiter/manager/coordinator/city/position). **Не ограничивает** значения в
 `candidates.*` — только курирует подсказки в выпадающих списках.
+
+Справочник **должностей** (`list_type = position`) общий для всех проектов:
+любая должность может использоваться на любом проекте. Засеян 21 значением
+(Курьер, Сборщик, Кладовщик, Кассир, Повар, Бариста, Уборщик, Экспедитор,
+Контроллер-кассир, Продавец, Кухонный рабочий, Грузчик, Оператор кухни,
+Оператор АЗС, Авто, Вело, Электровело, Пеший, Мото, Универсал, Вахта) —
+список намеренно плоский, каким его задал бизнес. Пополняется и
+включается/выключается в Настройках без миграции.
 
 | Поле | Тип | Null | Примечание |
 |------|-----|------|-----------|
@@ -73,7 +82,7 @@ has_medical_book, created_at, archived_at) + GIN trigram-индекс по `full
 
 ### `public.staffing_demand`
 
-Плановая потребность в персонале по проекту/городу/дню для раздела
+Плановая потребность в персонале по проекту/городу/должности/дню для раздела
 «Потребность». **Без soft-delete** (в отличие от остальных таблиц) —
 очистка ячейки в UI физически удаляет строку, значение обновляется обычным
 upsert.
@@ -83,13 +92,18 @@ upsert.
 | `id` | uuid | not null | PK, `gen_random_uuid()` |
 | `project` | enum `candidate_project` | **not null** | Тот же enum, что и у кандидатов |
 | `city` | text | **not null** | Свободный текст, без FK на `candidate_list_options` |
+| `position` | text | **not null** | Свободный текст, подсказки — `candidate_list_options` (`list_type = position`), тот же справочник, что и у `candidates.position` |
 | `demand_date` | date | **not null** | |
 | `planned_count` | integer | **not null** | `check (planned_count >= 0)`; отсутствие строки = «не задано» |
 | `created_at` | timestamptz | not null | `default now()` |
 | `updated_at` | timestamptz | not null | `default now()`, обновляется триггером |
 
-**Ограничение:** `unique (project, city, demand_date)` (обычный, не partial —
-см. примечание ниже). **Индексы:** по `demand_date`, `project`, `city`.
+**Ограничение:** `unique (project, city, position, demand_date)` (обычный,
+не partial — см. примечание ниже; расширен полем `position`, до этого был
+`unique (project, city, demand_date)`). **Индексы:** по `demand_date`,
+`project`, `city`. Отдельного индекса по `position` нет — сам уникальный
+констрейнт уже покрывает срезы `(project)`, `(project, city)` и
+`(project, city, position)`, дублирующий индекс был бы избыточен.
 
 **Триггер:** `trg_staffing_demand_set_updated_at` — переиспользует
 `set_candidates_updated_at()` из миграции `candidates`.
@@ -105,10 +119,10 @@ upsert.
 
 ### `public.staffing_demand_rows`
 
-Метаданные строки «проект+город» в разделе «Потребность»: статус и
-комментарий, **не привязанные к дате** — в отличие от `staffing_demand`,
-где строка = проект+город+дата. Запись создаётся только при первом
-изменении статуса/комментария; её отсутствие в UI трактуется как
+Метаданные строки «проект+город+должность» в разделе «Потребность»: статус
+и комментарий, **не привязанные к дате** — в отличие от `staffing_demand`,
+где строка = проект+город+должность+дата. Запись создаётся только при
+первом изменении статуса/комментария; её отсутствие в UI трактуется как
 `status = active`, `comment = null`.
 
 | Поле | Тип | Null | Примечание |
@@ -116,13 +130,17 @@ upsert.
 | `id` | uuid | not null | PK, `gen_random_uuid()` |
 | `project` | text | **not null** | Свободный текст — здесь **не** enum `candidate_project` (сознательное отличие от `staffing_demand`, так задано) |
 | `city` | text | **not null** | Свободный текст, без FK |
+| `position` | text | **not null** | Свободный текст, без FK — определяет, к какой должности внутри города относится статус/комментарий |
 | `status` | text | **not null** | `default 'active'`; `check (status in ('active','paused','closed'))` |
 | `comment` | text | nullable | `check (comment is null or char_length(comment) <= 2000)`; приложение приводит `""` к `null` перед записью |
 | `created_at` | timestamptz | not null | `default now()` |
 | `updated_at` | timestamptz | not null | `default now()`, обновляется триггером |
 
-**Ограничение:** `unique (project, city)`. **Индексы:** по `project`,
-`city`, `status`.
+**Ограничение:** `unique (project, city, position)` (расширен полем
+`position`, до этого был `unique (project, city)`). **Индексы:** по
+`project`, `city`, `status`. Отдельного индекса по `position` нет — тот же
+принцип, что и в `staffing_demand`: уникальный констрейнт уже покрывает
+нужные срезы.
 
 **Триггер:** `trg_staffing_demand_rows_set_updated_at` — переиспользует
 тот же `set_candidates_updated_at()`.
@@ -137,13 +155,54 @@ VALUE` — просто пересоздать/дополнить `CHECK`. Су�
 delete-политики: очистка комментария — это `UPDATE comment = null`, не
 удаление строки; статус тоже меняется только через `UPDATE`.
 
+### `public.staffing_demand_history`
+
+Аудит изменений «Потребности»: количество (`staffing_demand`) и
+статус/комментарий строки (`staffing_demand_rows`) — в одной общей таблице.
+Пишется только `SECURITY DEFINER`-триггерами (`log_staffing_demand_change`,
+`log_staffing_demand_rows_change`); клиент не может вставлять, менять или
+удалять записи напрямую (RLS разрешает только `select`).
+
+| Поле | Тип | Null | Примечание |
+|------|-----|------|-----------|
+| `id` | uuid | not null | PK, `gen_random_uuid()` |
+| `staffing_demand_id` | uuid | nullable | id исходной строки `staffing_demand` на момент изменения, без FK — история переживает физическое удаление ячейки. `NULL` для записей о `staffing_demand_rows` |
+| `project` | text | **not null** | |
+| `city` | text | **not null** | |
+| `position` | text | **not null** | Всегда заполнено (source-таблицы `position` тоже `NOT NULL`) |
+| `demand_date` | date | nullable | **Заполнено** = запись о `staffing_demand` (количество на дату). `NULL` = запись о `staffing_demand_rows` (статус/комментарий, не привязаны к дате) — используется как различитель источника вместо отдельного поля |
+| `old_quantity` / `new_quantity` | integer | nullable | Для записей о `staffing_demand` |
+| `old_status` / `new_status` | text | nullable | Для записей о `staffing_demand_rows` |
+| `old_comment` / `new_comment` | text | nullable | Для записей о `staffing_demand_rows` |
+| `action` | enum `staffing_demand_history_action` | **not null** | `insert` / `update` / `delete` |
+| `changed_by` | uuid | nullable | `auth.uid()` на момент изменения — подделать нельзя, пишет только `SECURITY DEFINER`-функция |
+| `changed_at` | timestamptz | not null | `default now()` |
+
+**Индексы:** `(project, city, demand_date, changed_at desc)` — история
+конкретной ячейки; `(project, city, changed_at desc) where demand_date is
+null` — история строки статуса/комментария (частичный индекс, до
+добавления должности); `(project, city, position, changed_at desc)` —
+основной запрос `DemandHistoryDrawer` после добавления должности (project +
+city + position + свежие сверху).
+
+**Не удаляется и не редактируется вручную** — только `insert` через
+триггеры; для `authenticated` есть только `select`-политика.
+
+**UI:** только действие «История изменений» в меню ячейки
+(`DemandCellMenu` → `DemandHistoryDrawer`) читает эту таблицу, при
+открытии, лениво, по конкретной ячейке (project+city+position+date).
+Половина таблицы про `staffing_demand_rows` (статус/комментарий) пишется с
+самого начала, но отдельного экрана истории для неё пока нет — осознанный
+задел на будущее без изменения схемы.
+
 ## Enum-типы
 
 | Enum | Значения |
 |------|----------|
 | `candidate_project` | Самокат, Купер, ДонатсКофе, Яндекс Лавка, Яндекс РБ, Газпромнефть, Евроторг, Мастер Деливери, Мастер Деливери Таксопарк, Азбука вкуса, Бургер кинг Россия, Далли (12) |
 | `candidate_stage` | Прибыл на проект, Отработал 1 смену, Отработал 10 смен, Завершил вахту (4) |
-| `candidate_list_type` | recruiter, manager, coordinator, city (4) |
+| `candidate_list_type` | recruiter, manager, coordinator, city, position (5) |
+| `staffing_demand_history_action` | insert, update, delete (3) |
 
 Значения проектов и стадий заданы бизнесом дословно и не переименовываются.
 Изменение состава enum — это миграция схемы, а не правка справочника.
@@ -160,6 +219,9 @@ delete-политики: очистка комментария — это `UPDAT
   исключение из общего правила soft-delete, см. раздел таблицы выше.
 - **Метаданные строки (`staffing_demand_rows`) не удаляются вовсе** —
   только `UPDATE` статуса/комментария, delete-политики нет.
+- **История (`staffing_demand_history`) только пишется** — `insert`
+  через `SECURITY DEFINER`-триггеры, ни `update`, ни `delete` для
+  `authenticated` не разрешены; строки неизменны после записи.
 - `updated_at` в `candidates`, `staffing_demand` и `staffing_demand_rows`
   поддерживается триггером автоматически.
 
@@ -173,15 +235,21 @@ delete-политики: очистка комментария — это `UPDAT
   Функции hard-delete нет намеренно.
 - [`staffingDemandRepo.ts`](../src/lib/supabase/staffingDemandRepo.ts):
   `listStaffingDemand`, `upsertStaffingDemandCell`, `deleteStaffingDemandCell`,
-  `bulkUpsertStaffingDemand`.
+  `bulkUpsertStaffingDemand` — все, кроме `listStaffingDemand`, принимают
+  `position` (upsert по `onConflict: "project,city,position,demand_date"`).
 - [`staffingDemandRowsRepo.ts`](../src/lib/supabase/staffingDemandRowsRepo.ts):
-  `listStaffingDemandRowsMeta`, `upsertStaffingDemandRowMeta` (upsert по
-  `onConflict: "project,city"`). Функции удаления нет — не требуется.
+  `listStaffingDemandRowsMeta`, `upsertStaffingDemandRowMeta` (принимает
+  `position`, upsert по `onConflict: "project,city,position"`). Функции
+  удаления нет — не требуется.
+- [`staffingDemandHistoryRepo.ts`](../src/lib/supabase/staffingDemandHistoryRepo.ts):
+  `listStaffingDemandCellHistory(project, city, position, demandDate)` —
+  только чтение, вызывается лениво при открытии `DemandHistoryDrawer`.
 
 Типы: [`candidates.types.ts`](../src/lib/supabase/candidates.types.ts),
 [`candidateListOptions.types.ts`](../src/lib/supabase/candidateListOptions.types.ts),
 [`staffingDemand.types.ts`](../src/lib/supabase/staffingDemand.types.ts),
-[`staffingDemandRows.types.ts`](../src/lib/supabase/staffingDemandRows.types.ts)
+[`staffingDemandRows.types.ts`](../src/lib/supabase/staffingDemandRows.types.ts),
+[`staffingDemandHistory.types.ts`](../src/lib/supabase/staffingDemandHistory.types.ts)
 — выведены из `database.types.ts` (`Row`/`Insert`/`Update`/`Enums`).
 
 ## Переменные окружения
@@ -198,13 +266,15 @@ delete-политики: очистка комментария — это `UPDAT
 
 ## Безопасность (RLS)
 
-- Все четыре таблицы: **RLS включён**, политики только для роли
+- Все пять таблиц: **RLS включён**, политики только для роли
   `authenticated`. `using (true)` / `with check (true)` безопасны здесь,
   потому что применяются к уже авторизованной роли, а не к `anon` —
   неавторизованный доступ запрещён по умолчанию.
 - `staffing_demand` — единственная таблица с **delete**-политикой для
   `authenticated` (нужна для физического удаления ячеек, см. выше).
   `staffing_demand_rows` — без delete-политики, как `candidate_list_options`.
+  `staffing_demand_history` — только `select` для `authenticated`; запись
+  идёт исключительно через `SECURITY DEFINER`-триггеры, не через API.
 - Политики `anon` **не создаются** ни для одной таблицы.
 - В коде используется **только publishable-ключ** (и в браузере, и на сервере);
   `service_role` в приложении не применяется. Доступ регулируется RLS + auth.

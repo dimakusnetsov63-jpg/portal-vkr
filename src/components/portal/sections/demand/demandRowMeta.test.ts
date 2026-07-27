@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { DemandGroupedProject } from "./demandAggregate";
 import {
   DEMAND_COMMENT_MAX_LENGTH,
   demandRowMetaKey,
@@ -52,33 +53,42 @@ describe("isDemandRowStatus", () => {
 });
 
 describe("demandRowMetaKey", () => {
-  it("produces different keys for different (project, city) pairs", () => {
-    expect(demandRowMetaKey("Самокат", "Москва")).not.toBe(demandRowMetaKey("Купер", "Москва"));
+  it("produces different keys for different (project, city, position) triples", () => {
+    expect(demandRowMetaKey("Самокат", "Москва", "Курьер")).not.toBe(demandRowMetaKey("Купер", "Москва", "Курьер"));
+    expect(demandRowMetaKey("Самокат", "Москва", "Курьер")).not.toBe(demandRowMetaKey("Самокат", "Москва", "Кассир"));
   });
   it("does not collide when a delimiter-joined string would (boundary shifts between fields)", () => {
-    expect(demandRowMetaKey("AB", "C")).not.toBe(demandRowMetaKey("A", "BC"));
+    expect(demandRowMetaKey("AB", "C", "D")).not.toBe(demandRowMetaKey("A", "BC", "D"));
+    expect(demandRowMetaKey("A", "B", "CD")).not.toBe(demandRowMetaKey("A", "BC", "D"));
   });
   it("is stable for the same inputs", () => {
-    expect(demandRowMetaKey("Самокат", "Москва")).toBe(demandRowMetaKey("Самокат", "Москва"));
+    expect(demandRowMetaKey("Самокат", "Москва", "Курьер")).toBe(demandRowMetaKey("Самокат", "Москва", "Курьер"));
   });
 });
 
 describe("getRowMeta", () => {
   const metaList = [
-    { project: "Самокат", city: "Москва", status: "paused", comment: "temporarily on hold" },
-    { project: "Купер", city: "Казань", status: "bogus-status", comment: null },
+    { project: "Самокат", city: "Москва", position: "Курьер", status: "paused", comment: "temporarily on hold" },
+    { project: "Купер", city: "Казань", position: "Кассир", status: "bogus-status", comment: null },
   ];
 
   it("returns active + null when there is no record", () => {
-    expect(getRowMeta(metaList, "Самокат", "Казань")).toEqual({ status: "active", comment: null });
+    expect(getRowMeta(metaList, "Самокат", "Казань", "Курьер")).toEqual({ status: "active", comment: null });
   });
 
   it("returns the stored status and comment when a record exists", () => {
-    expect(getRowMeta(metaList, "Самокат", "Москва")).toEqual({ status: "paused", comment: "temporarily on hold" });
+    expect(getRowMeta(metaList, "Самокат", "Москва", "Курьер")).toEqual({
+      status: "paused",
+      comment: "temporarily on hold",
+    });
+  });
+
+  it("distinguishes rows that differ only by position", () => {
+    expect(getRowMeta(metaList, "Самокат", "Москва", "Кассир")).toEqual({ status: "active", comment: null });
   });
 
   it("falls back to active for a corrupted/unknown status value in the data", () => {
-    expect(getRowMeta(metaList, "Купер", "Казань").status).toBe("active");
+    expect(getRowMeta(metaList, "Купер", "Казань", "Кассир").status).toBe("active");
   });
 });
 
@@ -115,33 +125,46 @@ describe("mergeRowMetaPatch", () => {
 
 describe("filterGroupsByRowStatus", () => {
   const metaList = [
-    { project: "Самокат", city: "Москва", status: "active", comment: null },
-    { project: "Самокат", city: "Казань", status: "paused", comment: null },
-    { project: "Купер", city: "Москва", status: "closed", comment: null },
+    { project: "Самокат", city: "Москва", position: "Курьер", status: "active", comment: null },
+    { project: "Самокат", city: "Казань", position: "Курьер", status: "paused", comment: null },
+    { project: "Самокат", city: "Москва", position: "Кассир", status: "closed", comment: null },
+    { project: "Купер", city: "Москва", position: "Курьер", status: "closed", comment: null },
   ];
-  const grouped = [
-    { project: "Самокат", cities: ["Москва", "Казань"] },
-    { project: "Купер", cities: ["Москва"] },
+  const grouped: DemandGroupedProject[] = [
+    {
+      project: "Самокат",
+      cities: [
+        { city: "Москва", positions: ["Курьер", "Кассир"] },
+        { city: "Казань", positions: ["Курьер"] },
+      ],
+    },
+    { project: "Купер", cities: [{ city: "Москва", positions: ["Курьер"] }] },
   ];
 
   it("returns everything unfiltered when no row status is selected", () => {
     expect(filterGroupsByRowStatus(grouped, metaList, "")).toEqual(grouped);
   });
 
-  it("keeps only cities whose row status matches", () => {
+  it("keeps only positions whose row status matches", () => {
     expect(filterGroupsByRowStatus(grouped, metaList, "paused")).toEqual([
-      { project: "Самокат", cities: ["Казань"] },
+      { project: "Самокат", cities: [{ city: "Казань", positions: ["Курьер"] }] },
     ]);
   });
 
-  it("drops a project entirely when none of its cities match", () => {
-    const result = filterGroupsByRowStatus(grouped, metaList, "closed");
-    expect(result).toEqual([{ project: "Купер", cities: ["Москва"] }]);
-    expect(result.some((g) => g.project === "Самокат")).toBe(false);
+  it("keeps only the matching position within a city, dropping the rest", () => {
+    expect(filterGroupsByRowStatus(grouped, metaList, "closed")).toEqual([
+      { project: "Самокат", cities: [{ city: "Москва", positions: ["Кассир"] }] },
+      { project: "Купер", cities: [{ city: "Москва", positions: ["Курьер"] }] },
+    ]);
   });
 
-  it("treats a city with no metadata as active", () => {
-    const noMeta = [{ project: "Самокат", cities: ["Уфа"] }];
+  it("drops a project entirely when none of its positions match", () => {
+    const result = filterGroupsByRowStatus(grouped, metaList, "closed");
+    expect(result.some((g) => g.project === "Самокат" && g.cities.some((c) => c.city === "Казань"))).toBe(false);
+  });
+
+  it("treats a position with no metadata as active", () => {
+    const noMeta: DemandGroupedProject[] = [{ project: "Самокат", cities: [{ city: "Уфа", positions: ["Курьер"] }] }];
     expect(filterGroupsByRowStatus(noMeta, [], "active")).toEqual(noMeta);
     expect(filterGroupsByRowStatus(noMeta, [], "paused")).toEqual([]);
   });

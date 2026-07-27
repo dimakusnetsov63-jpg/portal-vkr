@@ -82,6 +82,7 @@ export type Database = {
           manager: string | null
           max_tag: string | null
           phone: string | null
+          position: string | null
           project: Database["public"]["Enums"]["candidate_project"]
           recruiter: string | null
           registration_at: string | null
@@ -106,6 +107,7 @@ export type Database = {
           manager?: string | null
           max_tag?: string | null
           phone?: string | null
+          position?: string | null
           project: Database["public"]["Enums"]["candidate_project"]
           recruiter?: string | null
           registration_at?: string | null
@@ -130,6 +132,7 @@ export type Database = {
           manager?: string | null
           max_tag?: string | null
           phone?: string | null
+          position?: string | null
           project?: Database["public"]["Enums"]["candidate_project"]
           recruiter?: string | null
           registration_at?: string | null
@@ -148,6 +151,7 @@ export type Database = {
           demand_date: string
           id: string
           planned_count: number
+          position: string
           project: Database["public"]["Enums"]["candidate_project"]
           updated_at: string
         }
@@ -157,6 +161,7 @@ export type Database = {
           demand_date: string
           id?: string
           planned_count: number
+          position: string
           project: Database["public"]["Enums"]["candidate_project"]
           updated_at?: string
         }
@@ -166,6 +171,7 @@ export type Database = {
           demand_date?: string
           id?: string
           planned_count?: number
+          position?: string
           project?: Database["public"]["Enums"]["candidate_project"]
           updated_at?: string
         }
@@ -185,6 +191,7 @@ export type Database = {
           old_comment: string | null
           old_quantity: number | null
           old_status: string | null
+          position: string
           project: string
           staffing_demand_id: string | null
         }
@@ -201,6 +208,7 @@ export type Database = {
           old_comment?: string | null
           old_quantity?: number | null
           old_status?: string | null
+          position: string
           project: string
           staffing_demand_id?: string | null
         }
@@ -217,6 +225,7 @@ export type Database = {
           old_comment?: string | null
           old_quantity?: number | null
           old_status?: string | null
+          position?: string
           project?: string
           staffing_demand_id?: string | null
         }
@@ -228,6 +237,7 @@ export type Database = {
           comment: string | null
           created_at: string
           id: string
+          position: string
           project: string
           status: string
           updated_at: string
@@ -237,6 +247,7 @@ export type Database = {
           comment?: string | null
           created_at?: string
           id?: string
+          position: string
           project: string
           status?: string
           updated_at?: string
@@ -246,6 +257,7 @@ export type Database = {
           comment?: string | null
           created_at?: string
           id?: string
+          position?: string
           project?: string
           status?: string
           updated_at?: string
@@ -261,7 +273,12 @@ export type Database = {
       show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
-      candidate_list_type: "recruiter" | "manager" | "coordinator" | "city"
+      candidate_list_type:
+        | "recruiter"
+        | "manager"
+        | "coordinator"
+        | "city"
+        | "position"
       candidate_project:
         | "Самокат"
         | "Купер"
@@ -411,7 +428,13 @@ export const Constants = {
   },
   public: {
     Enums: {
-      candidate_list_type: ["recruiter", "manager", "coordinator", "city"],
+      candidate_list_type: [
+        "recruiter",
+        "manager",
+        "coordinator",
+        "city",
+        "position",
+      ],
       candidate_project: [
         "Самокат",
         "Купер",

@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useHorizontalScrollSync } from "@/components/portal/ui/useHorizontalScrollSync";
 import { toIsoDate } from "@/lib/portal/demandWindow";
 import { DemandProjectRow } from "./DemandProjectRow";
-import type { DemandColumn, DemandMatrixData } from "./demandAggregate";
+import type { DemandColumn, DemandGroupedProject, DemandMatrixData } from "./demandAggregate";
 import { grandPeriodTotal, grandTotalsByColumn } from "./demandMetrics";
 import styles from "./DemandSection.module.css";
 
@@ -14,20 +14,26 @@ export function DemandMatrix({
   matrix,
   collapsed,
   onToggleCollapse,
+  collapsedCities,
+  onToggleCityCollapse,
   onSaveCell,
   scrollToTodaySignal,
 }: {
-  grouped: { project: string; cities: string[] }[];
+  grouped: DemandGroupedProject[];
   columns: DemandColumn[];
   matrix: DemandMatrixData;
   collapsed: Record<string, boolean>;
   onToggleCollapse: (project: string) => void;
-  onSaveCell: (project: string, city: string, dateIso: string, next: number | null) => Promise<boolean>;
+  collapsedCities: Record<string, boolean>;
+  onToggleCityCollapse: (project: string, city: string) => void;
+  onSaveCell: (project: string, city: string, position: string, dateIso: string, next: number | null) => Promise<boolean>;
   /** Bumped by the "Сегодня" button to trigger a scroll to today's column. */
   scrollToTodaySignal?: number;
 }) {
   const { scrollRef, fakeRef, innerWidth } = useHorizontalScrollSync();
-  const visible = grouped.flatMap((g) => g.cities.map((city) => ({ project: g.project, city })));
+  const visible = grouped.flatMap((g) =>
+    g.cities.flatMap((c) => c.positions.map((position) => ({ project: g.project, city: c.city, position }))),
+  );
   const columnTotals = grandTotalsByColumn(matrix, visible, columns);
   const grandTotal = grandPeriodTotal(matrix, visible);
   const todayIso = toIsoDate(new Date());
@@ -69,6 +75,8 @@ export function DemandMatrix({
                 matrix={matrix}
                 collapsed={!!collapsed[g.project]}
                 onToggleCollapse={() => onToggleCollapse(g.project)}
+                collapsedCities={collapsedCities}
+                onToggleCityCollapse={(city) => onToggleCityCollapse(g.project, city)}
                 onSaveCell={onSaveCell}
               />
             ))}

@@ -7,6 +7,7 @@ function makeRow(overrides: Partial<StaffingDemandRow> = {}): StaffingDemandRow 
     id: "id-1",
     project: "Самокат",
     city: "Москва",
+    position: "Курьер",
     demand_date: "2026-07-24",
     planned_count: 5,
     created_at: "2026-07-01T00:00:00.000Z",
@@ -15,7 +16,7 @@ function makeRow(overrides: Partial<StaffingDemandRow> = {}): StaffingDemandRow 
   };
 }
 
-const NO_FILTERS: DemandFilters = { search: "", project: "", city: "" };
+const NO_FILTERS: DemandFilters = { search: "", project: "", city: "", position: "" };
 
 describe("filterDemandRows", () => {
   it("returns all rows when no filters are set", () => {
@@ -40,22 +41,33 @@ describe("filterDemandRows", () => {
     expect(filterDemandRows(rows, { ...NO_FILTERS, city: "Казань" }).map((r) => r.id)).toEqual(["2"]);
   });
 
-  it("searches by project or city (case-insensitive, partial)", () => {
+  it("filters by exact position (empty means all)", () => {
     const rows = [
-      makeRow({ id: "1", project: "Самокат", city: "Москва" }),
-      makeRow({ id: "2", project: "Купер", city: "Казань" }),
+      makeRow({ id: "1", position: "Курьер" }),
+      makeRow({ id: "2", position: "Кассир" }),
+    ];
+    expect(filterDemandRows(rows, { ...NO_FILTERS, position: "Кассир" }).map((r) => r.id)).toEqual(["2"]);
+  });
+
+  it("searches by project, city or position (case-insensitive, partial)", () => {
+    const rows = [
+      makeRow({ id: "1", project: "Самокат", city: "Москва", position: "Курьер" }),
+      makeRow({ id: "2", project: "Купер", city: "Казань", position: "Кассир" }),
     ];
     expect(filterDemandRows(rows, { ...NO_FILTERS, search: "куп" }).map((r) => r.id)).toEqual(["2"]);
     expect(filterDemandRows(rows, { ...NO_FILTERS, search: "казан" }).map((r) => r.id)).toEqual(["2"]);
+    expect(filterDemandRows(rows, { ...NO_FILTERS, search: "касс" }).map((r) => r.id)).toEqual(["2"]);
   });
 
-  it("combines project, city and search filters", () => {
+  it("combines project, city, position and search filters", () => {
     const rows = [
-      makeRow({ id: "1", project: "Самокат", city: "Москва" }),
-      makeRow({ id: "2", project: "Самокат", city: "Казань" }),
-      makeRow({ id: "3", project: "Купер", city: "Москва" }),
+      makeRow({ id: "1", project: "Самокат", city: "Москва", position: "Курьер" }),
+      makeRow({ id: "2", project: "Самокат", city: "Казань", position: "Курьер" }),
+      makeRow({ id: "3", project: "Купер", city: "Москва", position: "Кассир" }),
     ];
-    expect(filterDemandRows(rows, { search: "", project: "Самокат", city: "Москва" }).map((r) => r.id)).toEqual(["1"]);
+    expect(
+      filterDemandRows(rows, { search: "", project: "Самокат", city: "Москва", position: "Курьер" }).map((r) => r.id),
+    ).toEqual(["1"]);
   });
 
   it("returns an empty array when nothing matches", () => {

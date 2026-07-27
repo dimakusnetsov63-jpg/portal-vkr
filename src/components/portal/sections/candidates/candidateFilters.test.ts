@@ -10,6 +10,7 @@ function makeCandidate(overrides: Partial<Candidate> = {}): Candidate {
     full_name: "Иван Иванов",
     project: "Самокат",
     city: null,
+    position: null,
     stage: null,
     recruiter: null,
     manager: null,
@@ -31,7 +32,7 @@ function makeCandidate(overrides: Partial<Candidate> = {}): Candidate {
   };
 }
 
-const NO_FILTERS: CandidateFilters = { search: "", project: "", stage: "", showArchived: false };
+const NO_FILTERS: CandidateFilters = { search: "", project: "", stage: "", position: "", showArchived: false };
 
 describe("filterCandidates", () => {
   it("returns all (non-archived) candidates when no filters are set", () => {
@@ -93,6 +94,29 @@ describe("filterCandidates", () => {
     expect(filterCandidates(list, NO_FILTERS)).toHaveLength(3);
   });
 
+  it("filters by position (empty position string means all)", () => {
+    const list = [
+      makeCandidate({ id: "1", position: "Курьер" }),
+      makeCandidate({ id: "2", position: "Сборщик" }),
+      makeCandidate({ id: "3", position: null }),
+    ];
+    expect(filterCandidates(list, { ...NO_FILTERS, position: "Сборщик" }).map((c) => c.id)).toEqual(["2"]);
+    expect(filterCandidates(list, NO_FILTERS)).toHaveLength(3);
+  });
+
+  it("does not match candidates with no position when a position filter is set", () => {
+    const list = [makeCandidate({ id: "1", position: null })];
+    expect(filterCandidates(list, { ...NO_FILTERS, position: "Курьер" })).toEqual([]);
+  });
+
+  it("searches by position", () => {
+    const list = [
+      makeCandidate({ id: "1", position: "Кухонный рабочий" }),
+      makeCandidate({ id: "2", position: "Бариста" }),
+    ];
+    expect(filterCandidates(list, { ...NO_FILTERS, search: "барист" }).map((c) => c.id)).toEqual(["2"]);
+  });
+
   it("hides archived candidates by default", () => {
     const list = [
       makeCandidate({ id: "1" }),
@@ -128,6 +152,7 @@ describe("filterCandidates", () => {
       search: "анна",
       project: "Самокат",
       stage: "Завершил вахту",
+      position: "",
       showArchived: false,
     });
     expect(result.map((c) => c.id)).toEqual(["1"]);

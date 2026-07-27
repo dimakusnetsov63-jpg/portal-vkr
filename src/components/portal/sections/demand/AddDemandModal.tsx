@@ -9,6 +9,15 @@ import { Modal } from "@/components/portal/ui/Modal";
 import { activeListOptions, CANDIDATE_PROJECTS } from "@/lib/portal/candidateOptions";
 import { enumerateIsoDates, toIsoDate } from "@/lib/portal/demandWindow";
 import type { CandidateProject } from "@/lib/supabase/candidates.types";
+import { isLargeBulkCount } from "./demandAggregate";
+import {
+  DEMAND_COMMENT_MAX_LENGTH,
+  DEMAND_ROW_STATUSES,
+  DEMAND_ROW_STATUS_LABELS,
+  isCommentTooLong,
+  normalizeComment,
+  type DemandRowStatus,
+} from "./demandRowMeta";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import styles from "./DemandSection.module.css";
 
@@ -30,24 +39,33 @@ export function AddDemandModal({
   onSubmit: (input: {
     project: string;
     cities: string[];
+    positions: string[];
     fromDate: string;
     toDate: string;
     plannedCount: number;
   }) => Promise<boolean>;
 }) {
-  const { pushToast, listOptions } = usePortal();
+  const { pushToast, listOptions, updateDemandRowMeta } = usePortal();
   const [project, setProject] = useState<CandidateProject>(CANDIDATE_PROJECTS[0]);
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [cityInput, setCityInput] = useState("");
+  const [selectedPositions, setSelectedPositions] = useState<string[]>([]);
+  const [positionInput, setPositionInput] = useState("");
   const today = toIsoDate(new Date());
   const [fromDate, setFromDate] = useState(today);
   const [toDate, setToDate] = useState(today);
   const [plannedCount, setPlannedCount] = useState(5);
+  const [comment, setComment] = useState("");
+  const [status, setStatus] = useState<DemandRowStatus>("active");
   const [saving, setSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const cityOptions = activeListOptions(listOptions, "city")
     .map((o) => o.value)
     .filter((c) => !selectedCities.includes(c));
+  const positionOptions = activeListOptions(listOptions, "position")
+    .map((o) => o.value)
+    .filter((p) => !selectedPositions.includes(p));
 
   function addCity(value: string) {
     const v = value.trim();
@@ -59,27 +77,64 @@ export function AddDemandModal({
     setSelectedCities((prev) => prev.filter((c) => c !== value));
   }
 
+  function addPosition(value: string) {
+    const v = value.trim();
+    if (v && !selectedPositions.includes(v)) setSelectedPositions((prev) => [...prev, v]);
+    setPositionInput("");
+  }
+
+  function removePosition(value: string) {
+    setSelectedPositions((prev) => prev.filter((p) => p !== value));
+  }
+
   const validRange = Boolean(fromDate && toDate && fromDate <= toDate);
   const dayCount = validRange ? enumerateIsoDates(fromDate, toDate).length : 0;
-  const totalCount = dayCount * selectedCities.length;
+  const totalCount = dayCount * selectedCities.length * selectedPositions.length;
+  const commentTooLong = isCommentTooLong(comment);
+
+  function validate(): string | null {
+    if (selectedCities.length === 0) return "Выберите хотя бы один город";
+    if (selectedPositions.length === 0) return "Выберите хотя бы одну должность";
+    if (!validRange) return "Дата начала должна быть не позже даты окончания";
+    if (!Number.isInteger(plannedCount) || plannedCount <= 0) return "Количество должно быть целым числом больше 0";
+    if (commentTooLong) return "Комментарий не может быть длиннее 2000 символов";
+    return null;
+  }
+
+  async function performSave() {
+    setSaving(true);
+    const ok = await onSubmit({
+      project,
+      cities: selectedCities,
+      positions: selectedPositions,
+      fromDate,
+      toDate,
+      plannedCount,
+    });
+    if (ok && (status !== "active" || normalizeComment(comment) !== null)) {
+      const patch = { status, comment: normalizeComment(comment) };
+      await Promise.all(
+        selectedCities.flatMap((city) =>
+          selectedPositions.map((position) => updateDemandRowMeta(project, city, position, patch)),
+        ),
+      );
+    }
+    setSaving(false);
+    setConfirmOpen(false);
+    if (ok) onClose();
+  }
 
   async function handleSave() {
-    if (selectedCities.length === 0) {
-      pushToast("Выберите хотя бы один город", "error");
+    const error = validate();
+    if (error) {
+      pushToast(error, "error");
       return;
     }
-    if (!validRange) {
-      pushToast("Дата начала должна быть не позже даты окончания", "error");
+    if (isLargeBulkCount(totalCount)) {
+      setConfirmOpen(true);
       return;
     }
-    if (!Number.isInteger(plannedCount) || plannedCount <= 0) {
-      pushToast("Количество должно быть целым числом больше 0", "error");
-      return;
-    }
-    setSaving(true);
-    const ok = await onSubmit({ project, cities: selectedCities, fromDate, toDate, plannedCount });
-    setSaving(false);
-    if (ok) onClose();
+    await performSave();
   }
 
   return (
@@ -90,7 +145,11 @@ export function AddDemandModal({
       footer={
         <>
           <Button onClick={onClose}>Отмена</Button>
-          <Button variant="primary" onClick={handleSave} disabled={saving || selectedCities.length === 0}>
+          <Button
+            variant="primary"
+            onClick={handleSave}
+            disabled={saving || selectedCities.length === 0 || selectedPositions.length === 0}
+          >
             {saving ? "Сохранение…" : "Сохранить"}
           </Button>
         </>
@@ -134,6 +193,34 @@ export function AddDemandModal({
         </div>
       </div>
 
+      <div className={primitives.field}>
+        <label>Должности</label>
+        {selectedPositions.length > 0 && (
+          <div className={styles.cityTagRow}>
+            {selectedPositions.map((p) => (
+              <span key={p} className={styles.cityTag}>
+                {p}
+                <button type="button" onClick={() => removePosition(p)} aria-label={`Убрать ${p}`}>
+                  <Icon name="x" size={11} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className={styles.cityInputRow}>
+          <Combobox
+            value={positionInput}
+            onChange={(v) => (positionOptions.includes(v) ? addPosition(v) : setPositionInput(v))}
+            options={positionOptions}
+            placeholder="Добавить должность"
+            emptyHint="Список пуст — добавьте значения в Настройках → Списки для кандидатов."
+          />
+          <Button size="sm" onClick={() => addPosition(positionInput)} disabled={!positionInput.trim()}>
+            <Icon name="plus" size={13} />
+          </Button>
+        </div>
+      </div>
+
       <div className={primitives.fieldRow}>
         <div className={primitives.field}>
           <label>Дата начала</label>
@@ -146,7 +233,7 @@ export function AddDemandModal({
       </div>
 
       <div className={primitives.field}>
-        <label>Количество сотрудников (на каждый день и город)</label>
+        <label>Количество сотрудников (на каждый день, город и должность)</label>
         <input
           type="number"
           min={1}
@@ -155,10 +242,59 @@ export function AddDemandModal({
         />
       </div>
 
+      <div className={primitives.fieldRow}>
+        <div className={primitives.field}>
+          <label>Статус строки (необязательно)</label>
+          <select value={status} onChange={(e) => setStatus(e.target.value as DemandRowStatus)}>
+            {DEMAND_ROW_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {DEMAND_ROW_STATUS_LABELS[s]}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className={primitives.field}>
+        <label>Комментарий (необязательно)</label>
+        <textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Например: город временно не принимает новых сотрудников"
+          rows={3}
+        />
+        <div className={styles.rowCommentCounter}>
+          {comment.trim().length} / {DEMAND_COMMENT_MAX_LENGTH}
+        </div>
+      </div>
+
       {totalCount > 0 && (
         <p className={styles.bulkNotice}>
           Будет создано или обновлено <strong>{totalCount}</strong> {pluralizeValues(totalCount)} потребности.
         </p>
+      )}
+
+      {confirmOpen && (
+        <Modal
+          open
+          onClose={() => setConfirmOpen(false)}
+          title="Подтвердите добавление"
+          footer={
+            <>
+              <Button onClick={() => setConfirmOpen(false)} disabled={saving}>
+                Отмена
+              </Button>
+              <Button variant="primary" onClick={performSave} disabled={saving}>
+                {saving ? "Сохранение…" : "Всё верно, сохранить"}
+              </Button>
+            </>
+          }
+        >
+          <p>
+            Это затронет <strong>{totalCount}</strong> {pluralizeValues(totalCount)} потребности — {selectedCities.length}{" "}
+            город(ов) × {selectedPositions.length} должность(ей) × {dayCount} дн. Проверьте параметры перед сохранением.
+          </p>
+        </Modal>
       )}
     </Modal>
   );

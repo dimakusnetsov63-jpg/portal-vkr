@@ -1,3 +1,5 @@
+import type { DemandGroupedProject } from "./demandAggregate";
+
 export type DemandRowStatus = "active" | "paused" | "closed";
 
 export const DEMAND_ROW_STATUSES: DemandRowStatus[] = ["active", "paused", "closed"];
@@ -25,13 +27,13 @@ export function isCommentTooLong(raw: string): boolean {
 }
 
 /**
- * Stable composite key for (project, city) — for use as a Map/Set key. Uses
- * JSON.stringify rather than a delimiter-joined string (e.g. `${a} ${b}`) so
- * that distinct pairs can never collide by having the delimiter appear
- * inside one of the values.
+ * Stable composite key for (project, city, position) — for use as a Map/Set
+ * key. Uses JSON.stringify rather than a delimiter-joined string (e.g.
+ * `${a} ${b} ${c}`) so that distinct triples can never collide by having the
+ * delimiter appear inside one of the values.
  */
-export function demandRowMetaKey(project: string, city: string): string {
-  return JSON.stringify([project, city]);
+export function demandRowMetaKey(project: string, city: string, position: string): string {
+  return JSON.stringify([project, city, position]);
 }
 
 export interface DemandRowMetaValue {
@@ -42,13 +44,19 @@ export interface DemandRowMetaValue {
 interface DemandRowMetaLike {
   project: string;
   city: string;
+  position: string;
   status: string;
   comment: string | null;
 }
 
 /** Looks up a row's metadata; absence of a record means "active, no comment" — the UI default. */
-export function getRowMeta(metaList: DemandRowMetaLike[], project: string, city: string): DemandRowMetaValue {
-  const found = metaList.find((m) => m.project === project && m.city === city);
+export function getRowMeta(
+  metaList: DemandRowMetaLike[],
+  project: string,
+  city: string,
+  position: string,
+): DemandRowMetaValue {
+  const found = metaList.find((m) => m.project === project && m.city === city && m.position === position);
   if (!found) return { status: "active", comment: null };
   return {
     status: isDemandRowStatus(found.status) ? found.status : "active",
@@ -72,17 +80,24 @@ export function mergeRowMetaPatch(
   };
 }
 
-/** Keeps only groups where at least one city's row-level status matches `rowStatus`. Empty/no filter keeps everything. */
+/** Keeps only rows where the (project, city, position) row-level status matches `rowStatus`. Empty/no filter keeps everything. */
 export function filterGroupsByRowStatus(
-  grouped: { project: string; cities: string[] }[],
+  grouped: DemandGroupedProject[],
   metaList: DemandRowMetaLike[],
   rowStatus: DemandRowStatus | "",
-): { project: string; cities: string[] }[] {
+): DemandGroupedProject[] {
   if (!rowStatus) return grouped;
   return grouped
     .map((g) => ({
       project: g.project,
-      cities: g.cities.filter((city) => getRowMeta(metaList, g.project, city).status === rowStatus),
+      cities: g.cities
+        .map((c) => ({
+          city: c.city,
+          positions: c.positions.filter(
+            (position) => getRowMeta(metaList, g.project, c.city, position).status === rowStatus,
+          ),
+        }))
+        .filter((c) => c.positions.length > 0),
     }))
     .filter((g) => g.cities.length > 0);
 }

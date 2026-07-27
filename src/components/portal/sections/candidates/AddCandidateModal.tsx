@@ -20,10 +20,12 @@ export function AddCandidateModal({
   const [fullName, setFullName] = useState("");
   const [project, setProject] = useState<CandidateProject>(CANDIDATE_PROJECTS[0]);
   const [city, setCity] = useState("");
+  const [position, setPosition] = useState("");
   const [recruiter, setRecruiter] = useState("");
   const [saving, setSaving] = useState(false);
 
   const cityOptions = activeListOptions(listOptions, "city").map((o) => o.value);
+  const positionOptions = activeListOptions(listOptions, "position").map((o) => o.value);
   const recruiterOptions = activeListOptions(listOptions, "recruiter").map((o) => o.value);
 
   async function handleSave() {
@@ -36,6 +38,7 @@ export function AddCandidateModal({
       full_name: fullName.trim(),
       project,
       city: city.trim() || null,
+      position: position.trim() || null,
       recruiter: recruiter.trim() || null,
     });
     setSaving(false);
@@ -81,9 +84,15 @@ export function AddCandidateModal({
           <Combobox value={city} onChange={setCity} options={cityOptions} />
         </div>
       </div>
-      <div className={primitives.field}>
-        <label>Рекрутер</label>
-        <Combobox value={recruiter} onChange={setRecruiter} options={recruiterOptions} />
+      <div className={primitives.fieldRow}>
+        <div className={primitives.field}>
+          <label>Должность</label>
+          <Combobox value={position} onChange={setPosition} options={positionOptions} />
+        </div>
+        <div className={primitives.field}>
+          <label>Рекрутер</label>
+          <Combobox value={recruiter} onChange={setRecruiter} options={recruiterOptions} />
+        </div>
       </div>
       <p style={{ fontSize: 12, color: "var(--text-3)" }}>
         Остальные поля (телефон, стадия, медкнижка, даты и т.д.) можно заполнить после создания — откройте карточку

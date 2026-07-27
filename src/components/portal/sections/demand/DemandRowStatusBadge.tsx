@@ -18,10 +18,12 @@ const STATUS_COLOR: Record<DemandRowStatus, BadgeColor> = {
 export function DemandRowStatusBadge({
   project,
   city,
+  position,
   status,
 }: {
   project: string;
   city: string;
+  position: string;
   status: DemandRowStatus;
 }) {
   const { updateDemandRowMeta } = usePortal();
@@ -68,7 +70,7 @@ export function DemandRowStatusBadge({
     setOpen(false);
     if (next === status || saving) return;
     setSaving(true);
-    await updateDemandRowMeta(project, city, { status: next });
+    await updateDemandRowMeta(project, city, position, { status: next });
     setSaving(false);
   }
 

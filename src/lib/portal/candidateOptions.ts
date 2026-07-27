@@ -17,6 +17,7 @@ export const LIST_TYPE_LABELS: Record<CandidateListType, string> = {
   manager: "Менеджеры",
   coordinator: "Координаторы",
   city: "Города",
+  position: "Должности",
 };
 
 const STAGE_COLORS: Record<CandidateStage, BadgeColor> = {

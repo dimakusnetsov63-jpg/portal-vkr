@@ -46,6 +46,7 @@ type Draft = {
   full_name: string;
   project: string;
   city: string;
+  position: string;
   stage: string;
   recruiter: string;
   manager: string;
@@ -67,6 +68,7 @@ function draftFromCandidate(c: Candidate): Draft {
     full_name: c.full_name,
     project: c.project,
     city: c.city ?? "",
+    position: c.position ?? "",
     stage: c.stage ?? "",
     recruiter: c.recruiter ?? "",
     manager: c.manager ?? "",
@@ -100,6 +102,7 @@ export function RealCandidateDrawer({ candidateId }: { candidateId: string | nul
   const [saving, setSaving] = useState(false);
 
   const cityOptions = activeListOptions(listOptions, "city").map((o) => o.value);
+  const positionOptions = activeListOptions(listOptions, "position").map((o) => o.value);
   const recruiterOptions = activeListOptions(listOptions, "recruiter").map((o) => o.value);
   const managerOptions = activeListOptions(listOptions, "manager").map((o) => o.value);
   const coordinatorOptions = activeListOptions(listOptions, "coordinator").map((o) => o.value);
@@ -122,6 +125,7 @@ export function RealCandidateDrawer({ candidateId }: { candidateId: string | nul
       full_name: draft.full_name.trim(),
       project: draft.project as CandidateUpdate["project"],
       city: draft.city.trim() || null,
+      position: draft.position.trim() || null,
       stage: (draft.stage || null) as CandidateUpdate["stage"],
       recruiter: draft.recruiter.trim() || null,
       manager: draft.manager.trim() || null,
@@ -190,16 +194,22 @@ export function RealCandidateDrawer({ candidateId }: { candidateId: string | nul
                   <Combobox value={draft.city} onChange={(v) => set("city", v)} options={cityOptions} />
                 </div>
               </div>
-              <div className={primitives.field}>
-                <label>Стадия</label>
-                <select value={draft.stage} onChange={(e) => set("stage", e.target.value)}>
-                  <option value="">Не начал</option>
-                  {CANDIDATE_STAGES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
+              <div className={primitives.fieldRow}>
+                <div className={primitives.field}>
+                  <label>Должность</label>
+                  <Combobox value={draft.position} onChange={(v) => set("position", v)} options={positionOptions} />
+                </div>
+                <div className={primitives.field}>
+                  <label>Стадия</label>
+                  <select value={draft.stage} onChange={(e) => set("stage", e.target.value)}>
+                    <option value="">Не начал</option>
+                    {CANDIDATE_STAGES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 

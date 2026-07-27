@@ -11,6 +11,7 @@ export interface DemandUrlState {
   section: string;
   project: string;
   city: string;
+  position: string;
   q: string;
   filled: boolean;
   from: string;
@@ -24,6 +25,7 @@ export function serializeDemandParams(state: Partial<DemandUrlState>): URLSearch
   if (state.section) params.set("section", state.section);
   if (state.project) params.set("project", state.project);
   if (state.city) params.set("city", state.city);
+  if (state.position) params.set("position", state.position);
   if (state.q) params.set("q", state.q);
   if (state.filled) params.set("filled", "1");
   if (state.from) params.set("from", state.from);
@@ -41,6 +43,8 @@ export function parseDemandParams(params: URLSearchParams): Partial<DemandUrlSta
   if (project) result.project = project;
   const city = params.get("city");
   if (city) result.city = city;
+  const position = params.get("position");
+  if (position) result.position = position;
   const q = params.get("q");
   if (q) result.q = q;
   const filled = params.get("filled");

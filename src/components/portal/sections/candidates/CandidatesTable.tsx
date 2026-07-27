@@ -33,6 +33,7 @@ export function CandidatesTable({
               </th>
               <th>Проект</th>
               <th>Город</th>
+              <th>Должность</th>
               <th>Стадия</th>
               <th>Рекрутер</th>
               <th>Менеджер</th>
@@ -73,6 +74,7 @@ export function CandidatesTable({
                 </td>
                 <td>{c.project}</td>
                 <td>{c.city || "—"}</td>
+                <td>{c.position || "—"}</td>
                 <td>
                   <Badge color={stageColor(c.stage)}>{c.stage ?? "Не начал"}</Badge>
                 </td>

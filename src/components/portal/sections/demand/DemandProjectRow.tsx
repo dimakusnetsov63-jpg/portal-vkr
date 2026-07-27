@@ -3,9 +3,9 @@
 import { Icon } from "@/components/portal/ui/Icon";
 import { avatarColor } from "@/lib/portal/format";
 import { toIsoDate } from "@/lib/portal/demandWindow";
-import { DemandCityRow } from "./DemandCityRow";
-import type { DemandColumn, DemandMatrixData } from "./demandAggregate";
-import { cityPeriodTotal } from "./demandMetrics";
+import { DemandCityGroupRow } from "./DemandCityGroupRow";
+import { demandCityGroupKey, type DemandColumn, type DemandMatrixData } from "./demandAggregate";
+import { projectPeriodTotal } from "./demandMetrics";
 import styles from "./DemandSection.module.css";
 
 export function DemandProjectRow({
@@ -15,17 +15,21 @@ export function DemandProjectRow({
   matrix,
   collapsed,
   onToggleCollapse,
+  collapsedCities,
+  onToggleCityCollapse,
   onSaveCell,
 }: {
   project: string;
-  cities: string[];
+  cities: { city: string; positions: string[] }[];
   columns: DemandColumn[];
   matrix: DemandMatrixData;
   collapsed: boolean;
   onToggleCollapse: () => void;
-  onSaveCell: (project: string, city: string, dateIso: string, next: number | null) => Promise<boolean>;
+  collapsedCities: Record<string, boolean>;
+  onToggleCityCollapse: (city: string) => void;
+  onSaveCell: (project: string, city: string, position: string, dateIso: string, next: number | null) => Promise<boolean>;
 }) {
-  const total = cities.reduce((sum, city) => sum + cityPeriodTotal(matrix[project]?.[city]), 0);
+  const total = projectPeriodTotal(matrix, project);
   const todayIso = toIsoDate(new Date());
 
   return (
@@ -48,13 +52,16 @@ export function DemandProjectRow({
         <td className={styles.totalColSticky}>{total || ""}</td>
       </tr>
       {!collapsed &&
-        cities.map((city) => (
-          <DemandCityRow
+        cities.map(({ city, positions }) => (
+          <DemandCityGroupRow
             key={city}
             project={project}
             city={city}
+            positions={positions}
             columns={columns}
             matrix={matrix}
+            collapsed={!!collapsedCities[demandCityGroupKey(project, city)]}
+            onToggleCollapse={() => onToggleCityCollapse(city)}
             onSaveCell={onSaveCell}
           />
         ))}

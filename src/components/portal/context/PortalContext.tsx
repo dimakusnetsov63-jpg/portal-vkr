@@ -120,17 +120,24 @@ interface PortalContextValue {
   demandWindow: DemandWindow;
   setDemandWindow: (window: DemandWindow) => void;
   refreshDemand: () => Promise<void>;
-  upsertDemandCell: (project: string, city: string, demandDate: string, plannedCount: number) => Promise<boolean>;
-  deleteDemandCell: (project: string, city: string, demandDate: string) => Promise<boolean>;
+  upsertDemandCell: (
+    project: string,
+    city: string,
+    position: string,
+    demandDate: string,
+    plannedCount: number,
+  ) => Promise<boolean>;
+  deleteDemandCell: (project: string, city: string, position: string, demandDate: string) => Promise<boolean>;
   addDemandBulk: (input: {
     project: string;
     cities: string[];
+    positions: string[];
     fromDate: string;
     toDate: string;
     plannedCount: number;
   }) => Promise<boolean>;
   bulkSetDemandCells: (
-    rows: { project: string; city: string; demand_date: string; planned_count: number }[],
+    rows: { project: string; city: string; position: string; demand_date: string; planned_count: number }[],
   ) => Promise<boolean>;
 
   demandRowMeta: StaffingDemandRowMeta[];
@@ -140,6 +147,7 @@ interface PortalContextValue {
   updateDemandRowMeta: (
     project: string,
     city: string,
+    position: string,
     patch: { status?: DemandRowStatus; comment?: string | null },
   ) => Promise<boolean>;
 }
@@ -480,11 +488,13 @@ export function PortalProvider({
   }, [refreshDemand]);
 
   const upsertDemandCell = useCallback(
-    async (project: string, city: string, demandDate: string, plannedCount: number) => {
+    async (project: string, city: string, position: string, demandDate: string, plannedCount: number) => {
       try {
-        const saved = await upsertStaffingDemandCell(project as CandidateProject, city, demandDate, plannedCount);
+        const saved = await upsertStaffingDemandCell(project as CandidateProject, city, position, demandDate, plannedCount);
         setDemandRows((prev) => {
-          const idx = prev.findIndex((r) => r.project === project && r.city === city && r.demand_date === demandDate);
+          const idx = prev.findIndex(
+            (r) => r.project === project && r.city === city && r.position === position && r.demand_date === demandDate,
+          );
           return idx >= 0 ? prev.map((r, i) => (i === idx ? saved : r)) : [...prev, saved];
         });
         return true;
@@ -497,11 +507,13 @@ export function PortalProvider({
   );
 
   const deleteDemandCell = useCallback(
-    async (project: string, city: string, demandDate: string) => {
+    async (project: string, city: string, position: string, demandDate: string) => {
       try {
-        await deleteStaffingDemandCell(project as CandidateProject, city, demandDate);
+        await deleteStaffingDemandCell(project as CandidateProject, city, position, demandDate);
         setDemandRows((prev) =>
-          prev.filter((r) => !(r.project === project && r.city === city && r.demand_date === demandDate)),
+          prev.filter(
+            (r) => !(r.project === project && r.city === city && r.position === position && r.demand_date === demandDate),
+          ),
         );
         return true;
       } catch (e) {
@@ -513,13 +525,20 @@ export function PortalProvider({
   );
 
   const addDemandBulk = useCallback(
-    async (input: { project: string; cities: string[]; fromDate: string; toDate: string; plannedCount: number }) => {
+    async (input: {
+      project: string;
+      cities: string[];
+      positions: string[];
+      fromDate: string;
+      toDate: string;
+      plannedCount: number;
+    }) => {
       const rows = buildBulkRows(input).map((r) => ({ ...r, project: r.project as CandidateProject }));
       try {
         const saved = await bulkUpsertStaffingDemand(rows);
         setDemandRows((prev) => {
-          const key = (r: { project: string; city: string; demand_date: string }) =>
-            `${r.project} ${r.city} ${r.demand_date}`;
+          const key = (r: { project: string; city: string; position: string; demand_date: string }) =>
+            JSON.stringify([r.project, r.city, r.position, r.demand_date]);
           const savedKeys = new Set(saved.map(key));
           return [...prev.filter((r) => !savedKeys.has(key(r))), ...saved];
         });
@@ -533,17 +552,17 @@ export function PortalProvider({
     [pushToast],
   );
 
-  /** Generic bulk write for copy actions ("Скопировать на 7 дней", "Повторить строку на следующую неделю", …): sets specific (project, city, date) cells to specific values, unlike `addDemandBulk`'s city × date-range cross-product. */
+  /** Generic bulk write for copy actions ("Скопировать на 7 дней", "Повторить строку на следующую неделю", …): sets specific (project, city, position, date) cells to specific values, unlike `addDemandBulk`'s city × position × date-range cross-product. */
   const bulkSetDemandCells = useCallback(
-    async (rows: { project: string; city: string; demand_date: string; planned_count: number }[]) => {
+    async (rows: { project: string; city: string; position: string; demand_date: string; planned_count: number }[]) => {
       if (rows.length === 0) return true;
       try {
         const saved = await bulkUpsertStaffingDemand(
           rows.map((r) => ({ ...r, project: r.project as CandidateProject })),
         );
         setDemandRows((prev) => {
-          const key = (r: { project: string; city: string; demand_date: string }) =>
-            `${r.project} ${r.city} ${r.demand_date}`;
+          const key = (r: { project: string; city: string; position: string; demand_date: string }) =>
+            JSON.stringify([r.project, r.city, r.position, r.demand_date]);
           const savedKeys = new Set(saved.map(key));
           return [...prev.filter((r) => !savedKeys.has(key(r))), ...saved];
         });
@@ -574,22 +593,29 @@ export function PortalProvider({
   }, [refreshDemandRowMeta]);
 
   const updateDemandRowMeta = useCallback(
-    async (project: string, city: string, patch: { status?: DemandRowStatus; comment?: string | null }) => {
-      const key = demandRowMetaKey(project, city);
+    async (
+      project: string,
+      city: string,
+      position: string,
+      patch: { status?: DemandRowStatus; comment?: string | null },
+    ) => {
+      const key = demandRowMetaKey(project, city, position);
       if (demandRowMetaSavingRef.current.has(key)) {
         pushToast("Сохранение уже выполняется", "error");
         return false;
       }
       demandRowMetaSavingRef.current.add(key);
       try {
-        const existing = demandRowMeta.find((m) => m.project === project && m.city === city);
+        const existing = demandRowMeta.find(
+          (m) => m.project === project && m.city === city && m.position === position,
+        );
         const merged = mergeRowMetaPatch(
           existing ? { status: existing.status as DemandRowStatus, comment: existing.comment } : undefined,
           patch,
         );
-        const saved = await upsertStaffingDemandRowMeta(project, city, merged.status, merged.comment);
+        const saved = await upsertStaffingDemandRowMeta(project, city, position, merged.status, merged.comment);
         setDemandRowMeta((prev) => {
-          const idx = prev.findIndex((m) => m.project === project && m.city === city);
+          const idx = prev.findIndex((m) => m.project === project && m.city === city && m.position === position);
           return idx >= 0 ? prev.map((m, i) => (i === idx ? saved : m)) : [...prev, saved];
         });
         return true;

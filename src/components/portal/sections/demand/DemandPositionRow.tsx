@@ -6,36 +6,39 @@ import { getWeekRange, toIsoDate } from "@/lib/portal/demandWindow";
 import { repeatWeekRows } from "./demandCopy";
 import { DemandCell } from "./DemandCell";
 import type { DemandColumn, DemandMatrixData } from "./demandAggregate";
-import { cityPeriodTotal } from "./demandMetrics";
+import { positionPeriodTotal } from "./demandMetrics";
 import { getRowMeta } from "./demandRowMeta";
 import { DemandRowCommentButton } from "./DemandRowCommentButton";
 import { DemandRowStatusBadge } from "./DemandRowStatusBadge";
 import styles from "./DemandSection.module.css";
 
-export function DemandCityRow({
+/** Leaf row of the matrix: one (project, city, position) — status/comment, cells by date, "repeat week" action. */
+export function DemandPositionRow({
   project,
   city,
+  position,
   columns,
   matrix,
   onSaveCell,
 }: {
   project: string;
   city: string;
+  position: string;
   columns: DemandColumn[];
   matrix: DemandMatrixData;
-  onSaveCell: (project: string, city: string, dateIso: string, next: number | null) => Promise<boolean>;
+  onSaveCell: (project: string, city: string, position: string, dateIso: string, next: number | null) => Promise<boolean>;
 }) {
   const { bulkSetDemandCells, pushToast, demandRowMeta } = usePortal();
-  const dates = matrix[project]?.[city] ?? {};
-  const total = cityPeriodTotal(dates);
+  const dates = matrix[project]?.[city]?.[position] ?? {};
+  const total = positionPeriodTotal(dates);
   const todayIso = toIsoDate(new Date());
-  const meta = getRowMeta(demandRowMeta, project, city);
+  const meta = getRowMeta(demandRowMeta, project, city, position);
 
   async function handleRepeatWeek() {
     const { from } = getWeekRange();
-    const rows = repeatWeekRows(dates, from).map((r) => ({ project, city, ...r }));
+    const rows = repeatWeekRows(dates, from).map((r) => ({ project, city, position, ...r }));
     if (rows.length === 0) {
-      pushToast("В текущей неделе нет заполненных значений для этого города", "error");
+      pushToast("В текущей неделе нет заполненных значений для этой должности", "error");
       return;
     }
     const ok = await bulkSetDemandCells(rows);
@@ -43,15 +46,15 @@ export function DemandCityRow({
   }
 
   return (
-    <tr className={styles.cityRow}>
+    <tr className={styles.positionRow}>
       <td className={styles.colSticky}>
-        <div className={styles.cityCell}>
-          <Icon name="mapPin" size={13} />
-          <span className={styles.cityName} title={city}>
-            {city}
+        <div className={styles.positionCell}>
+          <Icon name="briefcase" size={13} />
+          <span className={styles.positionName} title={position}>
+            {position}
           </span>
-          <DemandRowStatusBadge project={project} city={city} status={meta.status} />
-          <DemandRowCommentButton project={project} city={city} comment={meta.comment} />
+          <DemandRowStatusBadge project={project} city={city} position={position} status={meta.status} />
+          <DemandRowCommentButton project={project} city={city} position={position} comment={meta.comment} />
           <button
             type="button"
             className={styles.repeatWeekButton}
@@ -68,10 +71,11 @@ export function DemandCityRow({
           key={col.key}
           project={project}
           city={city}
+          position={position}
           date={col.key}
           value={dates[col.key] ?? null}
           isToday={col.key === todayIso}
-          onSave={(next) => onSaveCell(project, city, col.key, next)}
+          onSave={(next) => onSaveCell(project, city, position, col.key, next)}
         />
       ))}
       <td className={styles.totalColSticky}>{total || ""}</td>

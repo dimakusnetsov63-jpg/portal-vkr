@@ -124,8 +124,51 @@
   flex: none;
 }
 
-.cityCell {
-  padding: 0 8px 0 30px;
+/* ---- city group header row (middle level: project > city > position) ---- */
+.cityGroupCell {
+  padding: 0 8px 0 20px;
+  height: var(--row-h);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+  width: 264px;
+  background: var(--surface-2);
+}
+.cityGroupCell svg {
+  flex: none;
+  opacity: 0.6;
+}
+.cityGroupCell button {
+  background: none;
+  border: none;
+  color: var(--text-2);
+  display: flex;
+  padding: 2px;
+  border-radius: 5px;
+  flex: none;
+}
+.cityGroupCell button:hover {
+  background: var(--surface-hover);
+}
+.cityGroupChevron {
+  transition: transform 0.15s ease;
+}
+.cityGroupCollapsedChevron {
+  transform: rotate(-90deg);
+}
+.cityGroupName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* ---- position row (leaf level) ---- */
+.positionCell {
+  padding: 0 8px 0 40px;
   height: var(--row-h);
   display: flex;
   align-items: center;
@@ -135,11 +178,11 @@
   width: 264px;
   background: var(--surface);
 }
-.cityCell svg {
+.positionCell svg {
   flex: none;
   opacity: 0.55;
 }
-.cityName {
+.positionName {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -310,7 +353,7 @@
 .demandCellToday {
   box-shadow: inset 0 0 0 1px var(--accent);
 }
-.cityRow:hover .cityCell {
+.positionRow:hover .positionCell {
   background: var(--surface-hover);
 }
 .demandCell:hover {
@@ -329,7 +372,7 @@
   opacity: 0;
   transition: opacity 0.1s ease;
 }
-.cityRow:hover .repeatWeekButton {
+.positionRow:hover .repeatWeekButton {
   opacity: 1;
 }
 .repeatWeekButton:hover {

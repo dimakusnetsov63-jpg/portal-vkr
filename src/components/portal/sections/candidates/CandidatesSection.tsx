@@ -8,7 +8,12 @@ import { PageHead } from "@/components/portal/ui/PageHead";
 import { Panel } from "@/components/portal/ui/Panel";
 import { StatCard } from "@/components/portal/ui/StatCard";
 import { EmptyState, ErrorState, SkeletonRows } from "@/components/portal/ui/StateViews";
-import { CANDIDATE_PROJECTS, CANDIDATE_STAGES, medicalBookLabel } from "@/lib/portal/candidateOptions";
+import {
+  activeListOptions,
+  CANDIDATE_PROJECTS,
+  CANDIDATE_STAGES,
+  medicalBookLabel,
+} from "@/lib/portal/candidateOptions";
 import { fmtDateTime } from "@/lib/portal/format";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import { AddCandidateModal } from "./AddCandidateModal";
@@ -27,6 +32,7 @@ export function CandidatesSection() {
     refreshRealCandidates,
     addRealCandidate,
     openRealCandidateDrawer,
+    listOptions,
     pushToast,
     setContextAction,
   } = usePortal();
@@ -34,6 +40,7 @@ export function CandidatesSection() {
   const [search, setSearch] = useState("");
   const [projectFilter, setProjectFilter] = useState("");
   const [stageFilter, setStageFilter] = useState("");
+  const [positionFilter, setPositionFilter] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [modalOpen, setModalOpen] = useState(false);
@@ -47,13 +54,26 @@ export function CandidatesSection() {
     setSearch("");
     setProjectFilter("");
     setStageFilter("");
+    setPositionFilter("");
     setShowArchived(false);
     setVisible(PAGE_SIZE);
   }
 
+  const positionOptions = useMemo(
+    () => activeListOptions(listOptions, "position").map((o) => o.value),
+    [listOptions],
+  );
+
   const filtered = useMemo(
-    () => filterCandidates(realCandidates, { search, project: projectFilter, stage: stageFilter, showArchived }),
-    [realCandidates, search, projectFilter, stageFilter, showArchived],
+    () =>
+      filterCandidates(realCandidates, {
+        search,
+        project: projectFilter,
+        stage: stageFilter,
+        position: positionFilter,
+        showArchived,
+      }),
+    [realCandidates, search, projectFilter, stageFilter, positionFilter, showArchived],
   );
 
   const stats = useMemo(() => calculateCandidateMetrics(filtered), [filtered]);
@@ -64,6 +84,7 @@ export function CandidatesSection() {
       "External ID",
       "Проект",
       "Город",
+      "Должность",
       "Стадия",
       "Рекрутер",
       "Менеджер",
@@ -82,6 +103,7 @@ export function CandidatesSection() {
           c.external_id ?? "",
           c.project,
           c.city ?? "",
+          c.position ?? "",
           c.stage ?? "",
           c.recruiter ?? "",
           c.manager ?? "",
@@ -170,6 +192,21 @@ export function CandidatesSection() {
             {CANDIDATE_STAGES.map((s) => (
               <option key={s} value={s}>
                 {s}
+              </option>
+            ))}
+          </select>
+          <select
+            className={primitives.select}
+            value={positionFilter}
+            onChange={(e) => {
+              setPositionFilter(e.target.value);
+              setVisible(PAGE_SIZE);
+            }}
+          >
+            <option value="">Все должности</option>
+            {positionOptions.map((p) => (
+              <option key={p} value={p}>
+                {p}
               </option>
             ))}
           </select>

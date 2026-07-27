@@ -5,6 +5,7 @@ const FULL_STATE: DemandUrlState = {
   section: "demand",
   project: "Самокат",
   city: "Москва",
+  position: "Курьер",
   q: "казань",
   filled: true,
   from: "2026-07-20",
@@ -18,6 +19,7 @@ describe("serializeDemandParams", () => {
     expect(params.get("section")).toBe("demand");
     expect(params.get("project")).toBe("Самокат");
     expect(params.get("city")).toBe("Москва");
+    expect(params.get("position")).toBe("Курьер");
     expect(params.get("q")).toBe("казань");
     expect(params.get("filled")).toBe("1");
     expect(params.get("from")).toBe("2026-07-20");

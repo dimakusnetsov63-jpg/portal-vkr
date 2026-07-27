@@ -14,11 +14,13 @@ import styles from "./DemandSection.module.css";
 export function DemandHistoryDrawer({
   project,
   city,
+  position,
   date,
   onClose,
 }: {
   project: string;
   city: string;
+  position: string;
   date: string;
   onClose: () => void;
 }) {
@@ -35,7 +37,7 @@ export function DemandHistoryDrawer({
       const supabase = createClient();
       const [{ data: userData }, history] = await Promise.all([
         supabase.auth.getUser(),
-        listStaffingDemandCellHistory(project, city, date),
+        listStaffingDemandCellHistory(project, city, position, date),
       ]);
       setCurrentUserId(userData.user?.id ?? null);
       setCurrentUserEmail(userData.user?.email ?? null);
@@ -45,7 +47,7 @@ export function DemandHistoryDrawer({
     } finally {
       setLoading(false);
     }
-  }, [project, city, date]);
+  }, [project, city, position, date]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- lazy load on open, same pattern as the context's initial data loads
@@ -56,7 +58,7 @@ export function DemandHistoryDrawer({
   const cellDateLabel = fmtDate(new Date(y, m - 1, d));
 
   return (
-    <Modal open onClose={onClose} title={`История изменений — ${project}, ${city}, ${cellDateLabel}`}>
+    <Modal open onClose={onClose} title={`История изменений — ${project}, ${city}, ${position}, ${cellDateLabel}`}>
       {loading && <p className={styles.historyState}>Загрузка…</p>}
 
       {!loading && error && (

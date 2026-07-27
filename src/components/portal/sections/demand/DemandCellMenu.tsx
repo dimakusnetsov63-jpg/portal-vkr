@@ -22,11 +22,13 @@ function pluralizeCells(n: number): string {
 export function DemandCellMenu({
   project,
   city,
+  position,
   date,
   value,
 }: {
   project: string;
   city: string;
+  position: string;
   date: string;
   value: number;
 }) {
@@ -59,7 +61,7 @@ export function DemandCellMenu({
   async function handleConfirm() {
     if (!confirm) return;
     setSaving(true);
-    const rows = confirm.targets.map((demand_date) => ({ project, city, demand_date, planned_count: value }));
+    const rows = confirm.targets.map((demand_date) => ({ project, city, position, demand_date, planned_count: value }));
     const ok = await bulkSetDemandCells(rows);
     setSaving(false);
     setConfirm(null);
@@ -123,7 +125,13 @@ export function DemandCellMenu({
       )}
 
       {historyOpen && (
-        <DemandHistoryDrawer project={project} city={city} date={date} onClose={() => setHistoryOpen(false)} />
+        <DemandHistoryDrawer
+          project={project}
+          city={city}
+          position={position}
+          date={date}
+          onClose={() => setHistoryOpen(false)}
+        />
       )}
 
       {confirm && (

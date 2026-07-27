@@ -15,6 +15,9 @@ export function DemandToolbar({
   city,
   onCityChange,
   cityOptions,
+  position,
+  onPositionChange,
+  positionOptions,
   filledOnly,
   onFilledOnlyChange,
   rowStatus,
@@ -35,6 +38,9 @@ export function DemandToolbar({
   city: string;
   onCityChange: (value: string) => void;
   cityOptions: string[];
+  position: string;
+  onPositionChange: (value: string) => void;
+  positionOptions: string[];
   filledOnly: boolean;
   onFilledOnlyChange: (value: boolean) => void;
   rowStatus: DemandRowStatus | "";
@@ -72,6 +78,14 @@ export function DemandToolbar({
         {cityOptions.map((c) => (
           <option key={c} value={c}>
             {c}
+          </option>
+        ))}
+      </select>
+      <select className={primitives.select} value={position} onChange={(e) => onPositionChange(e.target.value)}>
+        <option value="">Все должности</option>
+        {positionOptions.map((p) => (
+          <option key={p} value={p}>
+            {p}
           </option>
         ))}
       </select>

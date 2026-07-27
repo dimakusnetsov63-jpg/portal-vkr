@@ -10,6 +10,7 @@ function makeCandidate(overrides: Partial<Candidate> = {}): Candidate {
     full_name: "Иван Иванов",
     project: "Самокат",
     city: null,
+    position: null,
     stage: null,
     recruiter: null,
     manager: null,
