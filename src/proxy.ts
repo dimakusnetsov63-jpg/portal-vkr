@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
+import { guardRequest } from "@/lib/auth/middleware";
 
 export async function proxy(request: NextRequest) {
-  return updateSession(request);
+  return guardRequest(request);
 }
 
 export const config = {

@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { usePortal } from "@/components/portal/context/PortalContext";
 import { PAGE_TITLES } from "@/lib/portal/constants";
-import { relativeTime } from "@/lib/portal/format";
+import { ROLE_LABELS } from "@/lib/auth/roles";
+import { avatarColor, initials, relativeTime } from "@/lib/portal/format";
 import { NOTIF_TYPE_LABELS } from "@/lib/portal/notifications";
 import { Icon } from "@/components/portal/ui/Icon";
 import { Button } from "@/components/portal/ui/Button";
@@ -20,12 +21,6 @@ const NOTIF_ICO_CLASS = {
   info: dropdownStyles.notifIcoInfo,
 };
 
-function userInitials(email: string | null): string {
-  if (!email) return "?";
-  const local = email.split("@")[0];
-  return local.slice(0, 2).toUpperCase();
-}
-
 export function Topbar() {
   const {
     activePage,
@@ -34,7 +29,8 @@ export function Topbar() {
     notifications,
     markAllNotificationsRead,
     contextAction,
-    authEmail,
+    currentUser,
+    can,
     signOut,
   } = usePortal();
 
@@ -142,31 +138,33 @@ export function Topbar() {
             className={styles.profileTrigger}
             onClick={() => setOpenMenu((m) => (m === "profile" ? null : "profile"))}
           >
-            <div className={styles.avatar} style={{ background: "#5856d6" }}>
-              {userInitials(authEmail)}
+            <div className={styles.avatar} style={{ background: avatarColor(currentUser.full_name) }}>
+              {initials(currentUser.full_name)}
             </div>
           </button>
           {openMenu === "profile" && (
             <DropdownPanel narrow>
               <div className={dropdownStyles.profileHead}>
-                <div className={styles.avatar} style={{ background: "#5856d6" }}>
-                  {userInitials(authEmail)}
+                <div className={styles.avatar} style={{ background: avatarColor(currentUser.full_name) }}>
+                  {initials(currentUser.full_name)}
                 </div>
                 <div>
-                  <b>Сотрудник</b>
-                  <div>{authEmail ?? "Не авторизован"}</div>
+                  <b>{currentUser.full_name}</b>
+                  <div>{ROLE_LABELS[currentUser.role]}</div>
                 </div>
               </div>
-              <button
-                className={dropdownStyles.profileItem}
-                onClick={() => {
-                  setOpenMenu(null);
-                  goto("settings");
-                }}
-              >
-                <Icon name="gear" size={16} />
-                Настройки
-              </button>
+              {can("settings") && (
+                <button
+                  className={dropdownStyles.profileItem}
+                  onClick={() => {
+                    setOpenMenu(null);
+                    goto("settings");
+                  }}
+                >
+                  <Icon name="gear" size={16} />
+                  Настройки
+                </button>
+              )}
               <button
                 className={dropdownStyles.profileItem}
                 onClick={() => {

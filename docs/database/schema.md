@@ -10,10 +10,13 @@
 
 ## Таблицы
 
-Подтверждены пять таблиц в схеме `public`: `candidates`,
-`candidate_list_options`, `staffing_demand`, `staffing_demand_rows` и
-`staffing_demand_history`. Auth-таблицы (`auth.users` и т.п.) управляются
-Supabase и в миграциях проекта не описаны.
+Подтверждены восемь таблиц в схеме `public`: `candidates`,
+`candidate_list_options`, `staffing_demand`, `staffing_demand_rows`,
+`staffing_demand_history` и три таблицы встроенной авторизации —
+`portal_users`, `portal_sessions`, `portal_audit_log`.
+
+Схема `auth` Supabase **больше не используется**: с июля 2026 портал ведёт
+пользователей сам (см. [ADR-004](../architecture/decisions/ADR-004-portal-auth.md)).
 
 ### `public.candidates`
 
@@ -195,6 +198,76 @@ city + position + свежие сверху).
 самого начала, но отдельного экрана истории для неё пока нет — осознанный
 задел на будущее без изменения схемы.
 
+### `public.portal_users`
+
+Учётные записи портала. Создаются только через интерфейс («Настройки →
+Команда и роли»), **физически не удаляются** — только деактивируются.
+
+| Поле | Тип | Null | Примечание |
+|------|-----|------|-----------|
+| `id` | uuid | not null | PK, `gen_random_uuid()` |
+| `full_name` | text | **not null** | `check` длины 2–120 после `btrim` |
+| `login` | text | **not null** | Уникален. `check (login ~ '^[a-z0-9._-]{3,32}$')` — хранится только в нижнем регистре, поэтому уникального индекса по самому полю достаточно |
+| `password_hash` | text | **not null** | bcrypt (`pgcrypto`: `crypt`/`gen_salt('bf', 10)`). Открытый пароль не хранится и не возвращается ни одной функцией |
+| `role` | enum `portal_user_role` | **not null** | head / coordinator / manager / recruiter |
+| `projects` | text[] | **not null** | Значения `candidate_project` как текст, без FK. `check (cardinality(projects) > 0)` |
+| `is_active` | boolean | not null | `default true`; `false` = вход запрещён |
+| `created_at` | timestamptz | not null | `default now()` |
+| `updated_at` | timestamptz | not null | `default now()`, триггер `set_candidates_updated_at()` |
+| `last_login_at` | timestamptz | nullable | Обновляется при успешном входе |
+
+**Индексы:** `unique (login)`, по `is_active`.
+
+**Почему `projects` — массив текста, а не FK:** список проектов ведётся
+enum'ом `candidate_project` и может расширяться независимо от учёток;
+привязка через FK потребовала бы отдельной таблицы проектов, которой нет.
+Поле сейчас **информационное** — ни одна политика по нему не фильтрует.
+
+### `public.portal_sessions`
+
+Активные сессии. В базе лежит **sha256 от токена**, а не сам токен: дамп
+таблицы не даёт войти.
+
+| Поле | Тип | Null | Примечание |
+|------|-----|------|-----------|
+| `id` | uuid | not null | PK. Попадает в JWT как claim `sid` |
+| `user_id` | uuid | **not null** | FK → `portal_users(id)`, `on delete cascade` |
+| `token_hash` | text | **not null** | Уникален. `encode(digest(token,'sha256'),'hex')` |
+| `user_agent` | text | nullable | Первые 400 символов |
+| `created_at` | timestamptz | not null | `default now()` |
+| `last_seen_at` | timestamptz | not null | Обновляется не чаще раза в 5 минут |
+| `expires_at` | timestamptz | **not null** | Скользящие 12 часов от последней активности |
+| `revoked_at` | timestamptz | nullable | Заполнено = сессия закрыта (выход, деактивация, смена пароля) |
+
+**Индексы:** `(user_id) where revoked_at is null`, по `expires_at`.
+
+**Чего нет:** автоматической очистки истёкших сессий. Строки накапливаются;
+при заметном росте понадобится плановое удаление — в бэклоге.
+
+### `public.portal_audit_log`
+
+Журнал действий администратора и событий входа. Пишется только
+`SECURITY DEFINER`-функциями.
+
+| Поле | Тип | Null | Примечание |
+|------|-----|------|-----------|
+| `id` | uuid | not null | PK |
+| `action` | enum `portal_audit_action` | **not null** | 9 значений, см. ниже |
+| `actor_id` | uuid | nullable | FK → `portal_users(id)`, `on delete set null` |
+| `actor_login` | text | nullable | Снимок логина на момент события |
+| `target_id` | uuid | nullable | FK → `portal_users(id)`, `on delete set null` |
+| `target_login` | text | nullable | Снимок логина |
+| `details` | jsonb | not null | `default '{}'`. **Паролей здесь не бывает** — только факт смены |
+| `created_at` | timestamptz | not null | `default now()` |
+
+**Индексы:** `(created_at desc)`, `(target_id, created_at desc)`,
+частичный `(created_at desc) where action = 'login_failed'` — по нему
+считается лимит попыток входа.
+
+**Почему логины дублируются текстом:** запись должна оставаться читаемой
+после переименования или обнуления связанной учётки. Это тот же приём, что и
+`staffing_demand_id` без FK в истории «Потребности».
+
 ## Enum-типы
 
 | Enum | Значения |
@@ -203,6 +276,11 @@ city + position + свежие сверху).
 | `candidate_stage` | Прибыл на проект, Отработал 1 смену, Отработал 10 смен, Завершил вахту (4) |
 | `candidate_list_type` | recruiter, manager, coordinator, city, position (5) |
 | `staffing_demand_history_action` | insert, update, delete (3) |
+| `portal_user_role` | head, coordinator, manager, recruiter (4) |
+| `portal_audit_action` | user_created, user_updated, user_role_changed, user_password_changed, user_activated, user_deactivated, login_success, login_failed, logout (9) |
+
+Роли хранятся латинскими слагами; русские подписи («Руководитель»,
+«Координатор», «Менеджер», «Рекрутер») живут в `src/lib/auth/roles.ts`.
 
 Значения проектов и стадий заданы бизнесом дословно и не переименовываются.
 Изменение состава enum — это миграция схемы, а не правка справочника.
@@ -244,6 +322,12 @@ city + position + свежие сверху).
 - [`staffingDemandHistoryRepo.ts`](../../src/lib/supabase/staffingDemandHistoryRepo.ts):
   `listStaffingDemandCellHistory(project, city, position, demandDate)` —
   только чтение, вызывается лениво при открытии `DemandHistoryDrawer`.
+- [`portalUsersRepo.ts`](../../src/lib/supabase/portalUsersRepo.ts):
+  `listPortalUsers`, `isPortalLoginAvailable`, `createPortalUser`,
+  `updatePortalUser`, `setPortalUserActive`, `setPortalUserPassword`,
+  `listPortalAudit`. Работает не с таблицей, а с `portal_admin_*`
+  функциями — сами таблицы закрыты RLS полностью. Функции удаления нет
+  намеренно.
 
 Типы: [`candidates.types.ts`](../../src/lib/supabase/candidates.types.ts),
 [`candidateListOptions.types.ts`](../../src/lib/supabase/candidateListOptions.types.ts),
@@ -252,12 +336,21 @@ city + position + свежие сверху).
 [`staffingDemandHistory.types.ts`](../../src/lib/supabase/staffingDemandHistory.types.ts)
 — выведены из `database.types.ts` (`Row`/`Insert`/`Update`/`Enums`).
 
+[`portalAuth.types.ts`](../../src/lib/supabase/portalAuth.types.ts) —
+**написан руками**, потому что миграция `20260728120000` ещё не отражена в
+`database.types.ts` (регенерация требует доступа к боевой базе). После
+регенерации его можно свести к выводу из `Database`, как у соседей.
+
 ## Переменные окружения
 
 В `.env.local` (в репозиторий не коммитятся, покрыто `.gitignore` через `.env*`):
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_JWT_SECRET` — **серверная**, без префикса `NEXT_PUBLIC_`. Секрет
+  подписи JWT проекта (Dashboard → Project Settings → API → JWT Settings).
+  Им портал подписывает короткоживущие токены доступа к данным, см.
+  [`ADR-004`](../architecture/decisions/ADR-004-portal-auth.md)
 
 Читаются только через статический `process.env.X` в
 [`env.ts`](../../src/lib/supabase/env.ts) (динамический `process.env[name]` не

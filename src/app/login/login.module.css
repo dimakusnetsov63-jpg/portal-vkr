@@ -62,14 +62,10 @@
   padding: 9px 11px;
 }
 
-.link {
-  font-size: 13px;
-  color: var(--accent);
+.hint {
+  font-size: 12px;
+  color: var(--text-3);
   text-align: center;
-  text-decoration: none;
-}
-.link:hover {
-  text-decoration: underline;
 }
 
 .submit {

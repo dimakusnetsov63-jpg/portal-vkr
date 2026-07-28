@@ -30,7 +30,8 @@ export type IconName =
   | "graduation"
   | "gift"
   | "calendar"
-  | "box";
+  | "box"
+  | "pencil";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   home: (
@@ -193,6 +194,12 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M21 8 12 3 3 8v8l9 5 9-5V8Z" />
       <path d="m3 8 9 5 9-5M12 21v-8" />
+    </>
+  ),
+  pencil: (
+    <>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
     </>
   ),
 };

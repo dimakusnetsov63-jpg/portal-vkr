@@ -27,11 +27,11 @@ src/
   app/
     page.tsx                 # роут "/" — портал (server component)
     layout.tsx               # корневой layout, metadata, шрифты
-    login/                   # /login
-    forgot-password/         # /forgot-password
-    update-password/         # /update-password
+    login/                   # /login — вход по логину и паролю
+    403/                     # /403 — раздел закрыт для роли
+    api/auth/                # login | logout | token (единственные API-роуты)
     icon.svg                 # favicon (Next.js convention)
-  proxy.ts                   # middleware: защита роутов, обновление сессии
+  proxy.ts                   # middleware: сессия, активность, права на раздел
   components/portal/
     PortalApp.tsx            # провайдер + оболочка + переключение разделов
     context/PortalContext.tsx
@@ -44,14 +44,15 @@ src/
       MarketingSection.tsx
       AnalyticsSection.tsx   (+ AnalyticsTabs.tsx)
       NotificationsSection.tsx
-      SettingsSection.tsx
       CandidateDrawer.tsx    # mock-дровер (используется CommandPalette)
       candidates/            # раздел «Кандидаты» (real-данные)
       demand/                # раздел «Потребность» (real-данные)
+      settings/              # раздел «Настройки» (команда, роли, журнал)
   lib/
+    auth/                    # roles (матрица прав), session, jwt, middleware
     portal/                  # constants, format, candidateOptions,
                              #   mock-генераторы, vacancyData (генерируемый)
-    supabase/                # client, server, middleware, env, репозитории, типы
+    supabase/                # client, accessToken, env, репозитории, типы
 supabase/
   migrations/                # SQL-миграции (источник истины схемы)
 ```
@@ -65,11 +66,15 @@ supabase/
 |-----|------|--------|
 | `/` | `app/page.tsx` | Только авторизованные (иначе редирект на `/login`) |
 | `/login` | `app/login/page.tsx` | Публичный |
-| `/forgot-password` | `app/forgot-password/page.tsx` | Публичный |
-| `/update-password` | `app/update-password/page.tsx` | Публичный (recovery-сессия) |
+| `/403` | `app/403/page.tsx` | Авторизованные: раздел закрыт для роли |
+| `/api/auth/login` | route handler | Публичный (сам проверяет логин и пароль) |
+| `/api/auth/logout` | route handler | Публичный (без сессии просто чистит cookie) |
+| `/api/auth/token` | route handler | Только с действующей сессией |
 
-Защиту и обновление сессии выполняет [`src/proxy.ts`](../../src/proxy.ts)
-(в Next.js 16 middleware-файл называется `proxy`).
+Проверку сессии, активности пользователя и права на раздел выполняет
+[`src/proxy.ts`](../../src/proxy.ts) → `lib/auth/middleware.ts` (в Next.js 16
+middleware-файл называется `proxy`). Модель доступа —
+[`../requirements/access-control.md`](../requirements/access-control.md).
 
 ## Layout
 
@@ -99,8 +104,12 @@ supabase/
    `demandRowMeta` + `updateDemandRowMeta`, `refreshDemandRowMeta`
    (статус/комментарий, не привязаны к дате).
 
-Плюс кросс-раздельное: навигация (`activePage`), тосты, уведомления, `authEmail`,
-`signOut`, плотность таблиц.
+Плюс кросс-раздельное: навигация (`activePage`), тосты, уведомления,
+`currentUser`, `can(permission)`, `signOut`, плотность таблиц.
+
+Списка пользователей в контексте **нет**: он нужен одной панели и только
+руководителю, поэтому грузится в `TeamPanel` напрямую — тот же случай, что и
+история в `DemandHistoryDrawer`.
 
 > **Тех-долг:** контекст крупный (~40 значений в одном `value`). При росте —
 > вынос доменов в отдельные хуки (`useRealCandidates`, `useListOptions`),
@@ -127,8 +136,9 @@ mock-данных / статических данных (`vacancyData`).
 UI (Section/*.tsx)
   → usePortal() (PortalContext)
     → repository (lib/supabase/*Repo.ts)
-      → Supabase client (lib/supabase/client.ts | server.ts)
-        → Postgres (RLS: authenticated-only)
+      → Supabase client (lib/supabase/client.ts)
+        → JWT портала (/api/auth/token, 15 мин, кэш в accessToken.ts)
+          → Postgres (RLS: portal_can('<раздел>'))
 ```
 
 Компоненты не обращаются к Supabase напрямую — только через контекст, который
@@ -177,10 +187,10 @@ Supabase — отдельная будущая работа.
 ## Зоны технического долга
 
 - Крупный `PortalContext` (см. выше).
-- Раздел `Settings` монолитен (3 компонента в файле) — можно разбить по
-  образцу раздела кандидатов при необходимости.
-- Часть разделов ещё на mock-данных.
-- Auth-страницы дублируют брендблок (кандидат на общий `AuthShell`).
+- Часть разделов ещё на mock-данных; в «Настройках» это панели «Интеграции»,
+  «Уведомления» и «Отображение» — переключатели никуда не сохраняются.
+- `/login` и `/403` дублируют брендблок (кандидат на общий `AuthShell`).
+- Матрица прав продублирована в SQL и TS (см. `lib/auth/roles.ts`).
 - Режимы «Неделя»/«Месяц» в «Потребности» не реализованы (осознанно
   отложены на следующий этап, см. `demand/demandAggregate.ts`).
 
@@ -194,4 +204,7 @@ Supabase — отдельная будущая работа.
 4. Данные — через `PortalContext` (не обращаться к Supabase из компонента).
 5. Зарегистрировать пункт в `NAV_ITEMS` (`lib/portal/constants.ts`) и ветку в
    `ActiveSection` (`PortalApp.tsx`).
-6. Переиспользовать примитивы из `ui/`, не дублировать их.
+6. Добавить раздел в `PortalPage` (`lib/portal/types.ts`) и **в обе матрицы
+   прав**: `SECTION_ORDER`/`ROLE_PERMISSIONS` в `lib/auth/roles.ts` и
+   `portal_role_sections()` в SQL — иначе раздел не увидит никто.
+7. Переиспользовать примитивы из `ui/`, не дублировать их.

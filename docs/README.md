@@ -25,7 +25,8 @@
 ## Стек
 
 - **Next.js 16** (App Router, Turbopack) + **React 19** + **TypeScript** (strict)
-- **Supabase** — Postgres, аутентификация, RLS. Собственного бэкенда нет
+- **Supabase** — Postgres, API, RLS. Авторизация своя (`portal_users`),
+  Supabase Auth не используется; из бэкенда — только три маршрута `/api/auth/*`
 - **CSS Modules** для компонентов портала; **Tailwind 4** только в app-оболочке
 - **Vitest** — тесты чистой логики
 - **Vercel** — хостинг, автодеплой при пуше в `main`
@@ -37,6 +38,7 @@
 | Документ | Содержание |
 |---|---|
 | [`overview.md`](requirements/overview.md) | Продукт целиком, роли, бизнес-процессы, границы системы |
+| [`access-control.md`](requirements/access-control.md) | Пользователи, роли, права по разделам, вход и журнал действий |
 | [`demand.md`](requirements/demand.md) | Потребность: правила матрицы, справочники, ограничения |
 | [`candidates.md`](requirements/candidates.md) | Кандидаты: модель, стадии, правила метрик |
 | [`vacancies.md`](requirements/vacancies.md) | Описание вакансий (статические данные) |
@@ -54,8 +56,9 @@
 Архитектурные решения (ADR):
 
 - [`ADR-001-database.md`](architecture/decisions/ADR-001-database.md) — Supabase как единственное хранилище
-- [`ADR-002-auth.md`](architecture/decisions/ADR-002-auth.md) — аутентификация и RLS без ролей *(требует пересмотра до 1.0)*
+- [`ADR-002-auth.md`](architecture/decisions/ADR-002-auth.md) — Supabase Auth и RLS без ролей *(заменено на ADR-004)*
 - [`ADR-003-state-management.md`](architecture/decisions/ADR-003-state-management.md) — единый React Context
+- [`ADR-004-portal-auth.md`](architecture/decisions/ADR-004-portal-auth.md) — собственная авторизация портала, роли и права
 
 ### База данных — [`database/`](database/)
 
@@ -92,19 +95,25 @@
 
 Документация отдельных разделов лежит рядом с кодом:
 [`sections/demand/README.md`](../src/components/portal/sections/demand/README.md),
-[`sections/candidates/README.md`](../src/components/portal/sections/candidates/README.md).
+[`sections/candidates/README.md`](../src/components/portal/sections/candidates/README.md),
+[`sections/settings/README.md`](../src/components/portal/sections/settings/README.md).
 
 ## Текущее состояние проекта
 
 Чтобы не создавать ложных ожиданий:
 
-- На реальных данных Supabase работают **Потребность**, **Кандидаты** и
-  справочники в **Настройках**.
+- На реальных данных Supabase работают **Потребность**, **Кандидаты**, а в
+  **Настройках** — справочники, команда и роли, журнал действий.
 - Разделы **Обзор**, **Маркетинг**, **Аналитика** работают на сгенерированных
   данных; **Описание вакансий** — на статических из Excel. Цифры там
   демонстрационные.
-- Модель авторизации отсутствует: любой авторизованный сотрудник имеет полный
-  доступ ко всем данным. Обязательно к закрытию до 1.0.
+- **Авторизация — своя** (TASK-004): пользователи создаются в портале, роль
+  определяет доступ к разделам, проверка живёт и в интерфейсе, и в RLS.
+  Миграция написана, но **к боевой базе ещё не применена** — порядок
+  развёртывания в [`tasks/TASK-004-portal-auth.md`](tasks/TASK-004-portal-auth.md).
+- Разграничения данных **по проектам нет**: роль решает, какие разделы видны,
+  но внутри раздела видны все проекты. Персональные данные кандидатов
+  доступны всем четырём ролям.
 - Данные не обновляются в реальном времени: изменения коллеги видны только
   после перезагрузки.
 

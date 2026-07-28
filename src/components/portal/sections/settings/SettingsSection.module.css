@@ -79,6 +79,125 @@
   font-size: 12px;
 }
 
+/* Команда и роли */
+.teamName {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.teamLogin {
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+.teamProjects {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 260px;
+}
+.teamControls {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.teamRowInactive .teamAvatar,
+.teamRowInactive .txt {
+  opacity: 0.55;
+}
+
+.projectPicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 168px;
+  overflow-y: auto;
+  padding: 4px 2px;
+}
+.projectChip {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.projectChipOn {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.fieldNote {
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+.fieldError {
+  font-size: 11.5px;
+  color: var(--red);
+}
+.fieldOk {
+  font-size: 11.5px;
+  color: var(--green);
+}
+.formError {
+  font-size: 12.5px;
+  color: var(--red);
+  background: var(--red-soft);
+  border-radius: 9px;
+  padding: 9px 11px;
+}
+.formStack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.inlineToggleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.inlineToggleRow .txt b {
+  font-size: 13px;
+  display: block;
+}
+.inlineToggleRow .txt span {
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+.inlineToggleRow .ctl {
+  margin-left: auto;
+}
+
+/* Журнал действий */
+.auditRow {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+}
+.auditRow:first-child {
+  border-top: none;
+}
+.auditText {
+  flex: 1;
+  min-width: 0;
+}
+.auditText b {
+  font-weight: 600;
+}
+.auditTime {
+  font-size: 11.5px;
+  color: var(--text-3);
+  white-space: nowrap;
+  flex: none;
+}
+
 .listValueText {
   background: none;
   border: none;

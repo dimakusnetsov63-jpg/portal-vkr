@@ -1,11 +1,14 @@
+import { redirect } from "next/navigation";
 import { PortalApp } from "@/components/portal/PortalApp";
-import { createClient } from "@/lib/supabase/server";
+import { getPortalSession } from "@/lib/auth/serverSession";
 
 export default async function Home() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const session = await getPortalSession();
 
-  return <PortalApp initialUserEmail={user?.email ?? null} />;
+  // До сюда без сессии обычно не доходит — уводит middleware. Проверка
+  // оставлена на случай, если портал окажется смонтирован в обход него:
+  // страница не должна рендериться «наполовину авторизованной».
+  if (!session) redirect("/login");
+
+  return <PortalApp initialUser={session.user} />;
 }

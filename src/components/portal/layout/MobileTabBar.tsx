@@ -10,10 +10,18 @@ const MOBILE_ITEM_IDS: PortalPage[] = ["overview", "demand", "candidates", "anal
 const MOBILE_ITEMS = MOBILE_ITEM_IDS.map((id) => NAV_ITEMS.find((item) => item.id === id)!);
 
 export function MobileTabBar() {
-  const { activePage, goto } = usePortal();
+  const { activePage, goto, can } = usePortal();
+  // Отобранные пять пунктов минус закрытые для роли. Если после фильтра
+  // осталось меньше пяти, добираем остальными доступными разделами: у
+  // руководителя и координатора набор не меняется, у рекрутера панель не
+  // схлопывается до одной кнопки.
+  const preferred = MOBILE_ITEMS.filter((item) => can(item.id));
+  const extra = NAV_ITEMS.filter((item) => can(item.id) && !preferred.includes(item));
+  const visible = [...preferred, ...extra].slice(0, 5);
+
   return (
     <nav className={styles.tabbar}>
-      {MOBILE_ITEMS.map((item) => (
+      {visible.map((item) => (
         <button
           key={item.id}
           className={activePage === item.id ? styles.tabbarButtonActive : ""}

@@ -62,6 +62,37 @@ npx supabase db query --linked "select conname, pg_get_constraintdef(oid) from p
 | `20260727090000_add_position_to_staffing_demand.sql` | `position` в потребность, unique → `(project, city, position, demand_date)` |
 | `20260727090100_add_position_to_staffing_demand_rows.sql` | `position` в метаданные строки, unique → `(project, city, position)` |
 | `20260727090200_add_position_to_staffing_demand_history.sql` | `position` в аудит + пересборка обеих триггерных функций |
+| `20260728120000_portal_auth.sql` | Встроенная авторизация: `portal_users` / `portal_sessions` / `portal_audit_log`, enum `portal_user_role` и `portal_audit_action`, функции `portal_*`, переезд всех политик данных на `portal_can(<раздел>)` |
+
+## Миграция `20260728120000_portal_auth.sql`: что учесть при применении
+
+Самая крупная миграция проекта — она меняет модель доступа целиком.
+
+1. **Требуется `pgcrypto`.** Расширение ставится идемпотентно (`extensions`,
+   иначе `public`), функции работают с `search_path = public, extensions`.
+2. **Старые политики удаляются.** `authenticated_*` на `candidates`,
+   `candidate_list_options`, `staffing_demand`, `staffing_demand_rows`,
+   `staffing_demand_history` заменяются на `portal_*` с проверкой
+   `portal_can()`. Откат = обратная миграция, а не правка этой.
+3. **Сразу после применения данные не читаются никем** — пока не создан
+   первый пользователь и портал не выдаёт JWT. Это ожидаемо.
+4. **Первый администратор заводится вручную, один раз**, из SQL-редактора
+   Supabase (функция работает, только пока таблица пуста, и никому не выдана
+   по грантам):
+
+   ```sql
+   select public.portal_bootstrap_admin('admin', 'Имя Фамилия', '<пароль>');
+   ```
+
+   Дальше пользователи создаются только в портале. Пароль в репозиторий и в
+   документацию не попадает — в этом и смысл отдельной функции вместо
+   засева дефолтной учётки.
+5. **Нужна переменная `SUPABASE_JWT_SECRET`** в `.env.local` и в настройках
+   Vercel — без неё вход пройдёт, но данные не загрузятся.
+6. **`database.types.ts` требует регенерации** после применения:
+   `npx supabase gen types typescript --linked > src/lib/supabase/database.types.ts`.
+   До этого новые таблицы и функции типизированы вручную в
+   `src/lib/supabase/portalAuth.types.ts`.
 
 ## Backfill: принятое соглашение
 
@@ -79,8 +110,11 @@ npx supabase db query --linked "select conname, pg_get_constraintdef(oid) from p
 
 Осознанно отложено, зафиксировано в [`../tasks/backlog.md`](../tasks/backlog.md):
 
-- таблицы пользователей, ролей и профилей (`profiles`, `roles`);
-- журнала изменений кандидатов (аудит есть только у потребности);
+- разграничения данных по проектам (`portal_users.projects` есть, фильтрации
+  по нему нет);
+- очистки истёкших строк `portal_sessions`;
+- журнала изменений кандидатов (аудит есть только у потребности и у
+  пользователей);
 - `updated_by` — известно только *когда* изменено, не *кем*;
 - ограничений длины у текстовых полей;
 - партиционирования и политики хранения для растущей `staffing_demand_history`.

@@ -1,75 +1,108 @@
 # Политики доступа (RLS)
 
 Модель доступа к данным в Postgres/Supabase. Схема таблиц — [`schema.md`](schema.md),
-решение об этой модели и его цена — [`ADR-002-auth.md`](../architecture/decisions/ADR-002-auth.md).
+решение об этой модели и его цена — [`ADR-004-portal-auth.md`](../architecture/decisions/ADR-004-portal-auth.md).
+Правила ролей на языке бизнеса — [`../requirements/access-control.md`](../requirements/access-control.md).
 
 ## Действующая модель
 
-Все пять таблиц (`candidates`, `candidate_list_options`, `staffing_demand`,
-`staffing_demand_rows`, `staffing_demand_history`) имеют **включённый RLS**.
-Политики созданы **только для роли `authenticated`**. Для роли `anon` политик
-нет ни на одной таблице — значит неавторизованный доступ запрещён по умолчанию,
-и это главный работающий рубеж защиты.
+RLS включён на **всех восьми** таблицах схемы `public`. Политики созданы
+только для роли `authenticated`; для `anon` политик нет ни на одной таблице —
+неавторизованный доступ запрещён по умолчанию.
 
-Все существующие политики используют `using (true)` / `with check (true)`.
-Это безопасно **только** в том смысле, что применяется к уже авторизованной
-роли: любой вошедший сотрудник видит и меняет всё. Разграничения по
-пользователю, проекту или роли **не существует** — см. «Ограничения» ниже.
+С июля 2026 политики **не безусловные**. Каждая ссылается на
+`public.portal_can('<раздел>')` — есть ли у текущего пользователя доступ к
+разделу, к которому относится таблица:
+
+```sql
+create policy "portal_select_staffing_demand"
+  on public.staffing_demand for select to authenticated
+  using (public.portal_can('demand'));
+```
+
+`portal_can` читает роль и `is_active` **из `portal_users`**, а не из JWT.
+Практические следствия:
+
+- смена роли действует со следующего запроса, перевыпуск токена не нужен;
+- отключение сотрудника закрывает данные сразу, не дожидаясь истечения его
+  токена доступа (15 минут).
 
 ## Состав политик по таблицам
 
-| Таблица | select | insert | update | delete |
-|---|:--:|:--:|:--:|:--:|
-| `candidates` | ✅ | ✅ | ✅ | ❌ |
-| `candidate_list_options` | ✅ | ✅ | ✅ | ❌ |
-| `staffing_demand` | ✅ | ✅ | ✅ | **✅** |
-| `staffing_demand_rows` | ✅ | ✅ | ✅ | ❌ |
-| `staffing_demand_history` | ✅ | ❌ | ❌ | ❌ |
+| Таблица | Раздел | select | insert | update | delete |
+|---|---|:--:|:--:|:--:|:--:|
+| `candidates` | `candidates` | ✅ | ✅ | ✅ | ❌ |
+| `candidate_list_options` | `candidates` (чтение) / `settings` (запись) | ✅ | ✅ | ✅ | ❌ |
+| `staffing_demand` | `demand` | ✅ | ✅ | ✅ | **✅** |
+| `staffing_demand_rows` | `demand` | ✅ | ✅ | ✅ | ❌ |
+| `staffing_demand_history` | `demand` | ✅ | ❌ | ❌ | ❌ |
+| `portal_users` | — | ❌ | ❌ | ❌ | ❌ |
+| `portal_sessions` | — | ❌ | ❌ | ❌ | ❌ |
+| `portal_audit_log` | — | ❌ | ❌ | ❌ | ❌ |
 
 Обоснование исключений:
 
 - **`staffing_demand` — единственная таблица с delete-политикой.** Очистка
   ячейки в матрице это физическое удаление строки (у таблицы нет
-  `archived_at`), поэтому право на `delete` необходимо для работы UI.
+  `archived_at`), поэтому право на `delete` необходимо для работы UI. Оно
+  осталось у всех, у кого есть раздел «Потребность»: это штатное действие
+  координатора, а не административная операция.
 - **`candidates` и `candidate_list_options` без delete** — используется
   soft-delete: `archived_at` у кандидатов, `is_active = false` у справочников.
-  Функций hard-delete нет и в репозиториях.
+- **`candidate_list_options`: читают все, правит только «Настройки».**
+  Подсказки нужны в карточке кандидата любой роли, а редактируются лишь в
+  одном месте.
 - **`staffing_demand_history` только на чтение** — записи создаются
   исключительно триггерами `log_staffing_demand_change` и
-  `log_staffing_demand_rows_change`, объявленными как `SECURITY DEFINER`
-  с `set search_path = public`. Клиент физически не может вставить, изменить
-  или удалить запись аудита через API.
+  `log_staffing_demand_rows_change` (`SECURITY DEFINER`).
+- **Три таблицы `portal_*` закрыты полностью** — ни одной политики, гранты
+  отозваны. Работа с ними идёт только через `SECURITY DEFINER` функции,
+  которые сами проверяют право вызывающего. Поэтому `password_hash` не может
+  уехать клиенту: маршрута, который бы его вернул, не существует.
+
+## Функции доступа
+
+| Функция | Кому доступна | Назначение |
+|---|---|---|
+| `portal_can(section)` | anon, authenticated | Есть ли у запроса доступ к разделу. Используется в политиках |
+| `portal_role_sections(role)` | anon, authenticated | Матрица «роль → разделы». Дубль `src/lib/auth/roles.ts` |
+| `portal_current_user_id()` / `portal_current_session_id()` | anon, authenticated | Claim'ы `sub` / `sid` текущего JWT |
+| `portal_login`, `portal_session_context`, `portal_logout` | anon, authenticated | Вход, проверка сессии, выход |
+| `portal_admin_*` | authenticated | Управление пользователями и журнал. Внутри — `portal_require_admin()` |
+| `portal_require_admin`, `portal_user_json`, `portal_assert_password` | — | Внутренние помощники, грантов нет |
+| `portal_bootstrap_admin` | — | Первый администратор, только владельцем из SQL-редактора |
 
 ## Ключи и аутентификация
 
-- В приложении используется **только publishable-ключ** — и в браузере, и на
-  сервере. `service_role` в коде отсутствует.
-- Поле `changed_by` в истории заполняется через `auth.uid()` внутри
-  `SECURITY DEFINER`-функции, поэтому не подделывается клиентом.
-- Учётные записи сотрудников заводятся вручную в Supabase Dashboard,
-  самостоятельной регистрации в интерфейсе нет.
+- В приложении используется **только publishable-ключ**. `service_role` в
+  коде отсутствует.
+- Supabase Auth не используется. Пароли лежат в `portal_users.password_hash`
+  (bcrypt через `pgcrypto`), сессии — в `portal_sessions` (в базе только
+  sha256 от токена).
+- Токен доступа к данным портал подписывает сам секретом проекта
+  (`SUPABASE_JWT_SECRET`), с `role: authenticated` и `sub` = id пользователя
+  портала. Поэтому `auth.uid()` продолжает работать, и `changed_by` в истории
+  «Потребности» по-прежнему проставляет база, а не клиент.
 
 > Примечание: комментарий в самой первой миграции (`20260721133910`) упоминает
-> `service_role` как временную модель до появления auth. Он **устарел** —
-> текущий код работает на publishable-ключе + RLS.
+> `service_role` как временную модель до появления auth. Он **устарел**.
+> Комментарии в миграциях `20260721202609` и `20260724100100` про
+> «любой авторизованный сотрудник» тоже описывают прежнюю модель — политики
+> из них удалены миграцией `20260728120000`.
 
 ## Ограничения текущей модели
 
-Это осознанный технический долг, а не недосмотр — но перед выходом на широкую
-аудиторию его нужно закрыть:
+Осознанный долг, зафиксированный явно:
 
-1. **Нет ролей и профилей.** Таблицы `profiles`/`roles` не существует. Любой
-   авторизованный сотрудник — фактически администратор данных.
-2. **Любой сотрудник может удалить всю потребность.** Политика
-   `authenticated_delete_staffing_demand` не ограничена ничем, кроме факта
-   авторизации.
-3. **Вся PII доступна всем.** ФИО, телефон, telegram, `salary_card` кандидатов
-   читает любой вошедший пользователь. Для 152-ФЗ это требует внимания.
-4. **Нет разграничения по проектам.** Координатор одного проекта видит и
-   правит данные всех остальных.
-
-Проблемы зафиксированы в [`AUDIT-2026-07.md`](../AUDIT-2026-07.md) (§5.1) и в
-[`../tasks/backlog.md`](../tasks/backlog.md). До версии 1.0 закрытие обязательно.
+1. **Нет разграничения по проектам.** `portal_users.projects` заполняется и
+   отображается, но ни одна политика по нему не фильтрует.
+2. **Вся PII доступна всем ролям с разделом «Кандидаты»** — то есть всем
+   четырём. ФИО, телефон, telegram, `salary_card`. Для 152-ФЗ это требует
+   внимания.
+3. **Матрица прав продублирована** в SQL (`portal_role_sections`) и TS
+   (`src/lib/auth/roles.ts`). Рассинхронизацию не поймают ни типы, ни тесты.
+4. **`portal_login` доступен `anon`** — иначе форма входа не работала бы.
+   Защита от перебора: 10 неудачных попыток на логин за 15 минут.
 
 ## Как проверить политики в боевой базе
 
@@ -77,4 +110,10 @@
 npx supabase db query --linked "select tablename, policyname, cmd, roles::text, qual::text from pg_policies where schemaname='public' order by tablename, cmd"
 ```
 
-Запрос read-only и безопасен для прода.
+Проверить гранты на функции:
+
+```bash
+npx supabase db query --linked "select p.proname, array_agg(a.rolname) from pg_proc p join pg_namespace n on n.oid=p.pronamespace left join aclexplode(p.proacl) x on true left join pg_roles a on a.oid=x.grantee where n.nspname='public' and p.proname like 'portal%' group by p.proname order by p.proname"
+```
+
+Оба запроса read-only и безопасны для прода.

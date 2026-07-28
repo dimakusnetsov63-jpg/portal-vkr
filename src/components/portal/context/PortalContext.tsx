@@ -24,7 +24,9 @@ import type {
   Toast,
   ToastType,
 } from "@/lib/portal/types";
-import { createClient } from "@/lib/supabase/client";
+import { clearPortalAccessToken } from "@/lib/supabase/accessToken";
+import { canAccess, defaultPageForRole, type PortalPermission } from "@/lib/auth/roles";
+import type { PortalUser } from "@/lib/supabase/portalAuth.types";
 import {
   archiveCandidate,
   createCandidate,
@@ -89,7 +91,9 @@ interface PortalContextValue {
   contextAction: ContextAction | null;
   setContextAction: (action: ContextAction | null) => void;
 
-  authEmail: string | null;
+  currentUser: PortalUser;
+  /** Есть ли у текущей роли доступ к разделу или праву. Интерфейс прячет, база закрывает. */
+  can: (permission: PortalPermission) => boolean;
   signOut: () => Promise<void>;
 
   realCandidates: RealCandidate[];
@@ -161,14 +165,16 @@ const PortalContext = createContext<PortalContextValue | null>(null);
 
 export function PortalProvider({
   children,
-  initialUserEmail,
+  initialUser,
 }: {
   children: ReactNode;
-  initialUserEmail: string | null;
+  initialUser: PortalUser;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [activePage, setActivePage] = useState<PortalPage>("overview");
+  const [currentUser] = useState<PortalUser>(initialUser);
+  // Стартовый раздел зависит от роли: у рекрутера «Обзора» нет вовсе.
+  const [activePage, setActivePage] = useState<PortalPage>(() => defaultPageForRole(initialUser.role));
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [candidates, setCandidates] = useState<Candidate[]>(() => generateCandidates());
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
@@ -178,8 +184,6 @@ export function PortalProvider({
   const [contextAction, setContextAction] = useState<ContextAction | null>(null);
   const toastSeq = useRef(0);
   const candidateSeq = useRef(0);
-
-  const [authEmail] = useState<string | null>(initialUserEmail);
 
   const [realCandidates, setRealCandidates] = useState<RealCandidate[]>([]);
   const [realCandidatesLoading, setRealCandidatesLoading] = useState(true);
@@ -200,15 +204,23 @@ export function PortalProvider({
   const [demandRowMetaError, setDemandRowMetaError] = useState<string | null>(null);
   const demandRowMetaSavingRef = useRef<Set<string>>(new Set());
 
+  const can = useCallback(
+    (permission: PortalPermission) => canAccess(currentUser.role, permission),
+    [currentUser.role],
+  );
+
   // Restore the active section from `?section=` once, after mount (client
-  // only). Initial state above always renders "overview" — matching the
-  // server-rendered markup — so this never causes a hydration mismatch. The
-  // effect never re-runs itself (empty deps) and nothing here writes
-  // `section` back into the URL, so there is no update loop with the
+  // only). Initial state above is derived from the role — the same value on
+  // the server and in the browser — so this never causes a hydration
+  // mismatch. The effect never re-runs itself (empty deps) and nothing here
+  // writes `section` back into the URL, so there is no update loop with the
   // section's own filter-writing effect (see DemandSection.tsx).
   useEffect(() => {
     const section = searchParams.get("section");
-    const valid = NAV_ITEMS.some((n) => n.id === section);
+    // Раздел, закрытый для роли, не восстанавливается: до сюда такой запрос
+    // обычно не доходит (middleware уводит на /403), но ссылка могла быть
+    // сохранена ещё при другой роли.
+    const valid = NAV_ITEMS.some((n) => n.id === section) && canAccess(currentUser.role, section as PortalPage);
     if (valid) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time restore from the URL on mount
       setActivePage(section as PortalPage);
@@ -216,11 +228,18 @@ export function PortalProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run exactly once, on mount
   }, []);
 
-  const goto = useCallback((page: PortalPage) => {
-    setActivePage(page);
-    setMobileSidebarOpen(false);
-    setContextAction(null);
-  }, []);
+  const goto = useCallback(
+    (page: PortalPage) => {
+      // Защита от перехода в закрытый раздел мимо меню (командная палитра,
+      // старая ссылка). Данные всё равно закрыты RLS, но показывать пустой
+      // раздел вместо отказа — хуже.
+      if (!canAccess(currentUser.role, page)) return;
+      setActivePage(page);
+      setMobileSidebarOpen(false);
+      setContextAction(null);
+    },
+    [currentUser.role],
+  );
 
   const openMobileSidebar = useCallback(() => setMobileSidebarOpen(true), []);
   const closeMobileSidebar = useCallback(() => setMobileSidebarOpen(false), []);
@@ -278,9 +297,15 @@ export function PortalProvider({
   const closeCandidateDrawer = useCallback(() => setSelectedCandidateId(null), []);
 
   const signOut = useCallback(async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // Сессию не удалось закрыть на сервере — уводим на вход всё равно,
+      // токен доступа к данным протухнет сам через 15 минут.
+    }
+    clearPortalAccessToken();
     router.replace("/login");
+    router.refresh();
   }, [router]);
 
   const refreshRealCandidates = useCallback(async () => {
@@ -668,7 +693,8 @@ export function PortalProvider({
       toggleDensity,
       contextAction,
       setContextAction,
-      authEmail,
+      currentUser,
+      can,
       signOut,
       realCandidates,
       realCandidatesLoading,
@@ -726,7 +752,8 @@ export function PortalProvider({
       densityCompact,
       toggleDensity,
       contextAction,
-      authEmail,
+      currentUser,
+      can,
       signOut,
       realCandidates,
       realCandidatesLoading,

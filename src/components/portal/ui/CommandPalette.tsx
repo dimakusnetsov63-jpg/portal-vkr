@@ -7,7 +7,7 @@ import { Icon } from "./Icon";
 import styles from "./CommandPalette.module.css";
 
 export function CommandPalette({ onClose }: { onClose: () => void }) {
-  const { goto, candidates, openCandidateDrawer } = usePortal();
+  const { goto, candidates, openCandidateDrawer, can } = usePortal();
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -17,9 +17,11 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
 
   const q = query.trim().toLowerCase();
 
+  // Закрытые для роли разделы в поиск не попадают — иначе палитра стала бы
+  // обходным путём к разделам, которых нет в меню.
   const navMatches = useMemo(
-    () => NAV_ITEMS.filter((item) => !q || item.label.toLowerCase().includes(q)),
-    [q],
+    () => NAV_ITEMS.filter((item) => can(item.id) && (!q || item.label.toLowerCase().includes(q))),
+    [q, can],
   );
 
   const candidateMatches = useMemo(() => {

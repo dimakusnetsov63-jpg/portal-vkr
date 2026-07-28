@@ -40,9 +40,10 @@
 
 **«ВКР — Ваш кадровый ресурс»** — внутренний портал для управления
 потребностью в персонале, кандидатами, описанием вакансий и связанными
-кадровыми процессами. Доступ только для сотрудников (учётные записи заводятся
-вручную, самостоятельной регистрации нет). Проект развивается по модульному
-принципу: каждый крупный раздел живёт в своей доменной папке.
+кадровыми процессами. Доступ только для сотрудников: учётные записи создаёт
+руководитель в разделе «Настройки → Команда и роли», самостоятельной
+регистрации нет. Проект развивается по модульному принципу: каждый крупный
+раздел живёт в своей доменной папке.
 
 ## 2. Технологический стек
 
@@ -50,7 +51,8 @@
 
 - **Next.js 16** (App Router, Turbopack) + **React 19**
 - **TypeScript**
-- **Supabase** (`@supabase/supabase-js`, `@supabase/ssr`) — БД, auth, RLS
+- **Supabase** (`@supabase/supabase-js`) — БД и API. Auth **не используется**:
+  авторизация своя, см. §7.1
 - **CSS Modules** — стилизация компонентов портала (`*.module.css`)
 - **Tailwind CSS 4** — только утилиты в app-оболочке (`layout.tsx`,
   `globals.css`); компоненты портала на CSS Modules, не на Tailwind
@@ -80,15 +82,16 @@
 
 | Путь | Назначение |
 |------|-----------|
-| `src/app/` | Роуты App Router: `/` (портал), `/login`, `/forgot-password`, `/update-password`, `layout.tsx`, `icon.svg` |
-| `src/proxy.ts` | Middleware (Next.js 16 переименовал `middleware`→`proxy`): защита роутов, обновление сессии |
+| `src/app/` | Роуты App Router: `/` (портал), `/login`, `/403`, `api/auth/*`, `layout.tsx`, `icon.svg` |
+| `src/proxy.ts` | Middleware (Next.js 16 переименовал `middleware`→`proxy`): сессия, активность пользователя, права на раздел |
 | `src/components/portal/PortalApp.tsx` | Корень портала: провайдер + оболочка + переключение разделов по `activePage` |
-| `src/components/portal/context/` | `PortalContext.tsx` — единый клиентский стор (mock + real-кандидаты + справочники) |
+| `src/components/portal/context/` | `PortalContext.tsx` — единый клиентский стор (mock + real-кандидаты + справочники + `currentUser`/`can`) |
 | `src/components/portal/layout/` | `Sidebar`, `Topbar`, `MobileTabBar` |
 | `src/components/portal/ui/` | Общие примитивы: `Button`, `Badge`, `Panel`, `StatCard`, `Modal`, `Drawer`, `Combobox`, `Icon`, `PageHead`, `ToastStack`, … |
 | `src/components/portal/sections/` | Разделы портала (обзор, потребность, кандидаты, вакансии, маркетинг, аналитика, уведомления, настройки) |
+| `src/lib/auth/` | Авторизация: `roles` (матрица прав), `session`, `serverSession`, `jwt`, `middleware`, `env` |
 | `src/lib/portal/` | Клиентские данные/утилиты: `constants`, `format`, `candidateOptions`, mock-генераторы, `vacancyData` (генерируемый) |
-| `src/lib/supabase/` | Data-слой: `client`, `server`, `middleware`, `env`, репозитории, типы |
+| `src/lib/supabase/` | Data-слой: `client`, `accessToken`, `env`, репозитории, типы |
 | `supabase/migrations/` | SQL-миграции (источник истины для схемы БД) |
 
 Разделы портала — **не** отдельные URL-роуты. Портал это SPA на `/`;
@@ -133,19 +136,52 @@
 Старый `sections/CandidateDrawer.tsx` — это mock-дровер, ещё используется
 `CommandPalette`; не путать с `RealCandidateDrawer`.
 
+## 6.1. Раздел «Настройки»
+
+`src/components/portal/sections/settings/`: `SettingsSection.tsx`
+(оркестратор), `TeamPanel.tsx` (команда и роли), `UserFormModal.tsx`,
+`AuditLogPanel.tsx`, `CandidateListsPanel.tsx`, `userForm.ts` (чистая
+валидация + тесты). Детали — [`settings/README.md`](src/components/portal/sections/settings/README.md).
+
+Панели «Команда и роли» и «Журнал действий» видит только роль
+«Руководитель». Список пользователей грузится в `TeamPanel`, а не в
+`PortalContext` — он нужен одной панели и одной роли.
+
 ## 7. Supabase
 
-- **Клиенты:** `src/lib/supabase/client.ts` (браузер), `server.ts` (сервер),
-  `middleware.ts` (обновление сессии). Оба клиента используют только
-  publishable-ключ; `service_role` в коде не используется.
-- **Репозитории:** `candidatesRepo.ts`, `candidateListOptionsRepo.ts` — вся
-  работа с БД, возвращают типы.
-- **Типы:** `candidates.types.ts`, `candidateListOptions.types.ts` выведены из
-  `database.types.ts`.
+- **Клиенты:** `src/lib/supabase/client.ts` — `createClient()` (данные) и
+  `createPortalAuthClient()` (RPC управления пользователями). Оба используют
+  только publishable-ключ; `service_role` в коде не используется.
+- **Репозитории:** `candidatesRepo.ts`, `candidateListOptionsRepo.ts`,
+  `staffingDemand*Repo.ts`, `portalUsersRepo.ts` — вся работа с БД,
+  возвращают типы.
+- **Типы:** `candidates.types.ts`, `candidateListOptions.types.ts` и др.
+  выведены из `database.types.ts`. Исключение — `portalAuth.types.ts`,
+  написан руками до регенерации типов после миграции `20260728120000`.
 - **Миграции:** `supabase/migrations/*.sql` — источник истины для схемы.
 - **Env (в `.env.local`, НЕ коммитить):** `NEXT_PUBLIC_SUPABASE_URL`,
-  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Реальные значения в документацию не
-  записывать.
+  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_JWT_SECRET` (серверная,
+  без `NEXT_PUBLIC_`). Реальные значения в документацию не записывать.
+
+### 7.1 Авторизация
+
+Supabase Auth не используется — портал ведёт пользователей сам
+([ADR-004](docs/architecture/decisions/ADR-004-portal-auth.md),
+[requirements/access-control.md](docs/requirements/access-control.md)).
+
+- Пользователи, сессии и журнал — `portal_users`, `portal_sessions`,
+  `portal_audit_log`. Таблицы закрыты RLS полностью, доступ только через
+  `SECURITY DEFINER` функции `portal_*`.
+- Пароли — bcrypt в базе. **Никогда** не возвращать их клиенту, не писать в
+  логи и не показывать в интерфейсе; действующий пароль недоступен даже
+  администратору.
+- Сессия — httpOnly-cookie; токен доступа к PostgREST портал подписывает сам
+  (`src/lib/auth/jwt.ts`) и обновляет через `/api/auth/token`.
+- **Матрица прав живёт в двух местах** — `src/lib/auth/roles.ts` и
+  `public.portal_role_sections()` в SQL. Меняется всегда в обоих:
+  рассинхронизацию не поймают ни типы, ни тесты.
+- Новый раздел портала нужно добавить в `PortalPage`, `NAV_ITEMS`,
+  `ActiveSection` **и в обе матрицы прав**.
 - **Генерируемые файлы (не редактировать вручную):**
   `src/lib/supabase/database.types.ts` (`supabase gen types typescript`),
   `src/lib/portal/vacancyData.ts` (из Excel «Описание вакансий»),

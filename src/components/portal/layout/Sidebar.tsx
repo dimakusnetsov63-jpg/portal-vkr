@@ -2,19 +2,19 @@
 
 import { usePortal } from "@/components/portal/context/PortalContext";
 import { NAV_ITEMS } from "@/lib/portal/constants";
+import { ROLE_LABELS } from "@/lib/auth/roles";
+import { avatarColor, initials } from "@/lib/portal/format";
 import { BrandMark } from "@/components/portal/ui/BrandMark";
 import { Icon } from "@/components/portal/ui/Icon";
 import styles from "./Sidebar.module.css";
 
-function userInitials(email: string | null): string {
-  if (!email) return "?";
-  const local = email.split("@")[0];
-  return local.slice(0, 2).toUpperCase();
-}
-
 export function Sidebar() {
-  const { activePage, goto, mobileSidebarOpen, closeMobileSidebar, notifications, authEmail } = usePortal();
+  const { activePage, goto, mobileSidebarOpen, closeMobileSidebar, notifications, currentUser, can } = usePortal();
   const unread = notifications.filter((n) => !n.read).length;
+
+  // Меню показывает только разделы роли. Это удобство, а не защита: данные
+  // закрыты RLS, маршруты — middleware.
+  const navItems = NAV_ITEMS.filter((item) => can(item.id));
 
   return (
     <>
@@ -28,7 +28,7 @@ export function Sidebar() {
         </div>
 
         <nav className={styles.nav}>
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const isActive = activePage === item.id;
             const badge = item.id === "notifications" ? unread : 0;
             return (
@@ -46,13 +46,17 @@ export function Sidebar() {
         </nav>
 
         <div className={styles.foot}>
-          <button className={styles.userChip} onClick={() => goto("settings")}>
-            <div className={styles.avatar} style={{ background: "#5856d6" }}>
-              {userInitials(authEmail)}
+          <button
+            className={styles.userChip}
+            onClick={() => goto("settings")}
+            disabled={!can("settings")}
+          >
+            <div className={styles.avatar} style={{ background: avatarColor(currentUser.full_name) }}>
+              {initials(currentUser.full_name)}
             </div>
             <div className={styles.who}>
-              <b>{authEmail ?? "Не авторизован"}</b>
-              <span>Сотрудник</span>
+              <b>{currentUser.full_name}</b>
+              <span>{ROLE_LABELS[currentUser.role]}</span>
             </div>
           </button>
         </div>

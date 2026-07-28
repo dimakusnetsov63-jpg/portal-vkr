@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/portal/layout/Sidebar";
 import { Topbar } from "@/components/portal/layout/Topbar";
 import { MobileTabBar } from "@/components/portal/layout/MobileTabBar";
 import { ToastStack } from "@/components/portal/ui/ToastStack";
+import { EmptyState } from "@/components/portal/ui/StateViews";
 import { OverviewSection } from "@/components/portal/sections/OverviewSection";
 import { DemandSection } from "@/components/portal/sections/demand";
 import { CandidatesSection, RealCandidateDrawer } from "@/components/portal/sections/candidates";
@@ -13,11 +14,25 @@ import { VacanciesSection } from "@/components/portal/sections/VacanciesSection"
 import { MarketingSection } from "@/components/portal/sections/MarketingSection";
 import { AnalyticsSection } from "@/components/portal/sections/AnalyticsSection";
 import { NotificationsSection } from "@/components/portal/sections/NotificationsSection";
-import { SettingsSection } from "@/components/portal/sections/SettingsSection";
+import { SettingsSection } from "@/components/portal/sections/settings";
+import type { PortalUser } from "@/lib/supabase/portalAuth.types";
 import styles from "./PortalApp.module.css";
 
 function ActiveSection() {
-  const { activePage } = usePortal();
+  const { activePage, can } = usePortal();
+
+  // Последний рубеж в интерфейсе: меню недоступные разделы не показывает,
+  // middleware не пускает по ссылке, но раздел не должен рендериться и в
+  // том случае, если что-то в портале вызвало goto() в обход проверки.
+  if (!can(activePage)) {
+    return (
+      <EmptyState
+        title="Доступ запрещён"
+        text="У вашей роли нет доступа к этому разделу. Права выдаёт руководитель в разделе «Настройки»."
+      />
+    );
+  }
+
   switch (activePage) {
     case "overview":
       return <OverviewSection />;
@@ -59,9 +74,9 @@ function PortalShell() {
   );
 }
 
-export function PortalApp({ initialUserEmail }: { initialUserEmail: string | null }) {
+export function PortalApp({ initialUser }: { initialUser: PortalUser }) {
   return (
-    <PortalProvider initialUserEmail={initialUserEmail}>
+    <PortalProvider initialUser={initialUser}>
       <PortalShell />
     </PortalProvider>
   );
