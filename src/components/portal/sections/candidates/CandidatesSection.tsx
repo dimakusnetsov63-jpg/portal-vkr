@@ -154,7 +154,7 @@ export function CandidatesSection() {
       <Panel>
         <div className={primitives.toolbar}>
           <div className={primitives.searchField} style={{ minWidth: 240 }}>
-            <Icon name="search" size={15} />
+            <Icon name="search" size={16} />
             <input
               type="text"
               placeholder="Поиск по ФИО, телефону, telegram, ID, городу"

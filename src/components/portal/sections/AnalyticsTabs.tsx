@@ -161,7 +161,7 @@ export function PlanFactTab() {
       </PanelHead>
       {allAtOrAboveTarget && (
         <div className={`${primitives.banner} ${primitives.bannerSuccess}`}>
-          <Icon name="check" size={15} />
+          <Icon name="check" size={16} />
           Все проекты выполняют план на 100% и выше
         </div>
       )}

@@ -81,7 +81,7 @@ export function Topbar() {
             aria-label="Уведомления"
             onClick={() => setOpenMenu((m) => (m === "notifications" ? null : "notifications"))}
           >
-            <Icon name="bell" size={19} />
+            <Icon name="bell" size={20} />
             {unread > 0 && <span className={styles.dot} />}
           </button>
           {openMenu === "notifications" && (

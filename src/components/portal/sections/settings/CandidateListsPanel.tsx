@@ -101,7 +101,7 @@ export function CandidateListsPanel() {
                     aria-label="Переместить вверх"
                   >
                     <span style={{ display: "inline-flex", transform: "rotate(-90deg)" }}>
-                      <Icon name="chevron" size={13} />
+                      <Icon name="chevron" size={14} />
                     </span>
                   </button>
                   <button
@@ -111,7 +111,7 @@ export function CandidateListsPanel() {
                     aria-label="Переместить вниз"
                   >
                     <span style={{ display: "inline-flex", transform: "rotate(90deg)" }}>
-                      <Icon name="chevron" size={13} />
+                      <Icon name="chevron" size={14} />
                     </span>
                   </button>
                 </div>

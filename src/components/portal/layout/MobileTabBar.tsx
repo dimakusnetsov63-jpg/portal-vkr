@@ -27,7 +27,7 @@ export function MobileTabBar() {
           className={activePage === item.id ? styles.tabbarButtonActive : ""}
           onClick={() => goto(item.id)}
         >
-          <Icon name={item.icon} size={19} />
+          <Icon name={item.icon} size={20} />
           <span>{item.label}</span>
         </button>
       ))}

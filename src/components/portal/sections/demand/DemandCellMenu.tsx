@@ -84,7 +84,7 @@ export function DemandCellMenu({
           setOpen((v) => !v);
         }}
       >
-        <Icon name="menu" size={11} />
+        <Icon name="menu" size={12} />
       </button>
 
       {open && (

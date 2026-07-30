@@ -37,10 +37,10 @@ export function DemandCityGroupRow({
           <div className={styles.cityGroupCell}>
             <button type="button" onClick={onToggleCollapse} aria-label="Свернуть/развернуть город">
               <span className={`${styles.cityGroupChevron} ${collapsed ? styles.cityGroupCollapsedChevron : ""}`}>
-                <Icon name="chevron" size={13} />
+                <Icon name="chevron" size={14} />
               </span>
             </button>
-            <Icon name="mapPin" size={13} />
+            <Icon name="mapPin" size={14} />
             <span className={styles.cityGroupName} title={city}>
               {city}
             </span>

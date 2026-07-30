@@ -40,7 +40,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     >
       <div className={styles.modal}>
         <div className={styles.input}>
-          <Icon name="grid" size={17} />
+          <Icon name="grid" size={16} />
           <input
             ref={inputRef}
             type="text"
@@ -49,7 +49,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             onChange={(e) => setQuery(e.target.value)}
           />
           <button className={styles.close} onClick={onClose} aria-label="Закрыть">
-            <Icon name="x" size={15} />
+            <Icon name="x" size={16} />
           </button>
         </div>
         <div className={styles.list}>
@@ -67,7 +67,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                   }}
                 >
                   <span className={styles.itemIco}>
-                    <Icon name={item.icon} size={15} />
+                    <Icon name={item.icon} size={16} />
                   </span>
                   <b>{item.label}</b>
                 </button>
@@ -88,7 +88,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                   }}
                 >
                   <span className={styles.itemIco}>
-                    <Icon name="users" size={15} />
+                    <Icon name="users" size={16} />
                   </span>
                   <b>{c.fio}</b>
                   <span className={styles.itemMeta}>{c.id}</span>

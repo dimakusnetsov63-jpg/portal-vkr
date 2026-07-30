@@ -118,7 +118,7 @@ export function AddressesSection() {
           </div>
 
           <div className={primitives.searchField} style={{ minWidth: 240 }}>
-            <Icon name="search" size={15} />
+            <Icon name="search" size={16} />
             <input
               type="text"
               placeholder="Поиск по адресу, метро, району, координатору"

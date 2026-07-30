@@ -49,7 +49,7 @@ export function DemandPositionRow({
     <tr className={styles.positionRow}>
       <td className={styles.colSticky}>
         <div className={styles.positionCell}>
-          <Icon name="briefcase" size={13} />
+          <Icon name="briefcase" size={14} />
           <span className={styles.positionName} title={position}>
             {position}
           </span>

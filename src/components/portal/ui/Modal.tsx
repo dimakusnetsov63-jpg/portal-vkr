@@ -48,7 +48,7 @@ export function Modal({
         <div className={styles.modalHead}>
           <h3>{title}</h3>
           <button className={styles.modalClose} onClick={onClose} aria-label="Закрыть">
-            <Icon name="x" size={15} />
+            <Icon name="x" size={16} />
           </button>
         </div>
         <div className={styles.modalBody}>{children}</div>

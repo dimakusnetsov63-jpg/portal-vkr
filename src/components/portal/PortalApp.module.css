@@ -10,10 +10,26 @@
   flex-direction: column;
 }
 .content {
-  padding: 24px 28px 64px;
+  padding: var(--sp-6) var(--sp-7) 64px;
   flex: 1;
   min-width: 0;
-  animation: portal-fadein 0.18s ease;
+  animation: portal-fadein var(--dur-2) var(--ease-out);
+}
+
+/* Very wide displays: the content column stops growing so tables and KPI rows
+   don't stretch into unreadable line lengths on 1920+. */
+@media (min-width: 1700px) {
+  .content {
+    width: 100%;
+    max-width: 1640px;
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 1280px) {
+  .content {
+    padding: var(--sp-5) var(--sp-6) 64px;
+  }
 }
 
 @media (max-width: 860px) {
@@ -21,6 +37,6 @@
     margin-left: 0;
   }
   .content {
-    padding: 18px 16px 90px;
+    padding: var(--sp-5) var(--sp-4) 90px;
   }
 }

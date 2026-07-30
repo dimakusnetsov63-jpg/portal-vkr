@@ -4,20 +4,21 @@
   align-items: center;
   justify-content: center;
   background: var(--bg);
-  padding: 20px;
+  padding: var(--sp-5);
 }
 
 .form {
-  padding: 28px 26px;
+  padding: var(--sp-7) var(--sp-6);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--sp-4);
+  animation: portal-pop var(--dur-3) var(--ease-out);
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: var(--sp-3);
 }
 
 .brandMark {
@@ -30,46 +31,50 @@
 .brandText {
   display: flex;
   flex-direction: column;
-  line-height: 1.25;
+  line-height: var(--lh-tight);
 }
 .brandText b {
-  font-size: 13.5px;
+  font-size: var(--fs-sm);
 }
 .brandText span {
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
 }
 
 .title {
-  font-size: 19px;
-  font-weight: 700;
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-tight);
   margin-top: 2px;
 }
 
 .error {
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   color: var(--red);
   background: var(--red-soft);
-  border-radius: 9px;
-  padding: 9px 11px;
+  border-radius: var(--radius-control);
+  padding: var(--sp-3);
+  line-height: var(--lh-snug);
 }
 
 .success {
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   color: var(--green);
   background: var(--green-soft);
-  border-radius: 9px;
-  padding: 9px 11px;
+  border-radius: var(--radius-control);
+  padding: var(--sp-3);
+  line-height: var(--lh-snug);
 }
 
 .hint {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   text-align: center;
+  line-height: var(--lh-snug);
 }
 
 .submit {
   width: 100%;
   justify-content: center;
-  margin-top: 4px;
+  margin-top: var(--sp-1);
 }

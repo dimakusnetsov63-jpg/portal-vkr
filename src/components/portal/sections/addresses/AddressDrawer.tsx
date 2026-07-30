@@ -492,7 +492,7 @@ export function AddressDrawer({ addressId }: { addressId: string | null }) {
                         {d.title}
                       </a>
                       <button onClick={() => removeDocument(d.id)} aria-label="Удалить ссылку" title="Удалить ссылку">
-                        <Icon name="x" size={13} />
+                        <Icon name="x" size={14} />
                       </button>
                     </div>
                   ))}
@@ -509,7 +509,7 @@ export function AddressDrawer({ addressId }: { addressId: string | null }) {
                 </div>
               </div>
               <Button size="sm" onClick={addDocument} disabled={!docTitle.trim() || !docUrl.trim()}>
-                <Icon name="plus" size={13} />
+                <Icon name="plus" size={14} />
                 Добавить ссылку
               </Button>
             </div>

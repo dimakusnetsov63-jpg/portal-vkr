@@ -174,7 +174,7 @@ export function AddDemandModal({
               <span key={c} className={styles.cityTag}>
                 {c}
                 <button type="button" onClick={() => removeCity(c)} aria-label={`Убрать ${c}`}>
-                  <Icon name="x" size={11} />
+                  <Icon name="x" size={12} />
                 </button>
               </span>
             ))}
@@ -188,7 +188,7 @@ export function AddDemandModal({
             placeholder="Добавить город"
           />
           <Button size="sm" onClick={() => addCity(cityInput)} disabled={!cityInput.trim()}>
-            <Icon name="plus" size={13} />
+            <Icon name="plus" size={14} />
           </Button>
         </div>
       </div>
@@ -201,7 +201,7 @@ export function AddDemandModal({
               <span key={p} className={styles.cityTag}>
                 {p}
                 <button type="button" onClick={() => removePosition(p)} aria-label={`Убрать ${p}`}>
-                  <Icon name="x" size={11} />
+                  <Icon name="x" size={12} />
                 </button>
               </span>
             ))}
@@ -216,7 +216,7 @@ export function AddDemandModal({
             emptyHint="Список пуст — добавьте значения в Настройках → Списки для кандидатов."
           />
           <Button size="sm" onClick={() => addPosition(positionInput)} disabled={!positionInput.trim()}>
-            <Icon name="plus" size={13} />
+            <Icon name="plus" size={14} />
           </Button>
         </div>
       </div>

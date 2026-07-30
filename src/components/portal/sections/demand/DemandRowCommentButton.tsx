@@ -64,7 +64,7 @@ export function DemandRowCommentButton({
           openModal();
         }}
       >
-        <Icon name="message" size={13} />
+        <Icon name="message" size={14} />
       </button>
 
       {open && (

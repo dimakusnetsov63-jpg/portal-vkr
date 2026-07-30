@@ -1,45 +1,135 @@
 /* Design tokens shared by every portal component. Values are the visual spec
    distilled from the design prototype — components below reference these
-   variables rather than hard-coding colors/spacing themselves. */
+   variables rather than hard-coding colors/spacing/durations themselves.
+
+   Rule of thumb: if a component needs a number (color, radius, duration,
+   font size), it takes it from here. A literal in a *.module.css file is a
+   review smell — the only exceptions are structural sizes that belong to one
+   component alone (column widths, sticky offsets). */
 :root {
+  /* ---- surfaces & text ---- */
   --bg: #f5f5f7;
   --surface: #ffffff;
   --surface-2: #fbfbfc;
   --surface-hover: #f2f2f4;
+  --surface-active: #ebebee;
   --border: rgba(0, 0, 0, 0.08);
   --border-strong: rgba(0, 0, 0, 0.14);
   --text-1: #1d1d1f;
   --text-2: #6e6e73;
   --text-3: #98989d;
+
+  /* ---- brand accent (unchanged: this is the product's identity) ---- */
   --accent: #0071e3;
   --accent-hover: #0077ed;
   --accent-press: #0060c2;
   --accent-soft: rgba(0, 113, 227, 0.09);
   --accent-soft-strong: rgba(0, 113, 227, 0.16);
-  --green: #1f8a4c;
-  --green-soft: #e7f6ec;
-  --amber: #b3690a;
-  --amber-soft: #fdf1dd;
-  --red: #d33a2c;
-  --red-soft: #fbe7e4;
-  --violet: #6b4fd6;
-  --violet-soft: #efeafb;
-  --teal: #0f8b8d;
-  --teal-soft: #e3f5f5;
-  --blue: #2563eb;
-  --blue-soft: #e8f0fe;
-  --gray-soft: #eeeeef;
+
+  /* ---- status palette ----
+     One system, not seven independent picks: every soft tint sits at the same
+     perceived lightness and every foreground at the same contrast against it,
+     so a red badge and a violet badge read as the same component. Hues are
+     kept where they were — this is an alignment pass, not a rebrand. */
+  --green: #1a7f47;
+  --green-soft: #e8f6ee;
+  --amber: #a4650b;
+  --amber-soft: #fdf3e3;
+  --red: #c9342a;
+  --red-soft: #fdecea;
+  --violet: #6047c8;
+  --violet-soft: #efecfb;
+  --teal: #0e7f81;
+  --teal-soft: #e6f5f5;
+  --blue: #2258d4;
+  --blue-soft: #e9f0fd;
+  --gray-soft: #f0f0f2;
+
+  /* ---- radii ----
+     -s/-m/-l keep their original meaning (existing components depend on it);
+     -xs and -control were added so buttons/inputs/icon buttons stop each
+     inventing their own 8–10px value. */
+  --radius-xs: 6px;
   --radius-s: 8px;
+  --radius-control: 10px;
   --radius-m: 12px;
   --radius-l: 18px;
-  --shadow-s: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-m: 0 6px 20px rgba(0, 0, 0, 0.07);
-  --shadow-l: 0 20px 48px rgba(0, 0, 0, 0.14);
+  --radius-pill: 999px;
+
+  /* ---- elevation ----
+     Two-layer shadows: a tight contact shadow plus a wide soft one. A single
+     large blur reads as grey haze; the pair reads as a lifted surface. */
+  --shadow-s: 0 1px 2px rgba(16, 16, 20, 0.05), 0 1px 1px rgba(16, 16, 20, 0.03);
+  --shadow-m: 0 2px 4px -1px rgba(16, 16, 20, 0.05), 0 10px 24px -6px rgba(16, 16, 20, 0.09);
+  --shadow-l: 0 8px 16px -6px rgba(16, 16, 20, 0.1), 0 28px 60px -14px rgba(16, 16, 20, 0.2);
+  --ring: 0 0 0 3px var(--accent-soft);
+  --ring-danger: 0 0 0 3px var(--red-soft);
+
+  /* ---- motion ----
+     Three durations only. 120ms for state that must feel instant (hover,
+     color), 180ms for things that appear (dropdown, toast, fade), 240ms for
+     large surfaces travelling a distance (drawer, modal). Anything else is a
+     random number. */
+  --dur-1: 120ms;
+  --dur-2: 180ms;
+  --dur-3: 240ms;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+
+  /* ---- spacing ---- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+
+  /* ---- typography ----
+     A fixed ladder. Half-pixel sizes (11.5 / 12.5 / 13.5) were rounding
+     artefacts of the prototype and are gone. */
+  --fs-3xs: 10px;
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-lg: 15px;
+  --fs-xl: 17px;
+  --fs-2xl: 20px;
+  --fs-3xl: 22px;
+  --fs-display: 26px;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  --lh-tight: 1.25;
+  --lh-snug: 1.4;
+  --lh-base: 1.5;
+  --lh-loose: 1.6;
+
+  --tracking-tight: -0.01em;
+  --tracking-caps: 0.04em;
+
+  /* ---- controls ----
+     One height ladder for everything the user can click or type into, so a
+     button, a select and a search field line up on the same toolbar row. */
+  --control-h-sm: 30px;
+  --control-h-md: 36px;
+  --control-h-lg: 42px;
+
+  /* ---- layout ---- */
   --sidebar-w: 248px;
   --topbar-h: 64px;
   --portal-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Helvetica,
     Arial, sans-serif;
   --row-h: 52px;
+
+  /* ---- scrollbars ---- */
+  --scrollbar-thumb: rgba(0, 0, 0, 0.18);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.3);
 }
 
 .portal-root {
@@ -47,8 +137,10 @@
   background: var(--bg);
   color: var(--text-1);
   -webkit-font-smoothing: antialiased;
-  font-size: 14px;
-  line-height: 1.45;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-size: var(--fs-md);
+  line-height: var(--lh-base);
 }
 
 .portal-root.density-compact {
@@ -86,6 +178,14 @@
   margin: 0;
 }
 
+.portal-root h1,
+.portal-root h2,
+.portal-root h3,
+.portal-root h4 {
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tracking-tight);
+}
+
 .portal-root a:focus-visible,
 .portal-root button:focus-visible,
 .portal-root input:focus-visible,
@@ -94,26 +194,50 @@
 .portal-root [tabindex]:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
 }
 
-.scroll-x {
-  scrollbar-width: thin;
-  scrollbar-color: #c9c9cd transparent;
+/* Numeric columns and counters: fixed-width digits stop values from jittering
+   when they change in place (matrix cells, pagers, KPI values). */
+.portal-root [data-numeric],
+.portal-root input[type="number"] {
+  font-variant-numeric: tabular-nums;
 }
-.scroll-x::-webkit-scrollbar {
+
+/* ---- scrollbars ----
+   Slim, neutral, and out of the way; the thumb only gains contrast on hover.
+   `scrollbar-width`/`scrollbar-color` keep Firefox and the OS in charge of
+   behaviour — this only restyles the visuals. */
+.portal-root,
+.portal-root * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+.portal-root ::-webkit-scrollbar {
+  width: 12px;
   height: 12px;
 }
+.portal-root ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.portal-root ::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: var(--radius-pill);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+.portal-root ::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+.portal-root ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Horizontal scrollers keep a visible track: these are the table/matrix
+   scrollbars, and a fully transparent track makes them hard to find. */
 .scroll-x::-webkit-scrollbar-track {
   background: var(--surface-2);
-}
-.scroll-x::-webkit-scrollbar-thumb {
-  background: #c9c9cd;
-  border-radius: 8px;
-  border: 3px solid var(--surface-2);
-}
-.scroll-x::-webkit-scrollbar-thumb:hover {
-  background: #adadb2;
 }
 
 @keyframes portal-fadein {
@@ -150,10 +274,44 @@
 @keyframes portal-toast-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(8px) scale(0.98);
   }
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+@keyframes portal-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Staggered entrance for dashboards — see `.statCard` in primitives. */
+@keyframes portal-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Anyone who asked the OS for less motion gets none of it. Transitions are
+   collapsed rather than removed so state changes still apply instantly. */
+@media (prefers-reduced-motion: reduce) {
+  .portal-root *,
+  .portal-root *::before,
+  .portal-root *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
   }
 }

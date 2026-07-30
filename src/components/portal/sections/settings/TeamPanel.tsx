@@ -181,7 +181,7 @@ export function TeamPanel() {
                   aria-label={`Изменить ${user.full_name}`}
                   title="Изменить"
                 >
-                  <Icon name="pencil" size={15} />
+                  <Icon name="pencil" size={16} />
                 </button>
                 <button
                   className={`${primitives.toggle} ${user.is_active ? primitives.toggleOn : ""}`}

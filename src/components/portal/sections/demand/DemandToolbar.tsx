@@ -57,7 +57,7 @@ export function DemandToolbar({
   return (
     <div className={primitives.toolbar}>
       <div className={primitives.searchField} style={{ minWidth: 200 }}>
-        <Icon name="search" size={15} />
+        <Icon name="search" size={16} />
         <input
           type="text"
           placeholder="Поиск по проекту или городу"

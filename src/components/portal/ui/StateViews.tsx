@@ -26,7 +26,7 @@ function StateBlock({
         <Button
           variant={action.primary ? "primary" : "default"}
           size="sm"
-          style={{ marginTop: 6 }}
+          className={styles.stateAction}
           onClick={action.onClick}
         >
           {action.label}

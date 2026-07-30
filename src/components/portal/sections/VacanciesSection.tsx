@@ -109,7 +109,7 @@ export function VacanciesSection() {
         <div className={`${primitives.panel} ${styles.listPanel}`}>
           <div className={styles.toolbar}>
             <div className={`${primitives.searchField} ${styles.searchFieldFull}`}>
-              <Icon name="search" size={15} />
+              <Icon name="search" size={16} />
               <input
                 type="text"
                 placeholder="Поиск по проекту, должности, условиям…"
@@ -222,7 +222,7 @@ function VacancyDetail({
           <div key={i} className={styles.block}>
             <div className={styles.blockHead}>
               <span className={styles.blockIco}>
-                <Icon name={iconForLabel(section.label)} size={15} />
+                <Icon name={iconForLabel(section.label)} size={16} />
               </span>
               {section.label && <span className={styles.blockLabel}>{section.label}</span>}
             </div>

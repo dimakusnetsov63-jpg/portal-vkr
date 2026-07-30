@@ -7,13 +7,14 @@
 .brandText {
   display: flex;
   flex-direction: column;
-  line-height: 1.2;
+  line-height: var(--lh-tight);
+  min-width: 0;
 }
 .brandText b {
-  font-size: 15px;
-  letter-spacing: -0.01em;
+  font-size: var(--fs-lg);
+  letter-spacing: var(--tracking-tight);
 }
 .brandText span {
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   color: var(--text-3);
 }
