@@ -1,0 +1,267 @@
+/* Dashboard: 8 stat cards (Всего/Активных/Архивных/Общая потребность/
+   Закрыто вакансий/Незакрытая потребность/Критичных/Средняя укомплектованность) */
+.statGrid8 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+@media (max-width: 1024px) {
+  .statGrid8 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .statGrid8 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Table — same structural pattern as CandidatesSection.module.css. */
+.table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  min-width: 1400px;
+}
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--surface-2);
+  text-align: left;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.table tbody td {
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
+  height: var(--row-h);
+  white-space: nowrap;
+}
+.table tbody tr {
+  background: var(--surface);
+  cursor: pointer;
+}
+.table tbody tr:hover {
+  background: var(--surface-hover);
+}
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+.colSticky {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: inherit;
+  box-shadow: 1px 0 0 var(--border);
+}
+.table thead th.colSticky {
+  z-index: 6;
+  background: var(--surface-2);
+}
+.nameCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.tableWrap {
+  position: relative;
+}
+.tableScroll {
+  overflow-x: auto;
+  max-height: 66vh;
+  overflow-y: auto;
+}
+.hscrollFake {
+  height: 14px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.hscrollFakeInner {
+  height: 1px;
+}
+
+.iconActionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+}
+.iconActionBtn:hover {
+  background: var(--surface-hover);
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+/* Drawer — carte для одного адреса. */
+.drawerHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.drawerHead h3 {
+  font-size: 16px;
+  font-weight: 700;
+}
+.drawerHead p {
+  font-size: 12.5px;
+  color: var(--text-3);
+  margin-top: 2px;
+}
+.close {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  flex: none;
+}
+.close:hover {
+  background: var(--surface-hover);
+}
+.drawerBody {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
+}
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.section:first-of-type {
+  padding-top: 0;
+  border-top: none;
+}
+.section h4 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.commentTextarea {
+  min-height: 76px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  background: var(--surface-2);
+  outline: none;
+  resize: vertical;
+  font: inherit;
+}
+.commentTextarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  background: var(--surface);
+}
+
+.serviceInfo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  font-size: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.serviceInfo > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+@media (max-width: 480px) {
+  .serviceInfo {
+    grid-template-columns: 1fr;
+  }
+}
+
+.featureGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+}
+@media (max-width: 480px) {
+  .featureGrid {
+    grid-template-columns: 1fr;
+  }
+}
+.featureCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.featureCheckbox input {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+}
+
+.documentList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.documentRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-2);
+}
+.documentRow a {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.documentRow button {
+  flex: none;
+  color: var(--text-3);
+  background: none;
+  border: none;
+}
+.documentRow button:hover {
+  color: var(--red);
+}
