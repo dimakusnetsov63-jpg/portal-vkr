@@ -170,17 +170,18 @@
 
 ## 7. Supabase
 
-- **Клиенты:** `src/lib/supabase/client.ts` — `createClient()` (данные),
-  `createPortalAuthClient()` (RPC управления пользователями) и
-  `createAddressesClient()` (`public.addresses`, временно — см. ниже). Все
-  используют только publishable-ключ; `service_role` в коде не используется.
+- **Клиенты:** `src/lib/supabase/client.ts` — `createClient()` (данные) и
+  `createPortalAuthClient()` (RPC управления пользователями). Оба используют
+  только publishable-ключ; `service_role` в коде не используется.
 - **Репозитории:** `candidatesRepo.ts`, `candidateListOptionsRepo.ts`,
   `staffingDemand*Repo.ts`, `portalUsersRepo.ts`, `addressesRepo.ts` — вся
   работа с БД, возвращают типы.
-- **Типы:** `candidates.types.ts`, `candidateListOptions.types.ts` и др.
-  выведены из `database.types.ts`. Исключения — `portalAuth.types.ts` и
-  `addresses.types.ts`, написаны руками до регенерации типов после миграций
-  `20260728120000` и `20260729130000` соответственно.
+- **Типы:** `candidates.types.ts`, `candidateListOptions.types.ts`,
+  `addresses.types.ts` и др. выведены из `database.types.ts` (у `addresses`
+  поле `document_links` переопределено поверх сгенерированного `Json`, см.
+  комментарий в файле). Исключение — `portalAuth.types.ts`: описывает не
+  таблицы (закрыты RLS полностью), а типизированный RPC-клиент, поэтому
+  написан руками отдельно от `Database`.
 - **Миграции:** `supabase/migrations/*.sql` — источник истины для схемы.
 - **Env (в `.env.local`, НЕ коммитить):** `NEXT_PUBLIC_SUPABASE_URL`,
   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_JWT_SECRET` (серверная,

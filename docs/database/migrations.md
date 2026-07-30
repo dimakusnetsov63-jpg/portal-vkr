@@ -123,9 +123,9 @@ npx supabase db query --linked "select conname, pg_get_constraintdef(oid) from p
 - `updated_by` в `candidates`/`staffing_demand*` — известно только *когда*
   изменено, не *кем* (у `addresses` это уже решено, см. выше);
 - ограничений длины у текстовых полей;
-- партиционирования и политики хранения для растущей `staffing_demand_history`;
-- миграция `20260729130000_create_addresses.sql` (и две последующие) **ещё
-  не применена к боевой БД** — как и `20260728120000_portal_auth.sql`,
-  написана и закоммичена, но не задеплоена (см. `docs/tasks/current.md`).
-  `database.types.ts` для `addresses` соответственно не регенерирован —
-  типы в `addresses.types.ts` написаны вручную (см. `schema.md`).
+- партиционирования и политики хранения для растущей `staffing_demand_history`.
+
+`20260729130000_create_addresses.sql` (и две последующие), как и
+`20260728120000_portal_auth.sql`, **применены к боевой БД**;
+`database.types.ts` регенерирован — `addresses` и `portal_users`/
+`portal_sessions`/`portal_audit_log` в нём отражены (см. `schema.md`).

@@ -15,9 +15,9 @@
 `staffing_demand_history`, `addresses` и три таблицы встроенной авторизации —
 `portal_users`, `portal_sessions`, `portal_audit_log`.
 
-`addresses` (миграция `20260729130000_create_addresses.sql`) ещё **не
-применена к боевой БД** — как и `20260728120000_portal_auth.sql`, она
-закоммичена, но не задеплоена; см. `docs/tasks/current.md`.
+`addresses` (миграция `20260729130000_create_addresses.sql` + две последующие)
+и встроенная авторизация (`20260728120000_portal_auth.sql`) применены к
+боевой БД, `database.types.ts` регенерирован — обе таблицы отражены в нём.
 
 Схема `auth` Supabase **больше не используется**: с июля 2026 портал ведёт
 пользователей сам (см. [ADR-004](../architecture/decisions/ADR-004-portal-auth.md)).
@@ -405,18 +405,23 @@ enum'ом `candidate_project` и может расширяться незави�
 [`staffingDemandHistory.types.ts`](../../src/lib/supabase/staffingDemandHistory.types.ts)
 — выведены из `database.types.ts` (`Row`/`Insert`/`Update`/`Enums`).
 
-[`portalAuth.types.ts`](../../src/lib/supabase/portalAuth.types.ts) —
-**написан руками**, потому что миграция `20260728120000` ещё не отражена в
-`database.types.ts` (регенерация требует доступа к боевой базе). После
-регенерации его можно свести к выводу из `Database`, как у соседей.
+[`portalAuth.types.ts`](../../src/lib/supabase/portalAuth.types.ts) — всё ещё
+**написан руками**, хотя `20260728120000` уже применена и `portal_users`/
+`portal_sessions`/`portal_audit_log`/RPC-функции `portal_*` теперь отражены в
+`database.types.ts`: этот файл описывает не таблицы (они закрыты RLS
+полностью), а типизированный клиент RPC (`createPortalAuthClient()`), и
+сведение его к выводу из `Database` — отдельная, не входящая в TASK-005
+задача (см. `docs/tasks/backlog.md`).
 
-[`addresses.types.ts`](../../src/lib/supabase/addresses.types.ts) — тоже
-**написан руками**, по той же причине (`20260729130000` не применена).
-Экспортирует отдельную схему `AddressesDatabase` и свой типизированный
-клиент `createAddressesClient()` (`client.ts`) — `createClient<Database>()`
-не знает про `addresses`, пока эта таблица не появится в `database.types.ts`.
-После регенерации `addressesRepo.ts` можно перевести на общий `createClient()`,
-а `AddressesDatabase`/`createAddressesClient()` удалить.
+[`addresses.types.ts`](../../src/lib/supabase/addresses.types.ts) — миграция
+`20260729130000` применена, `database.types.ts` регенерирован: `AddressRow`/
+`AddressInsert`/`AddressUpdate` теперь выведены из `Database`, как у соседей
+(`candidates.types.ts` и т. д.), кроме поля `document_links` — оно в
+сгенерированном типе `Json` (jsonb типизируется широко), а приложение всегда
+хранит там конкретную форму `{id, title, url, type}[]`, поэтому это одно
+поле переопределено поверх сгенерированного. Временные `AddressesDatabase`/
+`createAddressesClient()` удалены — `addressesRepo.ts` использует общий
+`createClient()`.
 
 ## Переменные окружения
 

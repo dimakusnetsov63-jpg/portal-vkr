@@ -40,11 +40,15 @@ AddressesSection
 ```
 
 Компонент не обращается к Supabase напрямую — только через `usePortal()`.
-CRUD выполняет `lib/supabase/addressesRepo.ts`, вызываемый из
-`PortalContext`. Типы — `lib/supabase/addresses.types.ts`, написаны вручную
-(миграция ещё не применена к боевой БД, регенерация `database.types.ts`
-невозможна) — см. комментарий в файле про `AddressesDatabase` и почему
-именно вложенные object-literal типы, а не отдельные `interface`.
+CRUD выполняет `lib/supabase/addressesRepo.ts` (обычный `createClient()`),
+вызываемый из `PortalContext`. Типы — `lib/supabase/addresses.types.ts`,
+выведены из `database.types.ts`, кроме `document_links` (в сгенерированном
+типе — `Json`, приложение переопределяет его до `{id, title, url, type}[]`).
+`object_type`/`status`/`schedule_type`/`shift_type`/`payment_type` в БД —
+`CHECK`, не enum, поэтому в сгенерированном типе они `string`; узкие
+литеральные типы (`AddressStatus` и т. п.) сужаются на уровне приложения в
+местах использования — тот же приём, что `DemandRowStatus` в
+`demandRowMeta.ts`.
 
 ## Бизнес-правила (сводка)
 
@@ -90,4 +94,4 @@ CRUD выполняет `lib/supabase/addressesRepo.ts`, вызываемый и
 См. [`docs/requirements/addresses.md`](../../../../../docs/requirements/addresses.md#известные-ограничения) —
 кратко: нет полной истории по полям (только снимок в строке), документы —
 только ссылки, нет подтверждения перед архивированием, нет серверной
-пагинации, миграция ещё не применена к боевой БД.
+пагинации.
