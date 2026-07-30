@@ -6,7 +6,7 @@
 
 ## Действующая модель
 
-RLS включён на **всех восьми** таблицах схемы `public`. Политики созданы
+RLS включён на **всех девяти** таблицах схемы `public`. Политики созданы
 только для роли `authenticated`; для `anon` политик нет ни на одной таблице —
 неавторизованный доступ запрещён по умолчанию.
 
@@ -36,6 +36,7 @@ create policy "portal_select_staffing_demand"
 | `staffing_demand` | `demand` | ✅ | ✅ | ✅ | **✅** |
 | `staffing_demand_rows` | `demand` | ✅ | ✅ | ✅ | ❌ |
 | `staffing_demand_history` | `demand` | ✅ | ❌ | ❌ | ❌ |
+| `addresses` | `addresses` | ✅ | ✅ | ✅ | ❌ |
 | `portal_users` | — | ❌ | ❌ | ❌ | ❌ |
 | `portal_sessions` | — | ❌ | ❌ | ❌ | ❌ |
 | `portal_audit_log` | — | ❌ | ❌ | ❌ | ❌ |
@@ -47,8 +48,11 @@ create policy "portal_select_staffing_demand"
   `archived_at`), поэтому право на `delete` необходимо для работы UI. Оно
   осталось у всех, у кого есть раздел «Потребность»: это штатное действие
   координатора, а не административная операция.
-- **`candidates` и `candidate_list_options` без delete** — используется
-  soft-delete: `archived_at` у кандидатов, `is_active = false` у справочников.
+- **`candidates`, `candidate_list_options` и `addresses` без delete** —
+  используется soft-delete: `archived_at` у кандидатов и адресов, `is_active
+  = false` у справочников. У `addresses` доступ ко всем трём операциям
+  (`select`/`insert`/`update`) есть у всех четырёх ролей — единственная
+  таблица данных, не ограниченная по ролям так же строго, как остальные.
 - **`candidate_list_options`: читают все, правит только «Настройки».**
   Подсказки нужны в карточке кандидата любой роли, а редактируются лишь в
   одном месте.

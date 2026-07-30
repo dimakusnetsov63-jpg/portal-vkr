@@ -10,10 +10,14 @@
 
 ## Таблицы
 
-Подтверждены восемь таблиц в схеме `public`: `candidates`,
+Подтверждены девять таблиц в схеме `public`: `candidates`,
 `candidate_list_options`, `staffing_demand`, `staffing_demand_rows`,
-`staffing_demand_history` и три таблицы встроенной авторизации —
+`staffing_demand_history`, `addresses` и три таблицы встроенной авторизации —
 `portal_users`, `portal_sessions`, `portal_audit_log`.
+
+`addresses` (миграция `20260729130000_create_addresses.sql`) ещё **не
+применена к боевой БД** — как и `20260728120000_portal_auth.sql`, она
+закоммичена, но не задеплоена; см. `docs/tasks/current.md`.
 
 Схема `auth` Supabase **больше не используется**: с июля 2026 портал ведёт
 пользователей сам (см. [ADR-004](../architecture/decisions/ADR-004-portal-auth.md)).
@@ -198,6 +202,64 @@ city + position + свежие сверху).
 самого начала, но отдельного экрана истории для неё пока нет — осознанный
 задел на будущее без изменения схемы.
 
+### `public.addresses`
+
+Объекты подбора («Адреса»): один объект (даркстор/магазин/склад/ПВЗ/
+ресторан/…) = одна карточка — в отличие от `staffing_demand`, без матрицы по
+датам. Soft-delete через `archived_at`, как `candidates`; в UI представлен
+сегментированным переключателем «Активные/Архив», не отдельной страницей.
+
+| Поле | Тип | Null | Примечание |
+|------|-----|------|-----------|
+| `id` | uuid | not null | PK, `gen_random_uuid()` |
+| `project` | enum `candidate_project` | **not null** | Тот же enum, что у кандидатов/потребности |
+| `city` | text | **not null** | Подсказки — `candidate_list_options` (`city`) |
+| `position` | text | nullable | Специализация/должность объекта. **Тот же справочник**, что `candidates.position`/`staffing_demand.position` (`candidate_list_options`, `list_type = position`) — намеренно назван `position`, а не `specialization`, чтобы не плодить второе имя одного понятия |
+| `full_address` | text | **not null** | |
+| `metro` / `district` | text | nullable | Без FK; варианты фильтра в UI строятся из уже загруженных данных, отдельного справочника нет |
+| `latitude` / `longitude` | numeric | nullable | Раздельные числовые поля (не одна строка), чтобы карта/маршруты/поиск ближайших объектов не требовали миграции |
+| `object_type` | text | **not null** | `default 'other'`; `check in (darkstore, shop, warehouse, pvz, restaurant, production, office, other)` |
+| `required_count` / `staffed_count` / `planned_start_count` / `in_progress_count` | integer | **not null** | `default 0`, `check (>= 0)`. Требуется / Есть сотрудников / План выхода / В работе |
+| `status` | text | **not null** | `default 'unrestricted'`; `check in (stop, reserve, hiring_standby, any_candidate, unrestricted)` |
+| `priority` | smallint | **not null** | `default 3`; `check between 1 and 5` (5 = критический … 1 = минимальный) |
+| `schedule_type` | text | nullable | `check in ('2/2','3/3','5/2','6/1','7/0','flexible','parttime')` |
+| `shift_type` | text | nullable | `check in ('day','night','mixed')` |
+| `shift_times` | text[] | **not null** | `default '{}'`; несколько времён выхода, например `{'08:00','14:00'}` |
+| `payment_type` | text | nullable | `check in ('hourly','per_shift','per_order')` |
+| `payment_amount` | numeric | nullable | `check (>= 0)` |
+| `coordinator_name` | text | nullable | Подсказки — `candidate_list_options` (`coordinator`) |
+| `coordinator_phone` / `coordinator_telegram` | text | nullable | |
+| `site_manager_name` / `site_manager_phone` | text | nullable | Свободный текст — сознательно **не** тот же справочник, что `candidates.manager` (это другая роль: руководитель физического объекта, а не рекрутинговый менеджер) |
+| `coordinator_comment` | text | nullable | `check (char_length <= 4000)` |
+| `features` | text[] | **not null** | `default '{}'`; слаги чекбоксов «Особенности объекта», подписи только в `addressOptions.ts` |
+| `document_links` | jsonb | **not null** | `default '[]'`; массив `{id, title, url, type}` — **только внешние ссылки**, в проекте нет Supabase Storage (см. `requirements/addresses.md`) |
+| `archived_at` | timestamptz | nullable | NULL = активен; заполнено = архивирован (soft delete) |
+| `created_at` / `updated_at` | timestamptz | not null | `default now()`, поддерживаются триггером `set_addresses_audit_fields()` |
+| `created_by` / `updated_by` | uuid | nullable | `references portal_users(id) on delete set null` — **первый случай FK из таблицы данных на `portal_users`**; проставляется тем же триггером из `auth.uid()` |
+| `created_by_login` / `updated_by_login` | text | nullable | Текстовый снимок логина на момент записи (как `portal_audit_log.actor_login`) — `portal_users` закрыта RLS, `join` из клиента не сработает |
+
+**Индексы:** по `project`, `city`, `position`, `status`, `priority`,
+`object_type`, `district`, `metro`, `archived_at`; GIN trigram по
+`full_address` для поиска (расширение `pg_trgm` уже включено миграцией
+`candidates`).
+
+**Триггер:** `trg_addresses_set_audit_fields` — своя функция
+`set_addresses_audit_fields()` (`security definer`, читает `portal_users` по
+`auth.uid()` для снимка логина), а не переиспользование
+`set_candidates_updated_at()`: ей дополнительно нужно проставлять
+`created_by`/`updated_by`(`_login`).
+
+**Дефицит, % укомплектованности, «незакрытая потребность» — не колонки.**
+Считаются в TS из `required_count`/`staffed_count` (`addressMetrics.ts`):
+`Дефицит = Требуется − Есть`; при `Требуется = 0` укомплектованность — явно
+`100%` (осознанное исключение из общего правила «пусто/0 → 0%» для этого
+раздела).
+
+**Известное ограничение:** полноценная история изменений по каждому полю (с
+триггерами аудита, как у `staffing_demand_history`) в этой версии **не
+сделана** — только снимок «кто/когда создал/изменил» в самой строке
+(`created_by*`/`updated_by*` выше). Следующая задача.
+
 ### `public.portal_users`
 
 Учётные записи портала. Создаются только через интерфейс («Настройки →
@@ -295,6 +357,8 @@ enum'ом `candidate_project` и может расширяться незави�
   миграции; функции hard-delete в репозитории нет.
 - **Потребность (`staffing_demand`) удаляется физически** — это единственное
   исключение из общего правила soft-delete, см. раздел таблицы выше.
+- **Адреса (`addresses`) не удаляются физически** — soft-delete через
+  `archived_at`, как `candidates`.
 - **Метаданные строки (`staffing_demand_rows`) не удаляются вовсе** —
   только `UPDATE` статуса/комментария, delete-политики нет.
 - **История (`staffing_demand_history`) только пишется** — `insert`
@@ -328,6 +392,11 @@ enum'ом `candidate_project` и может расширяться незави�
   `listPortalAudit`. Работает не с таблицей, а с `portal_admin_*`
   функциями — сами таблицы закрыты RLS полностью. Функции удаления нет
   намеренно.
+- [`addressesRepo.ts`](../../src/lib/supabase/addressesRepo.ts):
+  `listAddresses`, `createAddress`, `updateAddress`, `archiveAddress`,
+  `restoreAddress` (обёртка над `updateAddress` с `archived_at`, как
+  `candidatesRepo`). Дублирование адреса — не отдельная функция репозитория,
+  а логика в `PortalContext.duplicateAddressRecord`.
 
 Типы: [`candidates.types.ts`](../../src/lib/supabase/candidates.types.ts),
 [`candidateListOptions.types.ts`](../../src/lib/supabase/candidateListOptions.types.ts),
@@ -340,6 +409,14 @@ enum'ом `candidate_project` и может расширяться незави�
 **написан руками**, потому что миграция `20260728120000` ещё не отражена в
 `database.types.ts` (регенерация требует доступа к боевой базе). После
 регенерации его можно свести к выводу из `Database`, как у соседей.
+
+[`addresses.types.ts`](../../src/lib/supabase/addresses.types.ts) — тоже
+**написан руками**, по той же причине (`20260729130000` не применена).
+Экспортирует отдельную схему `AddressesDatabase` и свой типизированный
+клиент `createAddressesClient()` (`client.ts`) — `createClient<Database>()`
+не знает про `addresses`, пока эта таблица не появится в `database.types.ts`.
+После регенерации `addressesRepo.ts` можно перевести на общий `createClient()`,
+а `AddressesDatabase`/`createAddressesClient()` удалить.
 
 ## Переменные окружения
 

@@ -63,6 +63,9 @@ npx supabase db query --linked "select conname, pg_get_constraintdef(oid) from p
 | `20260727090100_add_position_to_staffing_demand_rows.sql` | `position` в метаданные строки, unique → `(project, city, position)` |
 | `20260727090200_add_position_to_staffing_demand_history.sql` | `position` в аудит + пересборка обеих триггерных функций |
 | `20260728120000_portal_auth.sql` | Встроенная авторизация: `portal_users` / `portal_sessions` / `portal_audit_log`, enum `portal_user_role` и `portal_audit_action`, функции `portal_*`, переезд всех политик данных на `portal_can(<раздел>)` |
+| `20260729130000_create_addresses.sql` | Таблица `addresses` (раздел «Адреса»), text+CHECK вместо enum для `object_type`/`status`/`schedule_type`/`shift_type`/`payment_type`, индексы, триггер `set_addresses_audit_fields()` (`created_by`/`updated_by` + снимок логина) |
+| `20260729130100_addresses_rls_policies.sql` | RLS-политики `addresses` (`select`/`insert`/`update` на `portal_can('addresses')`, без `delete` — soft-delete как у `candidates`) |
+| `20260729130200_update_portal_role_sections_addresses.sql` | Добавляет `'addresses'` во все четыре роли в `portal_role_sections()` — раздел видят все, в отличие от большинства |
 
 ## Миграция `20260728120000_portal_auth.sql`: что учесть при применении
 
@@ -113,8 +116,16 @@ npx supabase db query --linked "select conname, pg_get_constraintdef(oid) from p
 - разграничения данных по проектам (`portal_users.projects` есть, фильтрации
   по нему нет);
 - очистки истёкших строк `portal_sessions`;
-- журнала изменений кандидатов (аудит есть только у потребности и у
-  пользователей);
-- `updated_by` — известно только *когда* изменено, не *кем*;
+- журнала изменений кандидатов **и адресов** (полноценный построчный аудит,
+  как у потребности, есть только у неё и у пользователей). У `addresses` пока
+  только снимок «кто/когда» в самой строке (`created_by*`/`updated_by*`) — не
+  замена полной истории, задел на следующую задачу;
+- `updated_by` в `candidates`/`staffing_demand*` — известно только *когда*
+  изменено, не *кем* (у `addresses` это уже решено, см. выше);
 - ограничений длины у текстовых полей;
-- партиционирования и политики хранения для растущей `staffing_demand_history`.
+- партиционирования и политики хранения для растущей `staffing_demand_history`;
+- миграция `20260729130000_create_addresses.sql` (и две последующие) **ещё
+  не применена к боевой БД** — как и `20260728120000_portal_auth.sql`,
+  написана и закоммичена, но не задеплоена (см. `docs/tasks/current.md`).
+  `database.types.ts` для `addresses` соответственно не регенерирован —
+  типы в `addresses.types.ts` написаны вручную (см. `schema.md`).

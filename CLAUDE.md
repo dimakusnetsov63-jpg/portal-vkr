@@ -136,7 +136,28 @@
 Старый `sections/CandidateDrawer.tsx` — это mock-дровер, ещё используется
 `CommandPalette`; не путать с `RealCandidateDrawer`.
 
-## 6.1. Раздел «Настройки»
+## 6.1. Раздел «Адреса»
+
+`src/components/portal/sections/addresses/`: `AddressesSection.tsx`
+(оркестратор — сегментированный переключатель «Активные/Архив», фильтры,
+поиск), `AddressesDashboard.tsx` (8 KPI), `AddressesTable.tsx`,
+`AddAddressModal.tsx`, `AddressDrawer.tsx` (карточка), `addressFilters.ts`,
+`addressMetrics.ts` (чистые, с тестами), `addressOptions.ts`. Детали —
+[`addresses/README.md`](src/components/portal/sections/addresses/README.md),
+бизнес-правила — [`docs/requirements/addresses.md`](docs/requirements/addresses.md).
+
+Один адрес = одна карточка (в отличие от «Потребности» — без матрицы по
+датам). Раздел доступен **всем четырём ролям** — вместе с «Уведомлениями»
+единственный такой случай. Специализация (`position`) — тот же справочник
+`candidate_list_options`, что у «Потребности»/«Кандидатов», не отдельный.
+Дефицит и укомплектованность **не хранятся в БД** — считаются на клиенте;
+при отсутствии потребности укомплектованность явно `100%`. Документы —
+только внешние ссылки (в проекте нет Supabase Storage). Полной построчной
+истории изменений пока нет — только снимок «кто/когда создал/изменил» в
+самой строке (`created_by`/`updated_by`); полноценный аудит — следующая
+задача.
+
+## 6.2. Раздел «Настройки»
 
 `src/components/portal/sections/settings/`: `SettingsSection.tsx`
 (оркестратор), `TeamPanel.tsx` (команда и роли), `UserFormModal.tsx`,
@@ -149,15 +170,17 @@
 
 ## 7. Supabase
 
-- **Клиенты:** `src/lib/supabase/client.ts` — `createClient()` (данные) и
-  `createPortalAuthClient()` (RPC управления пользователями). Оба используют
-  только publishable-ключ; `service_role` в коде не используется.
+- **Клиенты:** `src/lib/supabase/client.ts` — `createClient()` (данные),
+  `createPortalAuthClient()` (RPC управления пользователями) и
+  `createAddressesClient()` (`public.addresses`, временно — см. ниже). Все
+  используют только publishable-ключ; `service_role` в коде не используется.
 - **Репозитории:** `candidatesRepo.ts`, `candidateListOptionsRepo.ts`,
-  `staffingDemand*Repo.ts`, `portalUsersRepo.ts` — вся работа с БД,
-  возвращают типы.
+  `staffingDemand*Repo.ts`, `portalUsersRepo.ts`, `addressesRepo.ts` — вся
+  работа с БД, возвращают типы.
 - **Типы:** `candidates.types.ts`, `candidateListOptions.types.ts` и др.
-  выведены из `database.types.ts`. Исключение — `portalAuth.types.ts`,
-  написан руками до регенерации типов после миграции `20260728120000`.
+  выведены из `database.types.ts`. Исключения — `portalAuth.types.ts` и
+  `addresses.types.ts`, написаны руками до регенерации типов после миграций
+  `20260728120000` и `20260729130000` соответственно.
 - **Миграции:** `supabase/migrations/*.sql` — источник истины для схемы.
 - **Env (в `.env.local`, НЕ коммитить):** `NEXT_PUBLIC_SUPABASE_URL`,
   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_JWT_SECRET` (серверная,

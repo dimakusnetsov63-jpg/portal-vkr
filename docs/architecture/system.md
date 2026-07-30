@@ -47,6 +47,7 @@ src/
       CandidateDrawer.tsx    # mock-дровер (используется CommandPalette)
       candidates/            # раздел «Кандидаты» (real-данные)
       demand/                # раздел «Потребность» (real-данные)
+      addresses/             # раздел «Адреса» (real-данные)
       settings/              # раздел «Настройки» (команда, роли, журнал)
   lib/
     auth/                    # roles (матрица прав), session, jwt, middleware
@@ -80,8 +81,8 @@ middleware-файл называется `proxy`). Модель доступа �
 
 `PortalApp` → `PortalProvider` → `PortalShell`. Оболочка: `Sidebar` (навигация),
 `Topbar` (профиль, поиск, командная палитра), `MobileTabBar` (мобильная
-навигация), область контента с активным разделом, оба дровера
-(`CandidateDrawer`, `RealCandidateDrawer`) и `ToastStack`.
+навигация), область контента с активным разделом, все три дровера
+(`CandidateDrawer`, `RealCandidateDrawer`, `AddressDrawer`) и `ToastStack`.
 
 ## Контекст
 
@@ -103,6 +104,12 @@ middleware-файл называется `proxy`). Модель доступа �
    `refreshDemand`. Отдельно — метаданные строки проект+город:
    `demandRowMeta` + `updateDemandRowMeta`, `refreshDemandRowMeta`
    (статус/комментарий, не привязаны к дате).
+5. **Адреса (Supabase):** `addresses` + CRUD (`addAddress`, `saveAddress`,
+   `archiveAddressRecord`, `restoreAddressRecord`, `duplicateAddressRecord`),
+   `refreshAddresses`, `selectedAddressId` + `openAddressDrawer`/
+   `closeAddressDrawer`. Один объект = одна карточка (в отличие от
+   «Потребности», без матрицы по датам); дефицит и укомплектованность не
+   хранятся — считаются в `addressMetrics.ts`.
 
 Плюс кросс-раздельное: навигация (`activePage`), тосты, уведомления,
 `currentUser`, `can(permission)`, `signOut`, плотность таблиц.
@@ -125,10 +132,12 @@ middleware-файл называется `proxy`). Модель доступа �
 ## Разделы портала
 
 Переключаются клиентски (`NAV_ITEMS` в `lib/portal/constants.ts`): Обзор,
-Потребность, Кандидаты, Описание вакансий, Маркетинг, Аналитика, Уведомления,
-Настройки. На реальные данные Supabase переведены разделы **Кандидаты** и
-**Потребность** (и справочники в Настройках); остальные работают на
-mock-данных / статических данных (`vacancyData`).
+Потребность, Адреса, Кандидаты, Описание вакансий, Маркетинг, Аналитика,
+Уведомления, Настройки. На реальные данные Supabase переведены разделы
+**Кандидаты**, **Потребность** и **Адреса** (и справочники в Настройках);
+остальные работают на mock-данных / статических данных (`vacancyData`).
+«Адреса» — единственный раздел, доступный всем четырём ролям (см.
+[`../requirements/access-control.md`](../requirements/access-control.md)).
 
 ## Data-flow
 
@@ -171,9 +180,24 @@ UI (Section/*.tsx)
 Редактирование ячейки — upsert/delete
 по (`project`, `city`, `demand_date`) через `staffingDemandRepo.ts`.
 
+## Структура раздела «Адреса»
+
+Оркестратор `AddressesSection` берёт `addresses` из контекста, прогоняет через
+чистую `filterAddresses` (поиск сразу по нескольким полям — адрес/метро/
+район/город/координатор/руководитель объекта), считает
+`calculateAddressMetrics` (два входа — полный список для «Всего/Активных/
+Архивных» и отфильтрованный без архива для остальных KPI, архив никогда не
+участвует в KPI), и композитит `AddressesDashboard` + `AddressesTable` +
+`AddAddressModal`. Карточку рисует `AddressDrawer`. Один адрес = одна
+карточка (в отличие от «Потребности» — без матрицы по датам); архив — не
+отдельная страница, а сегментированный переключатель поверх той же таблицы.
+Проект/город/специализация — общие справочники с «Потребностью»/
+«Кандидатами» (`candidate_project`, `candidate_list_options`). Подробности —
+[`../../src/components/portal/sections/addresses/README.md`](../../src/components/portal/sections/addresses/README.md).
+
 ## Mock и real-данные
 
-- **Real (Supabase):** кандидаты, справочники списков, потребность.
+- **Real (Supabase):** кандидаты, справочники списков, потребность, адреса.
 - **Mock (`lib/portal/generate*.ts`, `constants.ts`):** данные для Обзора,
   Маркетинга, Аналитики и legacy-слоя кандидатов в контексте
   (`generateDemand.ts` тоже остаётся — его использует только

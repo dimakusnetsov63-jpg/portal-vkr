@@ -40,6 +40,7 @@
 | [`overview.md`](requirements/overview.md) | Продукт целиком, роли, бизнес-процессы, границы системы |
 | [`access-control.md`](requirements/access-control.md) | Пользователи, роли, права по разделам, вход и журнал действий |
 | [`demand.md`](requirements/demand.md) | Потребность: правила матрицы, справочники, ограничения |
+| [`addresses.md`](requirements/addresses.md) | Адреса: карточка объекта, KPI, вычисляемые показатели, ограничения |
 | [`candidates.md`](requirements/candidates.md) | Кандидаты: модель, стадии, правила метрик |
 | [`vacancies.md`](requirements/vacancies.md) | Описание вакансий (статические данные) |
 | [`analytics.md`](requirements/analytics.md) | Аналитика (демонстрационный раздел) |
@@ -95,6 +96,7 @@
 
 Документация отдельных разделов лежит рядом с кодом:
 [`sections/demand/README.md`](../src/components/portal/sections/demand/README.md),
+[`sections/addresses/README.md`](../src/components/portal/sections/addresses/README.md),
 [`sections/candidates/README.md`](../src/components/portal/sections/candidates/README.md),
 [`sections/settings/README.md`](../src/components/portal/sections/settings/README.md).
 
@@ -102,8 +104,12 @@
 
 Чтобы не создавать ложных ожиданий:
 
-- На реальных данных Supabase работают **Потребность**, **Кандидаты**, а в
-  **Настройках** — справочники, команда и роли, журнал действий.
+- На реальных данных Supabase работают **Потребность**, **Адреса**,
+  **Кандидаты**, а в **Настройках** — справочники, команда и роли, журнал
+  действий. У «Адресов» пока нет полноценной построчной истории изменений
+  (как у «Потребности») — только снимок «кто/когда» в самой строке;
+  документы — только внешние ссылки, без загрузки файлов (в проекте нет
+  Supabase Storage).
 - Разделы **Обзор**, **Маркетинг**, **Аналитика** работают на сгенерированных
   данных; **Описание вакансий** — на статических из Excel. Цифры там
   демонстрационные.
