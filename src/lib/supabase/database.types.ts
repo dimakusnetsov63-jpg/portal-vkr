@@ -39,6 +39,138 @@ export type Database = {
   }
   public: {
     Tables: {
+      addresses: {
+        Row: {
+          archived_at: string | null
+          city: string
+          coordinator_comment: string | null
+          coordinator_name: string | null
+          coordinator_phone: string | null
+          coordinator_telegram: string | null
+          created_at: string
+          created_by: string | null
+          created_by_login: string | null
+          district: string | null
+          document_links: Json
+          features: string[]
+          full_address: string
+          id: string
+          in_progress_count: number
+          latitude: number | null
+          longitude: number | null
+          metro: string | null
+          object_type: string
+          payment_amount: number | null
+          payment_type: string | null
+          planned_start_count: number
+          position: string | null
+          priority: number
+          project: Database["public"]["Enums"]["candidate_project"]
+          required_count: number
+          schedule_type: string | null
+          shift_times: string[]
+          shift_type: string | null
+          site_manager_name: string | null
+          site_manager_phone: string | null
+          staffed_count: number
+          status: string
+          updated_at: string
+          updated_by: string | null
+          updated_by_login: string | null
+        }
+        Insert: {
+          archived_at?: string | null
+          city: string
+          coordinator_comment?: string | null
+          coordinator_name?: string | null
+          coordinator_phone?: string | null
+          coordinator_telegram?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_login?: string | null
+          district?: string | null
+          document_links?: Json
+          features?: string[]
+          full_address: string
+          id?: string
+          in_progress_count?: number
+          latitude?: number | null
+          longitude?: number | null
+          metro?: string | null
+          object_type?: string
+          payment_amount?: number | null
+          payment_type?: string | null
+          planned_start_count?: number
+          position?: string | null
+          priority?: number
+          project: Database["public"]["Enums"]["candidate_project"]
+          required_count?: number
+          schedule_type?: string | null
+          shift_times?: string[]
+          shift_type?: string | null
+          site_manager_name?: string | null
+          site_manager_phone?: string | null
+          staffed_count?: number
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_login?: string | null
+        }
+        Update: {
+          archived_at?: string | null
+          city?: string
+          coordinator_comment?: string | null
+          coordinator_name?: string | null
+          coordinator_phone?: string | null
+          coordinator_telegram?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_login?: string | null
+          district?: string | null
+          document_links?: Json
+          features?: string[]
+          full_address?: string
+          id?: string
+          in_progress_count?: number
+          latitude?: number | null
+          longitude?: number | null
+          metro?: string | null
+          object_type?: string
+          payment_amount?: number | null
+          payment_type?: string | null
+          planned_start_count?: number
+          position?: string | null
+          priority?: number
+          project?: Database["public"]["Enums"]["candidate_project"]
+          required_count?: number
+          schedule_type?: string | null
+          shift_times?: string[]
+          shift_type?: string | null
+          site_manager_name?: string | null
+          site_manager_phone?: string | null
+          staffed_count?: number
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_login?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "addresses_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "addresses_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_list_options: {
         Row: {
           created_at: string
@@ -140,6 +272,134 @@ export type Database = {
           source?: string | null
           stage?: Database["public"]["Enums"]["candidate_stage"] | null
           telegram_tag?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      portal_audit_log: {
+        Row: {
+          action: Database["public"]["Enums"]["portal_audit_action"]
+          actor_id: string | null
+          actor_login: string | null
+          created_at: string
+          details: Json
+          id: string
+          target_id: string | null
+          target_login: string | null
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["portal_audit_action"]
+          actor_id?: string | null
+          actor_login?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          target_id?: string | null
+          target_login?: string | null
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["portal_audit_action"]
+          actor_id?: string | null
+          actor_login?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          target_id?: string | null
+          target_login?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_audit_log_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_audit_log_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portal_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          last_seen_at: string
+          revoked_at: string | null
+          token_hash: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          last_seen_at?: string
+          revoked_at?: string | null
+          token_hash: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_seen_at?: string
+          revoked_at?: string | null
+          token_hash?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portal_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portal_users: {
+        Row: {
+          created_at: string
+          full_name: string
+          id: string
+          is_active: boolean
+          last_login_at: string | null
+          login: string
+          password_hash: string
+          projects: string[]
+          role: Database["public"]["Enums"]["portal_user_role"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          full_name: string
+          id?: string
+          is_active?: boolean
+          last_login_at?: string | null
+          login: string
+          password_hash: string
+          projects?: string[]
+          role: Database["public"]["Enums"]["portal_user_role"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          last_login_at?: string | null
+          login?: string
+          password_hash?: string
+          projects?: string[]
+          role?: Database["public"]["Enums"]["portal_user_role"]
           updated_at?: string
         }
         Relationships: []
@@ -269,6 +529,110 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      portal_admin_create_user: {
+        Args: {
+          p_full_name: string
+          p_is_active?: boolean
+          p_login: string
+          p_password: string
+          p_projects: string[]
+          p_role: Database["public"]["Enums"]["portal_user_role"]
+        }
+        Returns: Json
+      }
+      portal_admin_list_audit: {
+        Args: { p_limit?: number }
+        Returns: {
+          action: Database["public"]["Enums"]["portal_audit_action"]
+          actor_login: string
+          created_at: string
+          details: Json
+          id: string
+          target_login: string
+        }[]
+      }
+      portal_admin_list_users: {
+        Args: never
+        Returns: {
+          created_at: string
+          full_name: string
+          id: string
+          is_active: boolean
+          last_login_at: string
+          login: string
+          projects: string[]
+          role: Database["public"]["Enums"]["portal_user_role"]
+          updated_at: string
+        }[]
+      }
+      portal_admin_login_available: {
+        Args: { p_login: string }
+        Returns: boolean
+      }
+      portal_admin_set_password: {
+        Args: { p_password: string; p_user_id: string }
+        Returns: Json
+      }
+      portal_admin_set_user_active: {
+        Args: { p_is_active: boolean; p_user_id: string }
+        Returns: Json
+      }
+      portal_admin_update_user: {
+        Args: {
+          p_full_name: string
+          p_projects: string[]
+          p_role: Database["public"]["Enums"]["portal_user_role"]
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      portal_assert_password: {
+        Args: { p_password: string }
+        Returns: undefined
+      }
+      portal_bootstrap_admin: {
+        Args: { p_full_name: string; p_login: string; p_password: string }
+        Returns: Json
+      }
+      portal_can: { Args: { p_section: string }; Returns: boolean }
+      portal_current_session_id: { Args: never; Returns: string }
+      portal_current_user_id: { Args: never; Returns: string }
+      portal_jwt_claim: { Args: { p_claim: string }; Returns: string }
+      portal_login: {
+        Args: { p_login: string; p_password: string; p_user_agent?: string }
+        Returns: Json
+      }
+      portal_logout: { Args: { p_token: string }; Returns: undefined }
+      portal_require_admin: {
+        Args: never
+        Returns: {
+          created_at: string
+          full_name: string
+          id: string
+          is_active: boolean
+          last_login_at: string | null
+          login: string
+          password_hash: string
+          projects: string[]
+          role: Database["public"]["Enums"]["portal_user_role"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "portal_users"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      portal_role_sections: {
+        Args: { p_role: Database["public"]["Enums"]["portal_user_role"] }
+        Returns: string[]
+      }
+      portal_session_context: { Args: { p_token: string }; Returns: Json }
+      portal_user_json: {
+        Args: { p_user: Database["public"]["Tables"]["portal_users"]["Row"] }
+        Returns: Json
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
     }
@@ -297,6 +661,17 @@ export type Database = {
         | "Отработал 1 смену"
         | "Отработал 10 смен"
         | "Завершил вахту"
+      portal_audit_action:
+        | "user_created"
+        | "user_updated"
+        | "user_role_changed"
+        | "user_password_changed"
+        | "user_activated"
+        | "user_deactivated"
+        | "login_success"
+        | "login_failed"
+        | "logout"
+      portal_user_role: "head" | "coordinator" | "manager" | "recruiter"
       staffing_demand_history_action: "insert" | "update" | "delete"
     }
     CompositeTypes: {
@@ -455,6 +830,18 @@ export const Constants = {
         "Отработал 10 смен",
         "Завершил вахту",
       ],
+      portal_audit_action: [
+        "user_created",
+        "user_updated",
+        "user_role_changed",
+        "user_password_changed",
+        "user_activated",
+        "user_deactivated",
+        "login_success",
+        "login_failed",
+        "logout",
+      ],
+      portal_user_role: ["head", "coordinator", "manager", "recruiter"],
       staffing_demand_history_action: ["insert", "update", "delete"],
     },
   },

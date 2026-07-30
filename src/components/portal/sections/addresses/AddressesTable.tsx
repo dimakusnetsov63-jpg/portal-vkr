@@ -5,7 +5,7 @@ import { Badge } from "@/components/portal/ui/Badge";
 import { Icon } from "@/components/portal/ui/Icon";
 import { useHorizontalScrollSync } from "@/components/portal/ui/useHorizontalScrollSync";
 import { fmtDateTime, formatRelativeUpdatedAt } from "@/lib/portal/format";
-import type { AddressRow } from "@/lib/supabase/addresses.types";
+import type { AddressObjectType, AddressRow, AddressStatus } from "@/lib/supabase/addresses.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import { OBJECT_TYPE_LABELS, priorityStars, STATUS_COLORS, STATUS_LABELS } from "./addressOptions";
 import { addressDeficit } from "./addressMetrics";
@@ -55,14 +55,16 @@ export function AddressesTable({ rows, onRowClick }: { rows: AddressRow[]; onRow
                   <td>{a.position || "—"}</td>
                   <td className={primitives.muted}>{a.metro || "—"}</td>
                   <td className={primitives.muted}>{a.district || "—"}</td>
-                  <td>{OBJECT_TYPE_LABELS[a.object_type]}</td>
+                  <td>{OBJECT_TYPE_LABELS[a.object_type as AddressObjectType]}</td>
                   <td className={primitives.mono}>{a.required_count}</td>
                   <td className={primitives.mono}>{a.staffed_count}</td>
                   <td className={primitives.mono} style={{ color: deficit > 0 ? "var(--red)" : "var(--green)" }}>
                     {deficit}
                   </td>
                   <td>
-                    <Badge color={STATUS_COLORS[a.status]}>{STATUS_LABELS[a.status]}</Badge>
+                    <Badge color={STATUS_COLORS[a.status as AddressStatus]}>
+                      {STATUS_LABELS[a.status as AddressStatus]}
+                    </Badge>
                   </td>
                   <td title={String(a.priority)}>{priorityStars(a.priority)}</td>
                   <td className={primitives.muted}>{a.coordinator_name || "—"}</td>

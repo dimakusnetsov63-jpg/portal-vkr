@@ -78,17 +78,21 @@ function draftFromAddress(a: AddressRow): Draft {
     district: a.district ?? "",
     latitude: a.latitude === null ? "" : String(a.latitude),
     longitude: a.longitude === null ? "" : String(a.longitude),
-    object_type: a.object_type,
+    // object_type/status/schedule_type/shift_type/payment_type are CHECK
+    // constraints, not enums (see addresses.types.ts) — the generated Row
+    // type keeps them as plain `string`, narrowed here the same way
+    // demandRowMeta.ts casts `status as DemandRowStatus`.
+    object_type: a.object_type as AddressObjectType,
     required_count: String(a.required_count),
     staffed_count: String(a.staffed_count),
     planned_start_count: String(a.planned_start_count),
     in_progress_count: String(a.in_progress_count),
-    status: a.status,
+    status: a.status as AddressStatus,
     priority: a.priority,
-    schedule_type: a.schedule_type ?? "",
-    shift_type: a.shift_type ?? "",
+    schedule_type: (a.schedule_type as AddressScheduleType | null) ?? "",
+    shift_type: (a.shift_type as AddressShiftType | null) ?? "",
     shift_times: a.shift_times.join(", "),
-    payment_type: a.payment_type ?? "",
+    payment_type: (a.payment_type as AddressPaymentType | null) ?? "",
     payment_amount: a.payment_amount === null ? "" : String(a.payment_amount),
     coordinator_name: a.coordinator_name ?? "",
     coordinator_phone: a.coordinator_phone ?? "",
@@ -234,7 +238,9 @@ export function AddressDrawer({ addressId }: { addressId: string | null }) {
             </div>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <Badge color={STATUS_COLORS[address.status]}>{STATUS_LABELS[address.status]}</Badge>
+              <Badge color={STATUS_COLORS[address.status as AddressStatus]}>
+                {STATUS_LABELS[address.status as AddressStatus]}
+              </Badge>
               <Badge color={address.archived_at ? "red" : "green"}>{address.archived_at ? "Архив" : "Активен"}</Badge>
             </div>
 
