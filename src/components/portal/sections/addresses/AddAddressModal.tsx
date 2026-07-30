@@ -5,6 +5,7 @@ import { usePortal } from "@/components/portal/context/PortalContext";
 import { Button } from "@/components/portal/ui/Button";
 import { Combobox } from "@/components/portal/ui/Combobox";
 import { Modal } from "@/components/portal/ui/Modal";
+import modal from "@/components/portal/ui/Modal.module.css";
 import { activeListOptions, CANDIDATE_PROJECTS } from "@/lib/portal/candidateOptions";
 import type { AddressInsert, AddressObjectType } from "@/lib/supabase/addresses.types";
 import type { CandidateProject } from "@/lib/supabase/candidates.types";
@@ -122,7 +123,7 @@ export function AddAddressModal({
           <Combobox value={position} onChange={setPosition} options={positionOptions} />
         </div>
       </div>
-      <p style={{ fontSize: 12, color: "var(--text-3)" }}>
+      <p className={modal.modalNote}>
         Координаты, потребность, графики, оплата, контакты, комментарий, особенности, приоритет и документы можно
         заполнить после создания — откройте карточку адреса.
       </p>

@@ -1,13 +1,13 @@
 .column {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--sp-4);
 }
 .foot {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  padding: 16px 20px;
+  gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-5);
   border-top: 1px solid var(--border);
 }
 .headActionSlot {
@@ -17,21 +17,22 @@
 .settingsRow {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 0;
-  border-top: 1px solid var(--border);
+  gap: var(--sp-4);
+  padding: var(--sp-4) 0;
+  border-top: 1px solid var(--border-subtle);
 }
 .settingsRow:first-child {
   border-top: none;
 }
 .settingsRow .txt b {
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
   display: block;
 }
 .settingsRow .txt span {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
+  line-height: var(--lh-snug);
 }
 .settingsRow .ctl {
   margin-left: auto;
@@ -41,9 +42,9 @@
 .teamRow {
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 11px 0;
-  border-top: 1px solid var(--border);
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--border-subtle);
 }
 .teamRow:first-child {
   border-top: none;
@@ -52,11 +53,11 @@
   min-width: 0;
 }
 .teamRow .txt b {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   display: block;
 }
 .teamRow .txt span {
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
 }
 .teamRow .ctl {
@@ -65,29 +66,30 @@
 .teamAvatar {
   width: 32px;
   height: 32px;
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   flex: none;
 }
 .roleSelect {
-  height: 30px;
-  font-size: 12px;
+  height: var(--control-h-sm);
+  font-size: var(--fs-xs);
+  border-radius: var(--radius-s);
 }
 
 /* Команда и роли */
 .teamName {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--sp-2);
   flex-wrap: wrap;
 }
 .teamLogin {
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
 }
 .teamProjects {
@@ -101,7 +103,7 @@
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   flex: none;
 }
 .teamRowInactive .teamAvatar,
@@ -112,60 +114,77 @@
 .projectPicker {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--sp-2);
   max-height: 168px;
   overflow-y: auto;
-  padding: 4px 2px;
+  padding: var(--sp-1) 2px;
 }
 .projectChip {
   border: 1px solid var(--border);
   background: var(--surface-2);
   color: var(--text-2);
-  border-radius: 8px;
-  padding: 5px 10px;
-  font-size: 12.5px;
-  font-weight: 600;
+  border-radius: var(--radius-s);
+  padding: var(--sp-1) var(--sp-3);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  transition:
+    background-color var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
 }
-.projectChipOn {
+.projectChip:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+.projectChipOn,
+.projectChipOn:hover {
   border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--accent);
 }
+
+/* Подписи под полем: заметка, ошибка, подтверждение. Один размер, разный
+   только цвет — чтобы форма не «прыгала» при смене состояния. */
 .fieldNote {
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
+  line-height: var(--lh-snug);
 }
 .fieldError {
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   color: var(--red);
+  line-height: var(--lh-snug);
 }
 .fieldOk {
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   color: var(--green);
+  line-height: var(--lh-snug);
 }
 .formError {
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   color: var(--red);
   background: var(--red-soft);
-  border-radius: 9px;
-  padding: 9px 11px;
+  border-radius: var(--radius-control);
+  padding: var(--sp-2) var(--sp-3);
+  line-height: var(--lh-snug);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 14%, transparent);
 }
 .formStack {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--sp-3);
 }
 .inlineToggleRow {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--sp-3);
 }
 .inlineToggleRow .txt b {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   display: block;
 }
 .inlineToggleRow .txt span {
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
 }
 .inlineToggleRow .ctl {
@@ -175,11 +194,11 @@
 /* Журнал действий */
 .auditRow {
   display: flex;
-  gap: 10px;
+  gap: var(--sp-3);
   align-items: baseline;
-  padding: 9px 0;
-  border-top: 1px solid var(--border);
-  font-size: 12.5px;
+  padding: var(--sp-2) 0;
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--fs-sm);
 }
 .auditRow:first-child {
   border-top: none;
@@ -187,12 +206,13 @@
 .auditText {
   flex: 1;
   min-width: 0;
+  line-height: var(--lh-snug);
 }
 .auditText b {
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 .auditTime {
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   white-space: nowrap;
   flex: none;
@@ -202,14 +222,15 @@
   background: none;
   border: none;
   text-align: left;
-  font-size: 13.5px;
+  font-size: var(--fs-md);
   color: var(--text-1);
   padding: 0;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   min-width: 0;
+  transition: color var(--dur-1) var(--ease);
 }
 .listValueText:hover {
   color: var(--accent);
@@ -218,23 +239,25 @@
   color: var(--text-3);
 }
 .inactiveTag {
-  font-size: 10.5px;
-  font-weight: 600;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
   color: var(--text-3);
   background: var(--gray-soft);
-  border-radius: 6px;
-  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  padding: 2px var(--sp-2);
   flex: none;
 }
 .listValueInput {
   flex: 1;
-  height: 30px;
-  border-radius: 8px;
+  min-width: 0;
+  height: var(--control-h-sm);
+  border-radius: var(--radius-s);
   border: 1px solid var(--accent);
-  padding: 0 9px;
-  font-size: 13.5px;
+  padding: 0 var(--sp-2);
+  font-size: var(--fs-md);
   outline: none;
   background: var(--surface);
+  box-shadow: var(--ring);
 }
 .reorderCtl {
   display: flex;
@@ -242,43 +265,33 @@
   gap: 1px;
   flex: none;
 }
-.iconBtn {
-  width: 26px;
-  height: 22px;
-  border-radius: 6px;
-  border: none;
-  background: none;
-  color: var(--text-3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.iconBtn:hover {
-  background: var(--surface-hover);
-  color: var(--text-1);
-}
-.iconBtn:disabled {
-  opacity: 0.3;
-  pointer-events: none;
-}
 .addRow {
   display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  padding-top: 12px;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
   border-top: 1px solid var(--border);
 }
 .addRow input {
   flex: 1;
-  height: 34px;
-  border-radius: 9px;
+  min-width: 0;
+  height: var(--control-h-md);
+  border-radius: var(--radius-control);
   border: 1px solid var(--border);
-  padding: 0 11px;
-  font-size: 13px;
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-md);
   outline: none;
   background: var(--surface-2);
+  transition:
+    background-color var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    box-shadow var(--dur-1) var(--ease);
+}
+.addRow input:hover {
+  border-color: var(--border-strong);
 }
 .addRow input:focus {
   border-color: var(--accent);
   background: var(--surface);
+  box-shadow: var(--ring);
 }

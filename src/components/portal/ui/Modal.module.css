@@ -1,16 +1,21 @@
+/* The overlay is exported for reuse — CommandPalette renders the same
+   scrim/centering and should not maintain a second copy of it. */
 .overlay {
   position: fixed;
   inset: 0;
   background: rgba(20, 20, 22, 0.42);
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: var(--sp-5);
+  animation: portal-overlay-in var(--dur-2) var(--ease-out);
 }
 .modal {
   background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-l);
   width: 100%;
   max-width: 480px;
@@ -18,49 +23,61 @@
   max-height: 88vh;
   display: flex;
   flex-direction: column;
-  animation: portal-pop 0.16s ease;
+  overflow: hidden;
+  animation: portal-pop var(--dur-2) var(--ease-out);
 }
 .modalWide {
-  max-width: 560px;
-  padding: 0;
+  max-width: 640px;
 }
 .modalHead {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 18px 20px;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
   border-bottom: 1px solid var(--border);
+  flex: none;
 }
 .modalHead h3 {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
 }
 .modalClose {
   margin-left: auto;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  border: none;
-  background: var(--surface-2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-2);
-}
-.modalClose:hover {
-  background: var(--surface-hover);
 }
 .modalBody {
-  padding: 20px;
+  padding: var(--sp-5);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--sp-4);
+  flex: 1;
+  min-height: 0;
+}
+/* Пояснение под формой модалки («остальное заполните в карточке»). */
+.modalNote {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  line-height: var(--lh-snug);
 }
 .modalFoot {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  padding: 16px 20px;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-5);
   border-top: 1px solid var(--border);
+  background: var(--surface);
+  flex: none;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 600px) {
+  .overlay {
+    padding: var(--sp-3);
+    align-items: flex-end;
+  }
+  .modal {
+    max-height: 92vh;
+  }
 }

@@ -146,7 +146,7 @@ export function RealCandidateDrawer({ candidateId }: { candidateId: string | nul
   }
 
   return (
-    <Drawer open={!!candidate} onClose={closeRealCandidateDrawer}>
+    <Drawer open={!!candidate} onClose={closeRealCandidateDrawer} label="Карточка кандидата">
       {candidate && draft && (
         <>
           <div className={styles.head}>
@@ -161,13 +161,17 @@ export function RealCandidateDrawer({ candidateId }: { candidateId: string | nul
                 {candidate.city ? `, ${candidate.city}` : ""}
               </p>
             </div>
-            <button className={styles.close} onClick={closeRealCandidateDrawer} aria-label="Закрыть">
+            <button
+              className={`${primitives.btnIcon} ${primitives.btnIconSm} ${primitives.btnIconOutlined} ${styles.close}`}
+              onClick={closeRealCandidateDrawer}
+              aria-label="Закрыть"
+            >
               <Icon name="x" size={16} />
             </button>
           </div>
 
           <div className={styles.body}>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div className={styles.badgeRow}>
               <Badge color={stageColor(candidate.stage)}>{candidate.stage ?? "Не начал"}</Badge>
               {candidate.archived_at && <Badge color="red">Вышел</Badge>}
             </div>
@@ -276,9 +280,7 @@ export function RealCandidateDrawer({ candidateId }: { candidateId: string | nul
                   ))}
                 </select>
               </div>
-              <p style={{ fontSize: 12, color: "var(--text-3)" }}>
-                Сейчас: {medicalBookLabel(candidate.has_medical_book)}
-              </p>
+              <p className={styles.note}>Сейчас: {medicalBookLabel(candidate.has_medical_book)}</p>
             </div>
 
             <div className={styles.section}>
@@ -302,22 +304,25 @@ export function RealCandidateDrawer({ candidateId }: { candidateId: string | nul
               />
             </div>
 
-            <div className={styles.section} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <Button variant="primary" onClick={handleSave} disabled={saving}>
-                {saving ? "Сохранение…" : "Сохранить"}
+          </div>
+
+          {/* Вынесено из прокручиваемого тела: карточка длинная, «Сохранить»
+              должно оставаться на виду с любой её позиции. */}
+          <div className={styles.foot}>
+            <Button variant="primary" onClick={handleSave} disabled={saving}>
+              {saving ? "Сохранение…" : "Сохранить"}
+            </Button>
+            {candidate.archived_at ? (
+              <Button onClick={() => restoreRealCandidate(candidate.id)}>
+                <Icon name="refresh" size={14} />
+                Восстановить
               </Button>
-              {candidate.archived_at ? (
-                <Button onClick={() => restoreRealCandidate(candidate.id)}>
-                  <Icon name="refresh" size={14} />
-                  Восстановить
-                </Button>
-              ) : (
-                <Button danger onClick={() => archiveRealCandidate(candidate.id)}>
-                  <Icon name="x" size={14} />
-                  Отметить как вышедшего
-                </Button>
-              )}
-            </div>
+            ) : (
+              <Button danger onClick={() => archiveRealCandidate(candidate.id)}>
+                <Icon name="x" size={14} />
+                Отметить как вышедшего
+              </Button>
+            )}
           </div>
         </>
       )}

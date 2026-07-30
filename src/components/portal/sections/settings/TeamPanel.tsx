@@ -176,7 +176,7 @@ export function TeamPanel() {
               </div>
               <div className={styles.teamControls}>
                 <button
-                  className={styles.iconBtn}
+                  className={`${primitives.btnIcon} ${primitives.btnIconSm}`}
                   onClick={() => openEdit(user)}
                   aria-label={`Изменить ${user.full_name}`}
                   title="Изменить"

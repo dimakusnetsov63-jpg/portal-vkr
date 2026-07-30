@@ -20,12 +20,12 @@ export default function ForbiddenPage() {
           </div>
 
           <h1 className={styles.title}>Доступ запрещён</h1>
-          <p style={{ fontSize: 13, color: "var(--text-2)" }}>
+          <p className={styles.text}>
             У вашей роли нет доступа к этому разделу. Если он нужен для работы, обратитесь к руководителю —
             права выдаются в разделе «Настройки → Команда и роли».
           </p>
 
-          <Link href="/" className={styles.hint} style={{ color: "var(--accent)" }}>
+          <Link href="/" className={styles.link}>
             Вернуться в портал
           </Link>
         </div>

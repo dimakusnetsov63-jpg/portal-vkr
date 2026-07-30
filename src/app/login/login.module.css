@@ -66,6 +66,23 @@
   line-height: var(--lh-snug);
 }
 
+.text {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  line-height: var(--lh-base);
+}
+
+.link {
+  font-size: var(--fs-xs);
+  color: var(--accent);
+  font-weight: var(--fw-semibold);
+  text-align: center;
+  text-decoration: none;
+}
+.link:hover {
+  text-decoration: underline;
+}
+
 .hint {
   font-size: var(--fs-xs);
   color: var(--text-3);

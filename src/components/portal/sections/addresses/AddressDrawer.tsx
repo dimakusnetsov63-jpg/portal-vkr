@@ -203,7 +203,7 @@ export function AddressDrawer({ addressId }: { addressId: string | null }) {
   }
 
   return (
-    <Drawer open={!!address} onClose={closeAddressDrawer}>
+    <Drawer open={!!address} onClose={closeAddressDrawer} label="Карточка адреса">
       {address && draft && (
         <>
           <div className={styles.drawerHead}>
@@ -213,7 +213,11 @@ export function AddressDrawer({ addressId }: { addressId: string | null }) {
                 {address.project}, {address.city}
               </p>
             </div>
-            <button className={styles.close} onClick={closeAddressDrawer} aria-label="Закрыть">
+            <button
+              className={`${primitives.btnIcon} ${primitives.btnIconSm} ${primitives.btnIconOutlined}`}
+              onClick={closeAddressDrawer}
+              aria-label="Закрыть"
+            >
               <Icon name="x" size={16} />
             </button>
           </div>
@@ -237,7 +241,7 @@ export function AddressDrawer({ addressId }: { addressId: string | null }) {
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div className={styles.badgeRow}>
               <Badge color={STATUS_COLORS[address.status as AddressStatus]}>
                 {STATUS_LABELS[address.status as AddressStatus]}
               </Badge>
@@ -346,7 +350,7 @@ export function AddressDrawer({ addressId }: { addressId: string | null }) {
                   />
                 </div>
               </div>
-              <p style={{ fontSize: 12, color: "var(--text-3)" }}>
+              <p className={styles.computedNote}>
                 Дефицит: {addressDeficit(address)} · Укомплектованность: {Math.round(addressFillRate(address))}%
                 (считается автоматически, не хранится)
               </p>
@@ -469,7 +473,7 @@ export function AddressDrawer({ addressId }: { addressId: string | null }) {
               <h4>Особенности объекта</h4>
               <div className={styles.featureGrid}>
                 {FEATURE_OPTIONS.map((f) => (
-                  <label key={f.slug} className={styles.featureCheckbox}>
+                  <label key={f.slug} className={primitives.checkLabel}>
                     <input
                       type="checkbox"
                       checked={draft.features.includes(f.slug)}
@@ -514,22 +518,25 @@ export function AddressDrawer({ addressId }: { addressId: string | null }) {
               </Button>
             </div>
 
-            <div className={styles.section} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <Button variant="primary" onClick={handleSave} disabled={saving}>
-                {saving ? "Сохранение…" : "Сохранить"}
+          </div>
+
+          {/* Вынесено из прокручиваемого тела: форма длинная, «Сохранить»
+              должно оставаться на виду с любой её позиции. */}
+          <div className={styles.drawerFoot}>
+            <Button variant="primary" onClick={handleSave} disabled={saving}>
+              {saving ? "Сохранение…" : "Сохранить"}
+            </Button>
+            {address.archived_at ? (
+              <Button onClick={() => restoreAddressRecord(address.id)}>
+                <Icon name="refresh" size={14} />
+                Восстановить
               </Button>
-              {address.archived_at ? (
-                <Button onClick={() => restoreAddressRecord(address.id)}>
-                  <Icon name="refresh" size={14} />
-                  Восстановить
-                </Button>
-              ) : (
-                <Button danger onClick={() => archiveAddressRecord(address.id)}>
-                  <Icon name="box" size={14} />
-                  Перевести в архив
-                </Button>
-              )}
-            </div>
+            ) : (
+              <Button danger onClick={() => archiveAddressRecord(address.id)}>
+                <Icon name="box" size={14} />
+                Перевести в архив
+              </Button>
+            )}
           </div>
         </>
       )}

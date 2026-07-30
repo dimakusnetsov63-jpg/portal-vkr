@@ -13,6 +13,10 @@
   --surface-2: #fbfbfc;
   --surface-hover: #f2f2f4;
   --surface-active: #ebebee;
+  /* -subtle is for dividers that repeat many times down a page (table rows,
+     list items): at 0.08 they stack into a grey grid, at 0.05 they read as
+     spacing. -strong is for hover/focus borders. */
+  --border-subtle: rgba(0, 0, 0, 0.05);
   --border: rgba(0, 0, 0, 0.08);
   --border-strong: rgba(0, 0, 0, 0.14);
   --text-1: #1d1d1f;
@@ -116,6 +120,7 @@
   /* ---- controls ----
      One height ladder for everything the user can click or type into, so a
      button, a select and a search field line up on the same toolbar row. */
+  --control-h-xs: 24px;
   --control-h-sm: 30px;
   --control-h-md: 36px;
   --control-h-lg: 42px;
@@ -147,41 +152,36 @@
   --row-h: 40px;
 }
 
-.portal-root button,
-.portal-root input,
-.portal-root select,
-.portal-root textarea {
+/* Resets are wrapped in :where() so they carry zero specificity. Without it
+   `.portal-root button { font-size: inherit }` (0,1,1) outranks `.btn`
+   (0,1,0) and every button renders at the body size — which is exactly what
+   used to happen, silently discarding the button size scale. A reset must
+   never beat the component it is resetting. */
+:where(.portal-root) :where(button, input, select, textarea) {
   font-family: inherit;
   font-size: inherit;
   color: inherit;
 }
 
-.portal-root button {
+:where(.portal-root) :where(button) {
   cursor: pointer;
 }
 
-.portal-root a {
+:where(.portal-root) :where(a) {
   color: inherit;
 }
 
-.portal-root ul {
+:where(.portal-root) :where(ul) {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.portal-root h1,
-.portal-root h2,
-.portal-root h3,
-.portal-root h4,
-.portal-root p {
+:where(.portal-root) :where(h1, h2, h3, h4, p) {
   margin: 0;
 }
 
-.portal-root h1,
-.portal-root h2,
-.portal-root h3,
-.portal-root h4 {
+:where(.portal-root) :where(h1, h2, h3, h4) {
   line-height: var(--lh-tight);
   letter-spacing: var(--tracking-tight);
 }

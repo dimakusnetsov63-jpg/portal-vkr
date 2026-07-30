@@ -16,12 +16,12 @@ export function AddressesTable({ rows, onRowClick }: { rows: AddressRow[]; onRow
   const { scrollRef, fakeRef, innerWidth } = useHorizontalScrollSync();
 
   return (
-    <div className={styles.tableWrap}>
-      <div className={`${styles.tableScroll} scroll-x`} ref={scrollRef}>
-        <table className={styles.table}>
+    <div className={primitives.tableWrap}>
+      <div className={`${primitives.tableScroll} scroll-x`} ref={scrollRef}>
+        <table className={`${primitives.table} ${primitives.tableClickable} ${styles.table}`}>
           <thead>
             <tr>
-              <th className={styles.colSticky} style={{ width: 260 }}>
+              <th className={primitives.colSticky} style={{ width: 260 }}>
                 Адрес
               </th>
               <th>Проект</th>
@@ -47,8 +47,8 @@ export function AddressesTable({ rows, onRowClick }: { rows: AddressRow[]; onRow
               const isArchived = Boolean(a.archived_at);
               return (
                 <tr key={a.id} onClick={() => onRowClick(a.id)}>
-                  <td className={styles.colSticky}>
-                    <div className={styles.nameCell}>{a.full_address}</div>
+                  <td className={primitives.colSticky}>
+                    <div className={primitives.nameCell}>{a.full_address}</div>
                   </td>
                   <td>{a.project}</td>
                   <td>{a.city}</td>
@@ -81,7 +81,7 @@ export function AddressesTable({ rows, onRowClick }: { rows: AddressRow[]; onRow
                   </td>
                   <td onClick={(e) => e.stopPropagation()}>
                     <button
-                      className={styles.iconActionBtn}
+                      className={`${primitives.btnIcon} ${primitives.btnIconSm} ${primitives.btnIconOutlined}`}
                       onClick={() => duplicateAddressRecord(a.id)}
                       aria-label="Дублировать адрес"
                       title="Дублировать адрес"
@@ -95,10 +95,10 @@ export function AddressesTable({ rows, onRowClick }: { rows: AddressRow[]; onRow
           </tbody>
         </table>
       </div>
-      <div className={`${styles.hscrollFake} scroll-x`} ref={fakeRef}>
-        <div className={styles.hscrollFakeInner} style={{ width: `${innerWidth}px` }} />
+      <div className={`${primitives.hscrollFake} scroll-x`} ref={fakeRef}>
+        <div className={primitives.hscrollFakeInner} style={{ width: `${innerWidth}px` }} />
       </div>
-      <footer className={styles.pager}>
+      <footer className={primitives.pager}>
         <span>Всего: {rows.length}</span>
         <span>Прокрутите таблицу ползунком снизу →</span>
       </footer>

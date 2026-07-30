@@ -23,12 +23,12 @@ export function CandidatesTable({
   const { scrollRef, fakeRef, innerWidth } = useHorizontalScrollSync();
 
   return (
-    <div className={styles.tableWrap}>
-      <div className={`${styles.tableScroll} scroll-x`} ref={scrollRef}>
-        <table className={styles.table}>
+    <div className={primitives.tableWrap}>
+      <div className={`${primitives.tableScroll} scroll-x`} ref={scrollRef}>
+        <table className={`${primitives.table} ${primitives.tableClickable} ${styles.table}`}>
           <thead>
             <tr>
-              <th className={styles.colSticky} style={{ width: 220 }}>
+              <th className={primitives.colSticky} style={{ width: 220 }}>
                 ФИО
               </th>
               <th>Проект</th>
@@ -45,31 +45,13 @@ export function CandidatesTable({
           <tbody>
             {rows.map((c) => (
               <tr key={c.id} onClick={() => onRowClick(c.id)}>
-                <td className={styles.colSticky}>
-                  <div className={styles.nameCell}>
-                    <div
-                      style={{
-                        width: 26,
-                        height: 26,
-                        fontSize: 10,
-                        borderRadius: "50%",
-                        background: avatarColor(c.full_name),
-                        color: "#fff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontWeight: 700,
-                        flex: "none",
-                      }}
-                    >
+                <td className={primitives.colSticky}>
+                  <div className={primitives.nameCell}>
+                    <div className={styles.avatarCell} style={{ background: avatarColor(c.full_name) }}>
                       {initials(c.full_name)}
                     </div>
                     {c.full_name}
-                    {c.archived_at && (
-                      <span className={primitives.muted} style={{ fontSize: 11 }}>
-                        (вышел)
-                      </span>
-                    )}
+                    {c.archived_at && <span className={styles.archivedNote}>(вышел)</span>}
                   </div>
                 </td>
                 <td>{c.project}</td>
@@ -88,10 +70,10 @@ export function CandidatesTable({
           </tbody>
         </table>
       </div>
-      <div className={`${styles.hscrollFake} scroll-x`} ref={fakeRef}>
-        <div className={styles.hscrollFakeInner} style={{ width: `${innerWidth}px` }} />
+      <div className={`${primitives.hscrollFake} scroll-x`} ref={fakeRef}>
+        <div className={primitives.hscrollFakeInner} style={{ width: `${innerWidth}px` }} />
       </div>
-      <footer className={styles.pager}>
+      <footer className={primitives.pager}>
         <span>
           Показано {rows.length} из {total}
         </span>

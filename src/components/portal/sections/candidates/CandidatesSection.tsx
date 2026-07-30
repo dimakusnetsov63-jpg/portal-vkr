@@ -210,7 +210,7 @@ export function CandidatesSection() {
               </option>
             ))}
           </select>
-          <label className={styles.archiveToggle}>
+          <label className={primitives.checkLabel}>
             <input
               type="checkbox"
               checked={showArchived}

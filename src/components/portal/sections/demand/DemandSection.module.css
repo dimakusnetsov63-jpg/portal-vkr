@@ -1,3 +1,6 @@
+/* Матрица потребности. Своя таблица, не primitives.table: здесь ячейка —
+   редактируемое поле с уровнем-цветом, липкие колонки с двух сторон и липкий
+   подвал. Общими остаются только токены. */
 .tableWrap {
   position: relative;
 }
@@ -23,11 +26,11 @@
   z-index: 5;
   background: var(--surface-2);
   text-align: left;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--text-3);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-2);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: var(--tracking-caps);
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
@@ -38,7 +41,7 @@
   z-index: 7;
   width: 264px;
   min-width: 264px;
-  padding: 11px 16px !important;
+  padding: var(--sp-3) var(--sp-4) !important;
 }
 .totalCol {
   position: sticky;
@@ -54,16 +57,16 @@
   width: 64px;
   min-width: 64px;
   text-align: center !important;
-  padding: 11px 8px !important;
+  padding: var(--sp-3) var(--sp-2) !important;
 }
 .dateColWeekend {
   background: #f5f0ef;
 }
 .dow {
   display: block;
-  font-size: 9.5px;
+  font-size: var(--fs-3xs);
   color: var(--text-3);
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 
 /* ---- body sticky columns ---- */
@@ -72,29 +75,30 @@
   left: 0;
   z-index: 3;
   background: inherit;
-  box-shadow: 1px 0 0 var(--border);
+  box-shadow: 1px 0 0 var(--border-subtle);
 }
 .totalColSticky {
   position: sticky;
   right: 0;
   z-index: 3;
   background: inherit;
-  box-shadow: -1px 0 0 var(--border);
+  box-shadow: -1px 0 0 var(--border-subtle);
   text-align: center;
   width: 76px;
   min-width: 76px;
-  font-weight: 700;
-  font-size: 13px;
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-sm);
   height: var(--row-h);
+  font-variant-numeric: tabular-nums;
 }
 
 .projHead {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 11px 14px 11px 10px;
-  font-weight: 700;
-  font-size: 13.5px;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4) var(--sp-3) var(--sp-3);
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-md);
   background: var(--surface-2);
   height: var(--row-h);
   width: 264px;
@@ -105,14 +109,18 @@
   color: var(--text-2);
   display: flex;
   padding: 2px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   flex: none;
+  transition:
+    background-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
 }
 .projHead button:hover {
   background: var(--surface-hover);
+  color: var(--text-1);
 }
 .projHeadChevron {
-  transition: transform 0.15s ease;
+  transition: transform var(--dur-2) var(--ease);
 }
 .projHeadCollapsedChevron {
   transform: rotate(-90deg);
@@ -126,13 +134,13 @@
 
 /* ---- city group header row (middle level: project > city > position) ---- */
 .cityGroupCell {
-  padding: 0 8px 0 20px;
+  padding: 0 var(--sp-2) 0 var(--sp-5);
   height: var(--row-h);
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 600;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
   color: var(--text-1);
   width: 264px;
   background: var(--surface-2);
@@ -147,14 +155,18 @@
   color: var(--text-2);
   display: flex;
   padding: 2px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   flex: none;
+  transition:
+    background-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
 }
 .cityGroupCell button:hover {
   background: var(--surface-hover);
+  color: var(--text-1);
 }
 .cityGroupChevron {
-  transition: transform 0.15s ease;
+  transition: transform var(--dur-2) var(--ease);
 }
 .cityGroupCollapsedChevron {
   transform: rotate(-90deg);
@@ -168,15 +180,16 @@
 
 /* ---- position row (leaf level) ---- */
 .positionCell {
-  padding: 0 8px 0 40px;
+  padding: 0 var(--sp-2) 0 40px;
   height: var(--row-h);
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
   color: var(--text-2);
   width: 264px;
   background: var(--surface);
+  transition: background-color var(--dur-1) var(--ease);
 }
 .positionCell svg {
   flex: none;
@@ -195,11 +208,15 @@
   min-width: 64px;
   height: var(--row-h);
   text-align: center;
-  font-weight: 700;
-  font-size: 13px;
-  border-left: 1px solid var(--border);
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  border-left: 1px solid var(--border-subtle);
   position: relative;
   cursor: pointer;
+  transition:
+    filter var(--dur-1) var(--ease),
+    box-shadow var(--dur-1) var(--ease);
 }
 .demandCellEditing {
   padding: 0;
@@ -215,8 +232,8 @@
   border: none;
   outline: 2px solid var(--accent);
   outline-offset: -2px;
-  font-weight: 700;
-  font-size: 13px;
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-sm);
   background: var(--surface);
 }
 .cellInput::-webkit-outer-spin-button,
@@ -240,7 +257,7 @@
 }
 .lvlZero {
   color: var(--text-3);
-  font-weight: 400;
+  font-weight: var(--fw-regular);
   background: var(--surface);
 }
 .lvlNormal {
@@ -264,16 +281,17 @@
   background: var(--surface-2);
   border-top: 1px solid var(--border);
   height: var(--row-h);
-  font-weight: 700;
-  font-size: 13px;
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-sm);
   text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 .footCell.projectCol {
   top: auto;
   bottom: 0;
   z-index: 7;
   text-align: left;
-  padding: 0 16px !important;
+  padding: 0 var(--sp-4) !important;
 }
 .footCell.totalCol {
   top: auto;
@@ -285,7 +303,7 @@
   height: 14px;
   overflow-x: auto;
   overflow-y: hidden;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-subtle);
   background: var(--surface-2);
 }
 .hscrollFakeInner {
@@ -296,19 +314,23 @@
 .cityTagRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 6px;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
 }
 .cityTag {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 6px 3px 10px;
-  border-radius: 999px;
+  gap: var(--sp-1);
+  padding: 3px var(--sp-1) 3px var(--sp-3);
+  border-radius: var(--radius-pill);
   background: var(--surface-2);
   border: 1px solid var(--border);
-  font-size: 12.5px;
-  font-weight: 500;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  transition: border-color var(--dur-1) var(--ease);
+}
+.cityTag:hover {
+  border-color: var(--border-strong);
 }
 .cityTag button {
   background: none;
@@ -317,6 +339,9 @@
   padding: 2px;
   border-radius: 50%;
   color: var(--text-3);
+  transition:
+    background-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
 }
 .cityTag button:hover {
   background: var(--surface-hover);
@@ -324,26 +349,28 @@
 }
 .cityInputRow {
   display: flex;
-  gap: 8px;
+  gap: var(--sp-2);
   align-items: flex-start;
 }
 .cityInputRow > :first-child {
   flex: 1;
+  min-width: 0;
 }
 
 .bulkNotice {
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
   background: var(--accent-soft);
-  border-radius: 8px;
-  padding: 8px 12px;
-  margin-top: 4px;
+  border-radius: var(--radius-s);
+  padding: var(--sp-2) var(--sp-3);
+  margin-top: var(--sp-1);
+  line-height: var(--lh-snug);
 }
 
 .emptyAction {
   display: flex;
   justify-content: center;
-  padding-bottom: 28px;
+  padding-bottom: var(--sp-7);
 }
 
 /* ---- today column + row/cell hover ---- */
@@ -357,7 +384,10 @@
   background: var(--surface-hover);
 }
 .demandCell:hover {
-  filter: brightness(0.97);
+  filter: brightness(0.96);
+}
+.demandCell:active {
+  filter: brightness(0.92);
 }
 
 /* ---- per-city "repeat next week" button ---- */
@@ -367,12 +397,16 @@
   border: none;
   display: flex;
   padding: 3px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   color: var(--text-3);
   opacity: 0;
-  transition: opacity 0.1s ease;
+  transition:
+    opacity var(--dur-1) var(--ease),
+    background-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
 }
-.positionRow:hover .repeatWeekButton {
+.positionRow:hover .repeatWeekButton,
+.repeatWeekButton:focus-visible {
   opacity: 1;
 }
 .repeatWeekButton:hover {
@@ -391,10 +425,13 @@
   border: none;
   display: flex;
   padding: 1px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   color: var(--text-3);
   opacity: 0;
-  transition: opacity 0.1s ease;
+  transition:
+    opacity var(--dur-1) var(--ease),
+    background-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
 }
 .demandCell:hover .cellMenuTrigger,
 .demandCell:focus-within .cellMenuTrigger {
@@ -412,60 +449,55 @@
   display: flex;
   flex-direction: column;
   min-width: 200px;
-  padding: 6px;
-  border-radius: 10px;
+  padding: var(--sp-2);
+  border-radius: var(--radius-control);
   border: 1px solid var(--border);
   background: var(--surface);
-  box-shadow: var(--shadow-s);
+  box-shadow: var(--shadow-m);
   text-align: left;
   white-space: nowrap;
+  animation: portal-pop var(--dur-2) var(--ease-out);
 }
 .cellMenuPanel button {
   background: none;
   border: none;
   text-align: left;
-  padding: 7px 8px;
-  border-radius: 6px;
-  font-size: 12.5px;
-  font-weight: 500;
+  padding: var(--sp-2);
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
   color: var(--text-1);
+  transition: background-color var(--dur-1) var(--ease);
 }
 .cellMenuPanel button:hover {
   background: var(--surface-hover);
 }
 .cellMenuUntil {
   display: flex;
-  gap: 6px;
+  gap: var(--sp-2);
   align-items: center;
-  padding: 4px 8px;
+  padding: var(--sp-1) var(--sp-2);
 }
 .cellMenuUntil input {
   flex: 1;
-  height: 28px;
-  border-radius: 6px;
+  min-width: 0;
+  height: var(--control-h-sm);
+  border-radius: var(--radius-xs);
   border: 1px solid var(--border);
-  padding: 0 6px;
-  font-size: 12px;
+  padding: 0 var(--sp-2);
+  font-size: var(--fs-xs);
+  outline: none;
+  transition:
+    border-color var(--dur-1) var(--ease),
+    box-shadow var(--dur-1) var(--ease);
+}
+.cellMenuUntil input:focus {
+  border-color: var(--accent);
+  box-shadow: var(--ring);
 }
 .cellMenuUntil button {
-  padding: 6px 8px !important;
+  padding: var(--sp-2) !important;
   white-space: nowrap;
-}
-
-/* ---- toolbar: "только заполненные" toggle ---- */
-.filledToggle {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-2);
-  white-space: nowrap;
-}
-.filledToggle input {
-  accent-color: var(--accent);
-  width: 15px;
-  height: 15px;
 }
 
 /* ---- row-level status badge (project+city) ---- */
@@ -478,6 +510,11 @@
   border: none;
   padding: 0;
   display: flex;
+  border-radius: var(--radius-xs);
+  transition: opacity var(--dur-1) var(--ease);
+}
+.rowStatusTrigger:hover:not(:disabled) {
+  opacity: 0.8;
 }
 .rowStatusTrigger:disabled {
   opacity: 0.6;
@@ -490,29 +527,32 @@
   display: flex;
   flex-direction: column;
   min-width: 130px;
-  padding: 6px;
-  border-radius: 10px;
+  padding: var(--sp-2);
+  border-radius: var(--radius-control);
   border: 1px solid var(--border);
   background: var(--surface);
-  box-shadow: var(--shadow-s);
+  box-shadow: var(--shadow-m);
   text-align: left;
+  animation: portal-pop var(--dur-2) var(--ease-out);
 }
 .rowStatusOption {
   background: none;
   border: none;
   text-align: left;
-  padding: 7px 8px;
-  border-radius: 6px;
-  font-size: 12.5px;
-  font-weight: 500;
+  padding: var(--sp-2);
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
   color: var(--text-1);
+  transition: background-color var(--dur-1) var(--ease);
 }
 .rowStatusOption:hover {
   background: var(--surface-hover);
 }
 .rowStatusOptionActive {
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--accent);
+  background: var(--accent-soft);
 }
 
 /* ---- row-level comment indicator + editor ---- */
@@ -522,8 +562,11 @@
   border: none;
   display: flex;
   padding: 3px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   color: var(--text-3);
+  transition:
+    background-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
 }
 .rowCommentTrigger:hover {
   background: var(--surface-hover);
@@ -534,23 +577,34 @@
 }
 .rowCommentTextarea {
   width: 100%;
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--border);
-  padding: 10px 12px;
-  font-size: 13.5px;
+  padding: var(--sp-3);
+  font-size: var(--fs-md);
   font-family: inherit;
+  line-height: var(--lh-base);
   resize: vertical;
   outline: none;
+  background: var(--surface-2);
+  transition:
+    background-color var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    box-shadow var(--dur-1) var(--ease);
+}
+.rowCommentTextarea:hover {
+  border-color: var(--border-strong);
 }
 .rowCommentTextarea:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: var(--ring);
+  background: var(--surface);
 }
 .rowCommentCounter {
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   text-align: right;
-  margin-top: 4px;
+  margin-top: var(--sp-1);
+  font-variant-numeric: tabular-nums;
 }
 .modalFootSpacer {
   flex: 1;
@@ -561,9 +615,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 24px 0;
-  font-size: 13px;
+  gap: var(--sp-3);
+  padding: var(--sp-6) 0;
+  font-size: var(--fs-sm);
   color: var(--text-2);
   text-align: center;
 }
@@ -578,8 +632,8 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
-  padding: 11px 0;
-  border-top: 1px solid var(--border);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--border-subtle);
 }
 .historyItem:first-child {
   border-top: none;
@@ -587,23 +641,23 @@
 .historyItemHead {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 .historyAction {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
 }
 .historyDate {
   margin-left: auto;
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   white-space: nowrap;
 }
 .historyChange {
-  font-size: 13.5px;
+  font-size: var(--fs-md);
   font-variant-numeric: tabular-nums;
 }
 .historyBy {
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
 }

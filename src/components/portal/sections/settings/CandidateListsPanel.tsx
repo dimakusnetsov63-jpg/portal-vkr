@@ -74,9 +74,9 @@ export function CandidateListsPanel() {
           ))}
         </div>
 
-        {listOptionsLoading && <p style={{ fontSize: 13, color: "var(--text-3)" }}>Загрузка…</p>}
+        {listOptionsLoading && <p className={styles.fieldNote}>Загрузка…</p>}
         {!listOptionsLoading && listOptionsError && (
-          <p style={{ fontSize: 13, color: "var(--red)" }}>
+          <p className={styles.fieldError}>
             Не удалось загрузить списки.{" "}
             <button
               onClick={refreshListOptions}
@@ -89,13 +89,13 @@ export function CandidateListsPanel() {
         {!listOptionsLoading &&
           !listOptionsError &&
           (rows.length === 0 ? (
-            <p style={{ fontSize: 13, color: "var(--text-3)" }}>Список пуст.</p>
+            <p className={styles.fieldNote}>Список пуст.</p>
           ) : (
             rows.map((o, i) => (
               <div className={styles.settingsRow} key={o.id}>
                 <div className={styles.reorderCtl}>
                   <button
-                    className={styles.iconBtn}
+                    className={`${primitives.btnIcon} ${primitives.btnIconXs}`}
                     onClick={() => reorderListOption(o.id, "up")}
                     disabled={i === 0}
                     aria-label="Переместить вверх"
@@ -105,7 +105,7 @@ export function CandidateListsPanel() {
                     </span>
                   </button>
                   <button
-                    className={styles.iconBtn}
+                    className={`${primitives.btnIcon} ${primitives.btnIconXs}`}
                     onClick={() => reorderListOption(o.id, "down")}
                     disabled={i === rows.length - 1}
                     aria-label="Переместить вниз"

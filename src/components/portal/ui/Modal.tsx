@@ -3,6 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "./Icon";
+import primitives from "./primitives.module.css";
 import styles from "./Modal.module.css";
 
 export function Modal({
@@ -44,10 +45,14 @@ export function Modal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className={`${styles.modal} ${wide ? styles.modalWide : ""}`}>
+      <div className={`${styles.modal} ${wide ? styles.modalWide : ""}`} role="dialog" aria-modal="true">
         <div className={styles.modalHead}>
           <h3>{title}</h3>
-          <button className={styles.modalClose} onClick={onClose} aria-label="Закрыть">
+          <button
+            className={`${primitives.btnIcon} ${primitives.btnIconSm} ${styles.modalClose}`}
+            onClick={onClose}
+            aria-label="Закрыть"
+          >
             <Icon name="x" size={16} />
           </button>
         </div>

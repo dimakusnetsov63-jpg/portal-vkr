@@ -9,6 +9,7 @@ import { Icon } from "@/components/portal/ui/Icon";
 import { STAGE_TIMELINE_ORDER, projectById, stageById } from "@/lib/portal/constants";
 import { avatarColor, fmtDateTime, initials } from "@/lib/portal/format";
 import type { Candidate } from "@/lib/portal/types";
+import primitives from "@/components/portal/ui/primitives.module.css";
 import styles from "./CandidateDrawer.module.css";
 
 const TIMELINE_LABELS: Record<(typeof STAGE_TIMELINE_ORDER)[number], string> = {
@@ -55,7 +56,7 @@ export function CandidateDrawer({ candidateId }: { candidateId: string | null })
   }
 
   return (
-    <Drawer open={!!candidate} onClose={closeCandidateDrawer}>
+    <Drawer open={!!candidate} onClose={closeCandidateDrawer} label="Карточка кандидата">
       {candidate && (
         <>
           <div className={styles.head}>
@@ -68,13 +69,17 @@ export function CandidateDrawer({ candidateId }: { candidateId: string | null })
                 {candidate.id} · {projectById(candidate.project)?.name}, {candidate.city}
               </p>
             </div>
-            <button className={styles.close} onClick={closeCandidateDrawer} aria-label="Закрыть">
+            <button
+              className={`${primitives.btnIcon} ${primitives.btnIconSm} ${primitives.btnIconOutlined} ${styles.close}`}
+              onClick={closeCandidateDrawer}
+              aria-label="Закрыть"
+            >
               <Icon name="x" size={16} />
             </button>
           </div>
 
           <div className={styles.body}>
-            <div>
+            <div className={styles.badgeRow}>
               <Badge color={stageById(candidate.stage).color}>{stageById(candidate.stage).name}</Badge>
             </div>
 
@@ -134,10 +139,8 @@ export function CandidateDrawer({ candidateId }: { candidateId: string | null })
 
             <div className={styles.section}>
               <h4>Комментарии</h4>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {candidate.comments.length === 0 && (
-                  <p style={{ fontSize: 12.5, color: "var(--text-3)" }}>Комментариев пока нет.</p>
-                )}
+              <div className={styles.commentList}>
+                {candidate.comments.length === 0 && <p className={styles.note}>Комментариев пока нет.</p>}
                 {candidate.comments.map((cm, i) => (
                   <div className={styles.comment} key={i}>
                     <div className={styles.commentWho}>
@@ -148,7 +151,7 @@ export function CandidateDrawer({ candidateId }: { candidateId: string | null })
                   </div>
                 ))}
               </div>
-              <div className={styles.commentInput} style={{ marginTop: 10 }}>
+              <div className={styles.commentInput}>
                 <input
                   type="text"
                   placeholder="Добавить комментарий…"

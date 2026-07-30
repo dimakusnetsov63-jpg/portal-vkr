@@ -5,7 +5,6 @@ import { Icon } from "@/components/portal/ui/Icon";
 import { CANDIDATE_PROJECTS } from "@/lib/portal/candidateOptions";
 import { DEMAND_ROW_STATUSES, DEMAND_ROW_STATUS_LABELS, type DemandRowStatus } from "./demandRowMeta";
 import primitives from "@/components/portal/ui/primitives.module.css";
-import styles from "./DemandSection.module.css";
 
 export function DemandToolbar({
   search,
@@ -101,7 +100,7 @@ export function DemandToolbar({
           </option>
         ))}
       </select>
-      <label className={styles.filledToggle}>
+      <label className={primitives.checkLabel}>
         <input type="checkbox" checked={filledOnly} onChange={(e) => onFilledOnlyChange(e.target.checked)} />
         Только заполненные
       </label>

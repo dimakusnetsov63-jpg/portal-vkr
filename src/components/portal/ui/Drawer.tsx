@@ -6,10 +6,13 @@ import styles from "./Drawer.module.css";
 export function Drawer({
   open,
   onClose,
+  label = "Карточка кандидата",
   children,
 }: {
   open: boolean;
   onClose: () => void;
+  /** Accessible name of the panel — each section names its own card. */
+  label?: string;
   children: ReactNode;
 }) {
   useEffect(() => {
@@ -24,7 +27,7 @@ export function Drawer({
   return (
     <>
       {open && <div className={styles.overlay} onClick={onClose} />}
-      <aside className={`${styles.drawer} ${open ? styles.drawerOpen : ""}`} aria-label="Карточка кандидата">
+      <aside className={`${styles.drawer} ${open ? styles.drawerOpen : ""}`} aria-label={label} aria-hidden={!open}>
         {open && children}
       </aside>
     </>

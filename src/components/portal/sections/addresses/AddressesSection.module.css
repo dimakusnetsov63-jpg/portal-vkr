@@ -3,8 +3,8 @@
 .statGrid8 {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-  margin-bottom: 20px;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
 }
 @media (max-width: 1024px) {
   .statGrid8 {
@@ -17,190 +17,121 @@
   }
 }
 
-/* Table — same structural pattern as CandidatesSection.module.css. */
+/* Table: everything structural lives in primitives.module.css; the section
+   only declares how wide its 16 columns need to be. */
 .table {
-  border-collapse: separate;
-  border-spacing: 0;
-  width: 100%;
   min-width: 1400px;
 }
-.table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  background: var(--surface-2);
-  text-align: left;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  padding: 11px 16px;
-  border-bottom: 1px solid var(--border);
-  white-space: nowrap;
-}
-.table tbody td {
-  padding: 0 16px;
-  border-bottom: 1px solid var(--border);
-  font-size: 13.5px;
-  height: var(--row-h);
-  white-space: nowrap;
-}
-.table tbody tr {
-  background: var(--surface);
-  cursor: pointer;
-}
-.table tbody tr:hover {
-  background: var(--surface-hover);
-}
-.table tbody tr:last-child td {
-  border-bottom: none;
-}
-.colSticky {
-  position: sticky;
-  left: 0;
-  z-index: 3;
-  background: inherit;
-  box-shadow: 1px 0 0 var(--border);
-}
-.table thead th.colSticky {
-  z-index: 6;
-  background: var(--surface-2);
-}
-.nameCell {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 600;
-}
 
-.tableWrap {
-  position: relative;
-}
-.tableScroll {
-  overflow-x: auto;
-  max-height: 66vh;
-  overflow-y: auto;
-}
-.hscrollFake {
-  height: 14px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  border-top: 1px solid var(--border);
-  background: var(--surface-2);
-}
-.hscrollFakeInner {
-  height: 1px;
-}
-
-.iconActionBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-2);
-}
-.iconActionBtn:hover {
-  background: var(--surface-hover);
-}
-
-.pager {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 20px;
-  border-top: 1px solid var(--border);
-  font-size: 12.5px;
-  color: var(--text-3);
-}
-
-/* Drawer — carte для одного адреса. */
+/* Drawer — карточка одного адреса. Head and foot are fixed, only the middle
+   scrolls, so «Сохранить» stays reachable from anywhere in a long form. */
 .drawerHead {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  padding: 20px;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
   border-bottom: 1px solid var(--border);
-}
-.drawerHead h3 {
-  font-size: 16px;
-  font-weight: 700;
-}
-.drawerHead p {
-  font-size: 12.5px;
-  color: var(--text-3);
-  margin-top: 2px;
-}
-.close {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-2);
   flex: none;
 }
-.close:hover {
-  background: var(--surface-hover);
+.drawerHead h3 {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+}
+.drawerHead p {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+  margin-top: var(--sp-1);
 }
 .drawerBody {
-  padding: 20px;
+  padding: var(--sp-5);
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: var(--sp-5);
   overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.drawerFoot {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  padding: var(--sp-4) var(--sp-5);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  flex: none;
+}
+.drawerFoot > :first-child {
+  margin-right: auto;
 }
 .section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
+  gap: var(--sp-3);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--border-subtle);
 }
 .section:first-of-type {
   padding-top: 0;
   border-top: none;
 }
 .section h4 {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-2);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+}
+.badgeRow {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.computedNote {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  line-height: var(--lh-snug);
 }
 .commentTextarea {
-  min-height: 76px;
-  border-radius: 9px;
+  min-height: 80px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--border);
-  padding: 10px 12px;
+  padding: var(--sp-3);
   background: var(--surface-2);
   outline: none;
   resize: vertical;
   font: inherit;
+  line-height: var(--lh-base);
+  transition:
+    background-color var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    box-shadow var(--dur-1) var(--ease);
+}
+.commentTextarea:hover {
+  border-color: var(--border-strong);
 }
 .commentTextarea:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: var(--ring);
   background: var(--surface);
 }
 
 .serviceInfo {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  font-size: 12px;
+  gap: var(--sp-3);
+  font-size: var(--fs-xs);
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  padding: var(--sp-3);
 }
 .serviceInfo > div {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 @media (max-width: 480px) {
   .serviceInfo {
@@ -211,57 +142,63 @@
 .featureGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px 14px;
+  gap: var(--sp-2) var(--sp-4);
 }
 @media (max-width: 480px) {
   .featureGrid {
     grid-template-columns: 1fr;
   }
 }
-.featureCheckbox {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--text-2);
-}
-.featureCheckbox input {
-  accent-color: var(--accent);
-  width: 15px;
-  height: 15px;
-}
 
 .documentList {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--sp-2);
 }
 .documentRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   background: var(--surface-2);
+  transition:
+    background-color var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease);
+}
+.documentRow:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
 }
 .documentRow a {
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-size: 13px;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
   color: var(--accent);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-decoration: none;
+}
+.documentRow a:hover {
+  text-decoration: underline;
 }
 .documentRow button {
   flex: none;
   color: var(--text-3);
   background: none;
   border: none;
+  display: flex;
+  padding: var(--sp-1);
+  border-radius: var(--radius-xs);
+  transition:
+    color var(--dur-1) var(--ease),
+    background-color var(--dur-1) var(--ease);
 }
 .documentRow button:hover {
   color: var(--red);
+  background: var(--red-soft);
 }

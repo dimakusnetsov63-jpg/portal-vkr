@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePortal } from "@/components/portal/context/PortalContext";
 import { NAV_ITEMS } from "@/lib/portal/constants";
 import { Icon } from "./Icon";
+import modal from "./Modal.module.css";
+import primitives from "./primitives.module.css";
 import styles from "./CommandPalette.module.css";
 
 export function CommandPalette({ onClose }: { onClose: () => void }) {
@@ -33,12 +35,12 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className={styles.overlay}
+      className={modal.overlay}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className={styles.modal}>
+      <div className={`${modal.modal} ${styles.paletteWidth}`} role="dialog" aria-modal="true">
         <div className={styles.input}>
           <Icon name="grid" size={16} />
           <input
@@ -48,7 +50,11 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <button className={styles.close} onClick={onClose} aria-label="Закрыть">
+          <button
+            className={`${primitives.btnIcon} ${primitives.btnIconSm}`}
+            onClick={onClose}
+            aria-label="Закрыть"
+          >
             <Icon name="x" size={16} />
           </button>
         </div>

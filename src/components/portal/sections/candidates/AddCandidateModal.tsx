@@ -5,6 +5,7 @@ import { usePortal } from "@/components/portal/context/PortalContext";
 import { Button } from "@/components/portal/ui/Button";
 import { Combobox } from "@/components/portal/ui/Combobox";
 import { Modal } from "@/components/portal/ui/Modal";
+import modal from "@/components/portal/ui/Modal.module.css";
 import { activeListOptions, CANDIDATE_PROJECTS } from "@/lib/portal/candidateOptions";
 import type { CandidateInsert, CandidateProject } from "@/lib/supabase/candidates.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
@@ -94,7 +95,7 @@ export function AddCandidateModal({
           <Combobox value={recruiter} onChange={setRecruiter} options={recruiterOptions} />
         </div>
       </div>
-      <p style={{ fontSize: 12, color: "var(--text-3)" }}>
+      <p className={modal.modalNote}>
         Остальные поля (телефон, стадия, медкнижка, даты и т.д.) можно заполнить после создания — откройте карточку
         кандидата.
       </p>

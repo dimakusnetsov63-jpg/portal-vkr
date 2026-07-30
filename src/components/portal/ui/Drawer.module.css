@@ -2,25 +2,39 @@
   position: fixed;
   inset: 0;
   background: rgba(20, 20, 22, 0.38);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   z-index: 110;
+  animation: portal-overlay-in var(--dur-3) var(--ease-out);
 }
+/* The panel is always mounted so the slide-out is animatable; `visibility`
+   keeps it out of the accessibility tree and off the tab order while closed. */
 .drawer {
   position: fixed;
   top: 0;
   right: 0;
   bottom: 0;
-  width: 440px;
+  width: 460px;
   max-width: 100vw;
   background: var(--surface);
   z-index: 120;
   box-shadow: var(--shadow-l);
   transform: translateX(100%);
-  transition: transform 0.22s ease;
+  visibility: hidden;
+  transition:
+    transform var(--dur-3) var(--ease-out),
+    visibility 0s linear var(--dur-3);
   display: flex;
   flex-direction: column;
+  /* Head and foot are fixed; only the middle section scrolls. */
+  overflow: hidden;
 }
 .drawerOpen {
   transform: none;
+  visibility: visible;
+  transition:
+    transform var(--dur-3) var(--ease-out),
+    visibility 0s;
 }
 @media (max-width: 860px) {
   .drawer {

@@ -178,6 +178,13 @@
   height: var(--control-h-sm);
   border-radius: var(--radius-s);
 }
+/* Dense contexts only — inline row controls such as the reorder arrows in
+   Настройки, where a 30px target would push the row taller. */
+.btnIconXs {
+  width: var(--control-h-xs);
+  height: var(--control-h-xs);
+  border-radius: var(--radius-xs);
+}
 /* Bordered variant, for icon buttons that sit on a busy surface (table rows). */
 .btnIconOutlined {
   border-color: var(--border);
@@ -488,6 +495,116 @@
   .grid2 {
     grid-template-columns: 1fr;
   }
+}
+
+/* ------------------------------------------------------------- Data table
+   One definition for every record table in the portal (Кандидаты, Адреса,
+   Аналитика, Маркетинг). Sections add only what is genuinely theirs — the
+   `min-width` their column set needs — on top of `.table`.
+
+   Deliberately no vertical rules and no heavy outer frame: rows are separated
+   by a hairline (`--border-subtle`) and the panel around the table supplies
+   the only real border. */
+.tableWrap {
+  position: relative;
+}
+.tableScroll {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 66vh;
+}
+.table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--surface-2);
+  text-align: left;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  line-height: var(--lh-snug);
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.table tbody td {
+  padding: 0 var(--sp-5);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--fs-md);
+  line-height: var(--lh-snug);
+  height: var(--row-h);
+  white-space: nowrap;
+  color: var(--text-1);
+}
+.table tbody tr {
+  background: var(--surface);
+  transition: background-color var(--dur-1) var(--ease);
+}
+.table tbody tr:hover {
+  background: var(--surface-hover);
+}
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+/* Clickable rows only: tables that are read-only keep the default cursor. */
+.tableClickable tbody tr {
+  cursor: pointer;
+}
+.tableClickable tbody tr:active {
+  background: var(--surface-active);
+}
+
+/* Frozen first column. `background: inherit` picks up the row's own colour so
+   hover and press states carry across the freeze line. */
+.colSticky {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: inherit;
+  box-shadow: 1px 0 0 var(--border-subtle);
+}
+.table thead th.colSticky {
+  z-index: 6;
+  background: var(--surface-2);
+}
+.nameCell {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-weight: var(--fw-semibold);
+  min-width: 0;
+}
+
+/* Mirror scrollbar pinned under the table: the real one sits at the bottom of
+   a 66vh scroller and is easy to miss. See useHorizontalScrollSync. */
+.hscrollFake {
+  height: 14px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-2);
+}
+.hscrollFakeInner {
+  height: 1px;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  flex-wrap: wrap;
 }
 
 /* ------------------------------------------------------------------ Badge */
