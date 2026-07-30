@@ -138,6 +138,18 @@
   overflow-y: auto;
   padding: var(--sp-6);
 }
+/* В одну колонку список и карточка идут друг под другом: список
+   ограничиваем, чтобы до карточки не нужно было листать весь реестр,
+   а карточка разворачивается на всю высоту содержимого. */
+@media (max-width: 1024px) {
+  .listPanel {
+    max-height: 60vh;
+  }
+  .detailPanel {
+    max-height: none;
+    padding: var(--sp-4);
+  }
+}
 
 .detailHead {
   display: flex;

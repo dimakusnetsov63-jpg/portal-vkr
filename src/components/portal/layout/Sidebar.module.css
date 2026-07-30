@@ -77,6 +77,14 @@
   opacity: 0.8;
   transition: opacity var(--dur-1) var(--ease);
 }
+/* Длинные названия разделов («Описание вакансий») усекаются, а не переносят
+   строку и не растягивают пункт меню. */
+.navLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .navItem:hover {
   background: var(--surface-hover);
   color: var(--text-1);

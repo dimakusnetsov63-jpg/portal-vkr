@@ -23,7 +23,13 @@
 | `addressMetrics.ts` | Чистая `addressDeficit`, `addressFillRate`, `calculateAddressMetrics` — ничего не хранится в БД |
 | `addressOptions.ts` | Константы-справочники: типы объекта, статусы (эмодзи+цвет), приоритеты (звёзды), графики, смены, оплата, чекбоксы особенностей |
 | `index.ts` | Реэкспорт `AddressesSection`, `AddressDrawer` |
-| `AddressesSection.module.css` | Стили раздела (таблица + карточка) |
+| `AddressesSection.module.css` | Только своё: `min-width` таблицы, сетка из 8 KPI, стили карточки-дровера |
+
+Структура таблицы (шапка, липкая колонка, hover строки, пагинатор) берётся из
+`ui/primitives.module.css` — раздел добавляет к ней лишь `min-width` под свои
+16 колонок. Карточка адреса устроена как Drawer с закреплёнными шапкой
+(`styles.drawerHead`) и подвалом (`styles.drawerFoot`): форма длинная, и
+кнопки «Сохранить»/«Перевести в архив» не должны уезжать вниз при прокрутке.
 
 ## Поток данных
 

@@ -354,6 +354,31 @@
   padding: 0 var(--sp-6) 0 var(--sp-2);
   background-position: right var(--sp-2) center;
 }
+/* Ниже 1024 фильтров в тулбаре больше, чем помещается в строку: поиск
+   уходит на свою строку целиком, остальные контролы делят место под ним.
+   Так тулбар занимает две-три строки вместо пяти. */
+@media (max-width: 1024px) {
+  .toolbar {
+    padding: var(--sp-3) var(--sp-4);
+    gap: var(--sp-2);
+  }
+  .searchField {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .select {
+    flex: 1 1 160px;
+    min-width: 0;
+  }
+  .panelHead,
+  .panelBody {
+    padding: var(--sp-4);
+  }
+  .pillTabs {
+    padding: var(--sp-3) var(--sp-4) 0;
+  }
+}
+
 .legend {
   display: flex;
   align-items: center;
@@ -541,6 +566,19 @@
   height: var(--row-h);
   white-space: nowrap;
   color: var(--text-1);
+}
+/* На узких экранах таблица и так прокручивается — отыгрываем немного
+   горизонтального места обратно у отступов. */
+@media (max-width: 1024px) {
+  .table thead th {
+    padding: var(--sp-3) var(--sp-4);
+  }
+  .table tbody td {
+    padding: 0 var(--sp-4);
+  }
+  .pager {
+    padding: var(--sp-3) var(--sp-4);
+  }
 }
 .table tbody tr {
   background: var(--surface);

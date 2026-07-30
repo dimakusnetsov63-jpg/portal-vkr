@@ -74,6 +74,7 @@
 | Документ | Содержание |
 |---|---|
 | [`current.md`](tasks/current.md) | Активные задачи |
+| [`TASK-006-ui-polish.md`](tasks/TASK-006-ui-polish.md) | Визуальный рефакторинг: токены, состояния, таблицы, дроверы |
 | [`backlog.md`](tasks/backlog.md) | Отложенное, с приоритетами и оценками |
 | [`completed.md`](tasks/completed.md) | Завершённое, с коммитами |
 | [`TEMPLATE.md`](tasks/TEMPLATE.md) | Шаблон технического задания |

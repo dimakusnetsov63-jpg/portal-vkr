@@ -38,7 +38,7 @@ export function Sidebar() {
                 onClick={() => goto(item.id)}
               >
                 <Icon name={item.icon} size={18} />
-                <span>{item.label}</span>
+                <span className={styles.navLabel}>{item.label}</span>
                 {badge > 0 && <span className={styles.navBadge}>{badge}</span>}
               </button>
             );

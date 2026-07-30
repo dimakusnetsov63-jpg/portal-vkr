@@ -18,11 +18,18 @@
 | `candidateFilters.ts` | Чистая `filterCandidates(candidates, filters)` |
 | `candidateMetrics.ts` | Чистая `calculateCandidateMetrics(candidates)` |
 | `index.ts` | Реэкспорт `CandidatesSection`, `RealCandidateDrawer` |
-| `CandidatesSection.module.css` | Стили раздела (таблица, тулбар, карточки) |
+| `CandidatesSection.module.css` | То немногое, что принадлежит только этому разделу: `min-width` таблицы, сетка из трёх KPI, аватар в строке |
 
-`CandidatesSection.module.css` используется только этим разделом. Карточки-
-дровер используют `../CandidateDrawer.module.css` (общий со старым mock-дровером,
-который остаётся в родительской папке `sections/`).
+Сама таблица — общая: структура, липкая колонка, hover строки и пагинатор
+берутся из `ui/primitives.module.css` (`.table`, `.colSticky`, `.nameCell`,
+`.pager`). Раздел подключает их через `primitives.*` и добавляет сверху свой
+`styles.table` только ради `min-width`. Копировать блок таблицы обратно в
+раздел не нужно — см. [`architecture/frontend.md`](../../../../docs/architecture/frontend.md).
+
+Карточка-дровер использует `../CandidateDrawer.module.css` (общий со старым
+mock-дровером, который остаётся в родительской папке `sections/`). У неё
+закреплённые шапка и подвал: кнопки «Сохранить» и «Отметить как вышедшего»
+лежат в `styles.foot`, вне прокручиваемого `styles.body`.
 
 ## Поток данных
 
