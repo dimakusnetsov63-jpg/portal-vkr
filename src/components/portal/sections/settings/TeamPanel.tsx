@@ -6,6 +6,7 @@ import { Badge } from "@/components/portal/ui/Badge";
 import { Button } from "@/components/portal/ui/Button";
 import { Icon } from "@/components/portal/ui/Icon";
 import { Panel, PanelBody, PanelHead } from "@/components/portal/ui/Panel";
+import { SkeletonLines } from "@/components/portal/ui/StateViews";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import { avatarColor, initials } from "@/lib/portal/format";
 import {
@@ -136,7 +137,7 @@ export function TeamPanel() {
         </div>
       </PanelHead>
       <PanelBody>
-        {loading && <p className={styles.fieldNote}>Загрузка…</p>}
+        {loading && <SkeletonLines lines={4} />}
 
         {!loading && loadError && (
           <p className={styles.fieldError}>

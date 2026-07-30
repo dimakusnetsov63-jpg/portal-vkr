@@ -43,8 +43,8 @@ export function MarketingSection() {
             <h3>Каналы привлечения</h3>
             <PanelHeadSub>За последние 30 дней</PanelHeadSub>
           </PanelHead>
-          <div className={styles.tableScroll}>
-            <table className={styles.table}>
+          <div className={`${primitives.tableScroll} scroll-x`}>
+            <table className={`${primitives.table} ${styles.table}`}>
               <thead>
                 <tr>
                   <th>Канал</th>

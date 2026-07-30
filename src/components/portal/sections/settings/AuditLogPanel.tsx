@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Panel, PanelBody, PanelHead } from "@/components/portal/ui/Panel";
+import { SkeletonLines } from "@/components/portal/ui/StateViews";
 import { listPortalAudit } from "@/lib/supabase/portalUsersRepo";
 import type { PortalAuditAction, PortalAuditEntry } from "@/lib/supabase/portalAuth.types";
 import styles from "./SettingsSection.module.css";
@@ -83,7 +84,7 @@ export function AuditLogPanel() {
         <span className={styles.fieldNote}>Последние {AUDIT_LIMIT}</span>
       </PanelHead>
       <PanelBody>
-        {loading && <p className={styles.fieldNote}>Загрузка…</p>}
+        {loading && <SkeletonLines lines={4} />}
         {!loading && error && <p className={styles.fieldError}>{error}</p>}
         {!loading && !error && entries.length === 0 && <p className={styles.fieldNote}>Записей пока нет.</p>}
         {!loading &&

@@ -282,6 +282,13 @@
   }
 }
 
+@keyframes portal-toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+}
+
 @keyframes portal-overlay-in {
   from {
     opacity: 0;

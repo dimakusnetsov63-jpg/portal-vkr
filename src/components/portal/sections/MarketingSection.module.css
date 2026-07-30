@@ -1,49 +1,19 @@
+/* Table structure comes from primitives.module.css. */
 .table {
-  border-collapse: separate;
-  border-spacing: 0;
-  width: 100%;
   min-width: 780px;
 }
-.table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  background: var(--surface-2);
-  text-align: left;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  padding: 11px 16px;
-  border-bottom: 1px solid var(--border);
-  white-space: nowrap;
-}
-.table tbody td {
-  padding: 0 16px;
-  border-bottom: 1px solid var(--border);
-  font-size: 13.5px;
-  height: 48px;
-  white-space: nowrap;
-}
-.table tbody tr:last-child td {
-  border-bottom: none;
-}
-.tableScroll {
-  overflow-x: auto;
-}
 .channelName {
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
 }
 .channelRow {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 0;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
 }
 .channelLabel {
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -51,6 +21,7 @@
   flex: none;
 }
 .channelValue {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--text-2);
+  font-variant-numeric: tabular-nums;
 }

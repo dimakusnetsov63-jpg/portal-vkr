@@ -6,7 +6,8 @@ import { Button } from "@/components/portal/ui/Button";
 import { Icon } from "@/components/portal/ui/Icon";
 import { PageHead } from "@/components/portal/ui/PageHead";
 import { Panel } from "@/components/portal/ui/Panel";
-import { EmptyState, ErrorState, SkeletonRows } from "@/components/portal/ui/StateViews";
+import { EmptyState, ErrorState, SkeletonCards, SkeletonRows } from "@/components/portal/ui/StateViews";
+import styles from "./AddressesSection.module.css";
 import { activeListOptions, CANDIDATE_PROJECTS } from "@/lib/portal/candidateOptions";
 import type { AddressObjectType, AddressStatus } from "@/lib/supabase/addresses.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
@@ -98,11 +99,15 @@ export function AddressesSection() {
     <>
       <PageHead eyebrow="Подбор">Единая карточка объекта: потребность, статус набора и характеристики адреса.</PageHead>
 
-      <AddressesDashboard stats={stats} />
+      {addressesLoading ? (
+        <SkeletonCards count={8} className={styles.statGrid8} />
+      ) : (
+        <AddressesDashboard stats={stats} />
+      )}
 
       <Panel>
         <div className={primitives.toolbar}>
-          <div className={primitives.pillTabs} style={{ padding: 0 }}>
+          <div className={`${primitives.pillTabs} ${primitives.pillTabsInline}`}>
             <button
               className={`${primitives.pillTabButton} ${!showArchived ? primitives.pillTabButtonActive : ""}`}
               onClick={() => setShowArchived(false)}

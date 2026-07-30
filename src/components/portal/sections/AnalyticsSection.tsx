@@ -47,7 +47,7 @@ export function AnalyticsSection() {
             ))}
           </select>
           <div className={primitives.spacer} />
-          <div className={primitives.pillTabs} style={{ padding: 0 }}>
+          <div className={`${primitives.pillTabs} ${primitives.pillTabsInline}`}>
             {TABS.map((t) => (
               <button
                 key={t.value}

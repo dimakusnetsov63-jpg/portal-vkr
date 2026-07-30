@@ -5,6 +5,7 @@ import { usePortal } from "@/components/portal/context/PortalContext";
 import { Button } from "@/components/portal/ui/Button";
 import { Icon } from "@/components/portal/ui/Icon";
 import { Panel, PanelBody, PanelHead } from "@/components/portal/ui/Panel";
+import { SkeletonLines } from "@/components/portal/ui/StateViews";
 import { CANDIDATE_LIST_TYPES, LIST_TYPE_LABELS } from "@/lib/portal/candidateOptions";
 import type { CandidateListOption, CandidateListType } from "@/lib/supabase/candidateListOptions.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
@@ -74,7 +75,7 @@ export function CandidateListsPanel() {
           ))}
         </div>
 
-        {listOptionsLoading && <p className={styles.fieldNote}>Загрузка…</p>}
+        {listOptionsLoading && <SkeletonLines lines={4} />}
         {!listOptionsLoading && listOptionsError && (
           <p className={styles.fieldError}>
             Не удалось загрузить списки.{" "}

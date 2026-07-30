@@ -7,7 +7,7 @@ import { Icon } from "@/components/portal/ui/Icon";
 import { PageHead } from "@/components/portal/ui/PageHead";
 import { Panel } from "@/components/portal/ui/Panel";
 import { StatCard } from "@/components/portal/ui/StatCard";
-import { EmptyState, ErrorState, SkeletonRows } from "@/components/portal/ui/StateViews";
+import { EmptyState, ErrorState, SkeletonCards, SkeletonRows } from "@/components/portal/ui/StateViews";
 import {
   activeListOptions,
   CANDIDATE_PROJECTS,
@@ -133,23 +133,27 @@ export function CandidatesSection() {
     <>
       <PageHead eyebrow="Подбор">Реестр кандидатов на реальных данных — от прибытия на проект до архивации.</PageHead>
 
-      <div className={styles.statGrid3}>
-        <StatCard
-          value={stats.awaiting.toLocaleString("ru-RU")}
-          sublabel={`${stats.awaitingPct}% от выборки`}
-          label="Ожидают выхода"
-        />
-        <StatCard
-          value={stats.successful.toLocaleString("ru-RU")}
-          sublabel={`${stats.successfulPct}% от выборки`}
-          label="Успешно вышли"
-        />
-        <StatCard
-          value={stats.medical.toLocaleString("ru-RU")}
-          sublabel={`${stats.medicalPct}% от выборки`}
-          label="Есть медкнижка"
-        />
-      </div>
+      {realCandidatesLoading ? (
+        <SkeletonCards count={3} className={styles.statGrid3} />
+      ) : (
+        <div className={styles.statGrid3}>
+          <StatCard
+            value={stats.awaiting.toLocaleString("ru-RU")}
+            sublabel={`${stats.awaitingPct}% от выборки`}
+            label="Ожидают выхода"
+          />
+          <StatCard
+            value={stats.successful.toLocaleString("ru-RU")}
+            sublabel={`${stats.successfulPct}% от выборки`}
+            label="Успешно вышли"
+          />
+          <StatCard
+            value={stats.medical.toLocaleString("ru-RU")}
+            sublabel={`${stats.medicalPct}% от выборки`}
+            label="Есть медкнижка"
+          />
+        </div>
+      )}
 
       <Panel>
         <div className={primitives.toolbar}>

@@ -36,10 +36,10 @@ export function ProjectsTab() {
         <h3>Выполнение плана по проектам</h3>
         <PanelHeadSub>30 дней</PanelHeadSub>
       </PanelHead>
-      <div style={{ padding: 20 }}>
+      <div className={primitives.panelBody}>
         {rows.map((r) => (
           <div className={`${primitives.barRow} ${primitives.barRowWide}`} key={r.project.id}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>{r.project.name}</span>
+            <span className={styles.metaValue}>{r.project.name}</span>
             <div className={primitives.barTrack}>
               <div
                 className={primitives.barFill}
@@ -49,7 +49,7 @@ export function ProjectsTab() {
                 }}
               />
             </div>
-            <span className={primitives.mono} style={{ fontSize: 12.5 }}>
+            <span className={`${primitives.mono} ${styles.metaNum}`}>
               {r.fact} / {r.plan} · {r.pct}%
             </span>
           </div>
@@ -75,8 +75,8 @@ export function RecruitersTab({ candidates }: { candidates: Candidate[] }) {
       <PanelHead>
         <h3>Эффективность рекрутеров</h3>
       </PanelHead>
-      <div className={styles.tableScroll}>
-        <table className={styles.table}>
+      <div className={`${primitives.tableScroll} scroll-x`}>
+        <table className={`${primitives.table} ${styles.table}`}>
           <thead>
             <tr>
               <th>Рекрутер</th>
@@ -110,8 +110,8 @@ export function ChannelsTab() {
       <PanelHead>
         <h3>Вклад каналов в фактический найм</h3>
       </PanelHead>
-      <div className={styles.tableScroll}>
-        <table className={styles.table}>
+      <div className={`${primitives.tableScroll} scroll-x`}>
+        <table className={`${primitives.table} ${styles.table}`}>
           <thead>
             <tr>
               <th>Канал</th>
@@ -135,7 +135,7 @@ export function ChannelsTab() {
                       <div className={styles.shareTrack}>
                         <div className={styles.shareFill} style={{ width: `${share}%` }} />
                       </div>
-                      <span className={primitives.mono} style={{ fontSize: 12 }}>
+                      <span className={`${primitives.mono} ${styles.metaNum}`}>
                         {share}%
                       </span>
                     </div>
@@ -165,7 +165,7 @@ export function PlanFactTab() {
           Все проекты выполняют план на 100% и выше
         </div>
       )}
-      <div className={primitives.kvList} style={{ padding: "0 20px 20px" }}>
+      <div className={`${primitives.kvList} ${styles.kvBody}`}>
         {rows.map((r) => (
           <div className={primitives.kvRow} key={r.project.id}>
             <span>{r.project.name}</span>
@@ -208,11 +208,11 @@ export function FunnelTab({ candidates }: { candidates: Candidate[] }) {
             const convPrev = i > 0 ? Math.round((s.value / (steps[i - 1].value || 1)) * 100) : 100;
             return (
               <div className={primitives.barRow} key={s.name}>
-                <span style={{ fontSize: 13, fontWeight: 600 }}>{s.name}</span>
+                <span className={styles.metaValue}>{s.name}</span>
                 <div className={primitives.barTrack}>
                   <div className={primitives.barFill} style={{ width: `${pct}%` }} />
                 </div>
-                <span className={primitives.mono} style={{ fontSize: 12.5 }}>
+                <span className={`${primitives.mono} ${styles.metaNum}`}>
                   {s.value}
                   {i > 0 ? ` · ${convPrev}%` : ""}
                 </span>

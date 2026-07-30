@@ -65,7 +65,7 @@ export function NoDataState({ title, text }: { title: string; text: string }) {
 
 export function SkeletonRows({ rows = 8 }: { rows?: number }) {
   return (
-    <div>
+    <div aria-hidden="true">
       {Array.from({ length: rows }).map((_, i) => (
         <div className={styles.skeletonRow} key={i}>
           <div className={styles.skeletonBlock} style={{ width: 180 }} />
@@ -75,6 +75,36 @@ export function SkeletonRows({ rows = 8 }: { rows?: number }) {
           <div className={styles.skeletonBlock} style={{ width: 60 }} />
           <div className={styles.skeletonBlock} style={{ width: 60, flex: 1 }} />
         </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Dashboard placeholder. Takes the section's own grid class so the skeleton
+ * lays out on exactly the same columns as the KPI row it stands in for —
+ * otherwise the dashboard jumps when the numbers arrive.
+ */
+export function SkeletonCards({ count = 4, className }: { count?: number; className?: string }) {
+  return (
+    <div className={className ?? styles.skeletonCardGrid} aria-hidden="true">
+      {Array.from({ length: count }).map((_, i) => (
+        <div className={styles.skeletonCard} key={i}>
+          <div className={styles.skeletonBlock} style={{ width: 32, height: 32, borderRadius: 8 }} />
+          <div className={styles.skeletonBlock} style={{ width: 64, height: 22 }} />
+          <div className={styles.skeletonBlock} style={{ width: "70%" }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Placeholder for list-shaped panel bodies (команда, журнал действий). */
+export function SkeletonLines({ lines = 4 }: { lines?: number }) {
+  return (
+    <div className={styles.skeletonStack} aria-hidden="true">
+      {Array.from({ length: lines }).map((_, i) => (
+        <div className={styles.skeletonBlock} key={i} style={{ width: `${88 - i * 9}%` }} />
       ))}
     </div>
   );

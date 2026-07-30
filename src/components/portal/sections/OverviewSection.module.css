@@ -1,12 +1,16 @@
 .riskRow {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 20px;
-  border-top: 1px solid var(--border);
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--border-subtle);
+  transition: background-color var(--dur-1) var(--ease);
 }
 .riskRow:first-child {
   border-top: none;
+}
+.riskRow:hover {
+  background: var(--surface-hover);
 }
 .riskDot {
   width: 8px;
@@ -16,43 +20,50 @@
 }
 .riskDotCritical {
   background: var(--red);
+  box-shadow: 0 0 0 3px var(--red-soft);
 }
 .riskDotElevated {
   background: var(--amber);
+  box-shadow: 0 0 0 3px var(--amber-soft);
 }
 .riskMain {
   flex: 1;
   min-width: 0;
 }
 .riskMain b {
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
   display: block;
 }
 .riskMain span {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
 }
 .riskNum {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
   color: var(--red);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .notifRow {
   display: flex;
-  gap: 11px;
-  padding: 12px 20px;
-  border-top: 1px solid var(--border);
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--border-subtle);
+  transition: background-color var(--dur-1) var(--ease);
 }
 .notifRow:first-child {
   border-top: none;
 }
+.notifRow:hover {
+  background: var(--surface-hover);
+}
 .notifIco {
   width: 28px;
   height: 28px;
-  border-radius: 8px;
+  border-radius: var(--radius-s);
   flex: none;
   display: flex;
   align-items: center;
@@ -71,17 +82,18 @@
   color: var(--blue);
 }
 .notifMain b {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
   display: block;
   margin-bottom: 1px;
 }
 .notifMain p {
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   color: var(--text-2);
+  line-height: var(--lh-snug);
 }
 .notifTime {
-  font-size: 11px;
+  font-size: var(--fs-2xs);
   color: var(--text-3);
   white-space: nowrap;
   margin-left: auto;

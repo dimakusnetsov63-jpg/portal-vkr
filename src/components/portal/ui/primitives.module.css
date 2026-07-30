@@ -397,21 +397,20 @@
   border-color: var(--border-strong);
   box-shadow: var(--shadow-m);
 }
-/* Cards arrive left-to-right instead of all at once. The delay is capped at
-   eight cards — the widest dashboard in the portal (Адреса) has exactly 8. */
-.statGrid > .statCard:nth-child(1) {
-  animation-delay: 0ms;
-}
-.statGrid > .statCard:nth-child(2) {
+/* Cards arrive left-to-right instead of all at once. Keyed off nth-child, not
+   the grid class, so it works in every dashboard layout (statGrid,
+   statGrid3, statGrid8). The stagger stops at the fifth card — beyond that
+   the delay would read as sluggishness, not choreography. */
+.statCard:nth-child(2) {
   animation-delay: 30ms;
 }
-.statGrid > .statCard:nth-child(3) {
+.statCard:nth-child(3) {
   animation-delay: 60ms;
 }
-.statGrid > .statCard:nth-child(4) {
+.statCard:nth-child(4) {
   animation-delay: 90ms;
 }
-.statGrid > .statCard:nth-child(n + 5) {
+.statCard:nth-child(n + 5) {
   animation-delay: 120ms;
 }
 .statTop {
@@ -823,6 +822,10 @@
   gap: var(--sp-2);
   padding: var(--sp-4) var(--sp-5) 0;
   flex-wrap: wrap;
+}
+/* Inside a toolbar the surrounding row already supplies the padding. */
+.pillTabsInline {
+  padding: 0;
 }
 .pillTabButton {
   border: 1px solid var(--border);
