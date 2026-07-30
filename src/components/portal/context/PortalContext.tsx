@@ -58,6 +58,14 @@ import { buildBulkRows } from "@/components/portal/sections/demand/demandAggrega
 import { listStaffingDemandRowsMeta, upsertStaffingDemandRowMeta } from "@/lib/supabase/staffingDemandRowsRepo";
 import type { StaffingDemandRowMeta } from "@/lib/supabase/staffingDemandRows.types";
 import { demandRowMetaKey, mergeRowMetaPatch, type DemandRowStatus } from "@/components/portal/sections/demand/demandRowMeta";
+import {
+  archiveAddress,
+  createAddress,
+  listAddresses,
+  restoreAddress,
+  updateAddress,
+} from "@/lib/supabase/addressesRepo";
+import type { AddressInsert, AddressRow, AddressUpdate } from "@/lib/supabase/addresses.types";
 
 const staffRng = createRng(20260722);
 
@@ -154,6 +162,20 @@ interface PortalContextValue {
     position: string,
     patch: { status?: DemandRowStatus; comment?: string | null },
   ) => Promise<boolean>;
+
+  addresses: AddressRow[];
+  addressesLoading: boolean;
+  addressesError: string | null;
+  refreshAddresses: () => Promise<void>;
+  addAddress: (input: AddressInsert) => Promise<boolean>;
+  saveAddress: (id: string, patch: AddressUpdate) => Promise<boolean>;
+  archiveAddressRecord: (id: string) => Promise<void>;
+  restoreAddressRecord: (id: string) => Promise<void>;
+  duplicateAddressRecord: (id: string) => Promise<void>;
+
+  selectedAddressId: string | null;
+  openAddressDrawer: (id: string) => void;
+  closeAddressDrawer: () => void;
 }
 
 export interface ContextAction {
@@ -203,6 +225,11 @@ export function PortalProvider({
   const [demandRowMetaLoading, setDemandRowMetaLoading] = useState(true);
   const [demandRowMetaError, setDemandRowMetaError] = useState<string | null>(null);
   const demandRowMetaSavingRef = useRef<Set<string>>(new Set());
+
+  const [addresses, setAddresses] = useState<AddressRow[]>([]);
+  const [addressesLoading, setAddressesLoading] = useState(true);
+  const [addressesError, setAddressesError] = useState<string | null>(null);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
 
   const can = useCallback(
     (permission: PortalPermission) => canAccess(currentUser.role, permission),
@@ -655,6 +682,133 @@ export function PortalProvider({
     [demandRowMeta, pushToast],
   );
 
+  const refreshAddresses = useCallback(async () => {
+    setAddressesLoading(true);
+    setAddressesError(null);
+    try {
+      setAddresses(await listAddresses());
+    } catch (e) {
+      setAddressesError(e instanceof Error ? e.message : "Не удалось загрузить адреса");
+    } finally {
+      setAddressesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data load on mount
+    refreshAddresses();
+  }, [refreshAddresses]);
+
+  const addAddress = useCallback(
+    async (input: AddressInsert) => {
+      try {
+        const created = await createAddress(input);
+        setAddresses((prev) => [created, ...prev]);
+        pushToast("Адрес добавлен");
+        return true;
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось добавить адрес", "error");
+        return false;
+      }
+    },
+    [pushToast],
+  );
+
+  const saveAddress = useCallback(
+    async (id: string, patch: AddressUpdate) => {
+      try {
+        const updated = await updateAddress(id, patch);
+        setAddresses((prev) => prev.map((a) => (a.id === id ? updated : a)));
+        pushToast("Изменения сохранены");
+        return true;
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось сохранить изменения", "error");
+        return false;
+      }
+    },
+    [pushToast],
+  );
+
+  const archiveAddressRecord = useCallback(
+    async (id: string) => {
+      try {
+        const updated = await archiveAddress(id);
+        setAddresses((prev) => prev.map((a) => (a.id === id ? updated : a)));
+        pushToast("Адрес перемещён в архив");
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось архивировать адрес", "error");
+      }
+    },
+    [pushToast],
+  );
+
+  const restoreAddressRecord = useCallback(
+    async (id: string) => {
+      try {
+        const updated = await restoreAddress(id);
+        setAddresses((prev) => prev.map((a) => (a.id === id ? updated : a)));
+        pushToast("Адрес восстановлен из архива");
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось восстановить адрес", "error");
+      }
+    },
+    [pushToast],
+  );
+
+  const openAddressDrawer = useCallback((id: string) => setSelectedAddressId(id), []);
+  const closeAddressDrawer = useCallback(() => setSelectedAddressId(null), []);
+
+  const duplicateAddressRecord = useCallback(
+    async (id: string) => {
+      const source = addresses.find((a) => a.id === id);
+      if (!source) return;
+      // Explicit whitelist, not a destructure-omit of id/created_at/updated_at/
+      // archived_at/created_by*/updated_by* — the DB default and the audit
+      // trigger set all of those fresh for the new row anyway, and listing
+      // exactly what's copied avoids "unused variable" noise from the fields
+      // we'd otherwise have to name just to discard.
+      const input: AddressInsert = {
+        project: source.project,
+        city: source.city,
+        position: source.position,
+        full_address: `${source.full_address} (копия)`,
+        metro: source.metro,
+        district: source.district,
+        latitude: source.latitude,
+        longitude: source.longitude,
+        object_type: source.object_type,
+        required_count: source.required_count,
+        staffed_count: source.staffed_count,
+        planned_start_count: source.planned_start_count,
+        in_progress_count: source.in_progress_count,
+        status: source.status,
+        priority: source.priority,
+        schedule_type: source.schedule_type,
+        shift_type: source.shift_type,
+        shift_times: source.shift_times,
+        payment_type: source.payment_type,
+        payment_amount: source.payment_amount,
+        coordinator_name: source.coordinator_name,
+        coordinator_phone: source.coordinator_phone,
+        coordinator_telegram: source.coordinator_telegram,
+        site_manager_name: source.site_manager_name,
+        site_manager_phone: source.site_manager_phone,
+        coordinator_comment: source.coordinator_comment,
+        features: source.features,
+        document_links: source.document_links,
+      };
+      try {
+        const created = await createAddress(input);
+        setAddresses((prev) => [created, ...prev]);
+        pushToast("Адрес продублирован");
+        openAddressDrawer(created.id);
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось продублировать адрес", "error");
+      }
+    },
+    [addresses, pushToast, openAddressDrawer],
+  );
+
   const markNotificationRead = useCallback((id: number) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   }, []);
@@ -730,6 +884,18 @@ export function PortalProvider({
       demandRowMetaError,
       refreshDemandRowMeta,
       updateDemandRowMeta,
+      addresses,
+      addressesLoading,
+      addressesError,
+      refreshAddresses,
+      addAddress,
+      saveAddress,
+      archiveAddressRecord,
+      restoreAddressRecord,
+      duplicateAddressRecord,
+      selectedAddressId,
+      openAddressDrawer,
+      closeAddressDrawer,
     }),
     [
       activePage,
@@ -789,6 +955,18 @@ export function PortalProvider({
       demandRowMetaError,
       refreshDemandRowMeta,
       updateDemandRowMeta,
+      addresses,
+      addressesLoading,
+      addressesError,
+      refreshAddresses,
+      addAddress,
+      saveAddress,
+      archiveAddressRecord,
+      restoreAddressRecord,
+      duplicateAddressRecord,
+      selectedAddressId,
+      openAddressDrawer,
+      closeAddressDrawer,
     ],
   );
 

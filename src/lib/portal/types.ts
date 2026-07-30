@@ -95,6 +95,7 @@ export interface PortalNotification {
 export type PortalPage =
   | "overview"
   | "demand"
+  | "addresses"
   | "candidates"
   | "vacancies"
   | "marketing"

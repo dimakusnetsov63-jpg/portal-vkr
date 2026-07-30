@@ -3,6 +3,7 @@ import { supabaseEnv } from "./env";
 import { getPortalAccessToken } from "./accessToken";
 import type { Database } from "./database.types";
 import type { PortalAuthDatabase } from "./portalAuth.types";
+import type { AddressesDatabase } from "./addresses.types";
 
 const clientOptions = {
   // Портал не использует Supabase Auth: токен выпускает он сам под свою
@@ -28,4 +29,15 @@ export function createClient() {
  */
 export function createPortalAuthClient() {
   return createSupabaseClient<PortalAuthDatabase>(supabaseEnv.url(), supabaseEnv.publishableKey(), clientOptions);
+}
+
+/**
+ * Клиент для public.addresses. Отдельная схема типов по той же причине, что
+ * и у createPortalAuthClient(): таблица ещё не отражена в сгенерированном
+ * database.types.ts (миграция не применена к боевой БД), см.
+ * addresses.types.ts. После регенерации типов addressesRepo.ts может
+ * перейти на общий createClient(), и AddressesDatabase можно будет удалить.
+ */
+export function createAddressesClient() {
+  return createSupabaseClient<AddressesDatabase>(supabaseEnv.url(), supabaseEnv.publishableKey(), clientOptions);
 }

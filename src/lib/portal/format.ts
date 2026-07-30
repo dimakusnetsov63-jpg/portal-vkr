@@ -31,6 +31,24 @@ export function relativeTime(minsAgo: number): string {
   return `${Math.floor(minsAgo / (60 * 24))} дн назад`;
 }
 
+/**
+ * Relative time from an ISO timestamp, for table cells ("Обновлено …") —
+ * unlike `relativeTime` above (which takes a pre-computed minute count for
+ * mock data), this works from a real `updated_at` and special-cases
+ * "вчера" for exactly one day ago instead of "1 дн назад". Pair with
+ * `fmtDateTime(new Date(iso))` for a full-date tooltip.
+ */
+export function formatRelativeUpdatedAt(iso: string): string {
+  const then = new Date(iso).getTime();
+  const minsAgo = Math.max(0, Math.floor((Date.now() - then) / 60000));
+  if (minsAgo < 1) return "только что";
+  if (minsAgo < 60) return `${minsAgo} мин назад`;
+  if (minsAgo < 60 * 24) return `${Math.floor(minsAgo / 60)} ч назад`;
+  const daysAgo = Math.floor(minsAgo / (60 * 24));
+  if (daysAgo === 1) return "вчера";
+  return `${daysAgo} дн назад`;
+}
+
 export function initials(fio: string): string {
   return fio
     .split(" ")

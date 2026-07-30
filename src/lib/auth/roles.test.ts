@@ -13,6 +13,7 @@ describe("canAccess — минимальные права из ТЗ", () => {
     expect(allowedSections("head")).toEqual([
       "overview",
       "demand",
+      "addresses",
       "candidates",
       "vacancies",
       "marketing",
@@ -35,7 +36,8 @@ describe("canAccess — минимальные права из ТЗ", () => {
     expect(canAccess("manager", "demand")).toBe(true);
   });
 
-  it("оставляет рекрутеру только кандидатов и описание вакансий", () => {
+  it("оставляет рекрутеру только адреса, кандидатов, описание вакансий и уведомления", () => {
+    expect(canAccess("recruiter", "addresses")).toBe(true);
     expect(canAccess("recruiter", "candidates")).toBe(true);
     expect(canAccess("recruiter", "vacancies")).toBe(true);
     expect(canAccess("recruiter", "overview")).toBe(false);
@@ -44,6 +46,11 @@ describe("canAccess — минимальные права из ТЗ", () => {
     expect(canAccess("recruiter", "analytics")).toBe(false);
     expect(canAccess("recruiter", "settings")).toBe(false);
     expect(canAccess("recruiter", "users")).toBe(false);
+  });
+
+  it("даёт «Адреса» всем четырём ролям, в отличие от большинства разделов", () => {
+    const withAddresses = PORTAL_ROLES.filter((role) => canAccess(role, "addresses"));
+    expect(withAddresses).toEqual([...PORTAL_ROLES]);
   });
 
   it("отдаёт управление пользователями только руководителю", () => {
@@ -57,8 +64,10 @@ describe("defaultPageForRole", () => {
     expect(defaultPageForRole("head")).toBe("overview");
     expect(defaultPageForRole("coordinator")).toBe("overview");
     expect(defaultPageForRole("manager")).toBe("overview");
-    // У рекрутера «Обзора» нет — стартовый раздел другой.
-    expect(defaultPageForRole("recruiter")).toBe("candidates");
+    // У рекрутера «Обзора» нет — стартовый раздел другой. С добавлением
+    // «Адресов» (доступны всем ролям, идут в SECTION_ORDER раньше
+    // «Кандидатов») это теперь «Адреса», а не «Кандидаты».
+    expect(defaultPageForRole("recruiter")).toBe("addresses");
   });
 
   it("возвращает раздел, к которому у роли действительно есть доступ", () => {

@@ -8,6 +8,7 @@ import { ToastStack } from "@/components/portal/ui/ToastStack";
 import { EmptyState } from "@/components/portal/ui/StateViews";
 import { OverviewSection } from "@/components/portal/sections/OverviewSection";
 import { DemandSection } from "@/components/portal/sections/demand";
+import { AddressesSection, AddressDrawer } from "@/components/portal/sections/addresses";
 import { CandidatesSection, RealCandidateDrawer } from "@/components/portal/sections/candidates";
 import { CandidateDrawer } from "@/components/portal/sections/CandidateDrawer";
 import { VacanciesSection } from "@/components/portal/sections/VacanciesSection";
@@ -38,6 +39,8 @@ function ActiveSection() {
       return <OverviewSection />;
     case "demand":
       return <DemandSection />;
+    case "addresses":
+      return <AddressesSection />;
     case "candidates":
       return <CandidatesSection />;
     case "vacancies":
@@ -56,7 +59,7 @@ function ActiveSection() {
 }
 
 function PortalShell() {
-  const { activePage, selectedCandidateId, selectedRealCandidateId } = usePortal();
+  const { activePage, selectedCandidateId, selectedRealCandidateId, selectedAddressId } = usePortal();
   return (
     <div className={styles.app}>
       <Sidebar />
@@ -69,6 +72,7 @@ function PortalShell() {
       <MobileTabBar />
       <CandidateDrawer candidateId={selectedCandidateId} />
       <RealCandidateDrawer candidateId={selectedRealCandidateId} />
+      <AddressDrawer addressId={selectedAddressId} />
       <ToastStack />
     </div>
   );

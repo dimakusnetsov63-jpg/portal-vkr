@@ -62,6 +62,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { id: "overview", label: "Обзор", icon: "home" },
   { id: "demand", label: "Потребность", icon: "grid" },
+  { id: "addresses", label: "Адреса", icon: "mapPin" },
   { id: "candidates", label: "Кандидаты", icon: "users" },
   { id: "vacancies", label: "Описание вакансий", icon: "briefcase" },
   { id: "marketing", label: "Маркетинг", icon: "trend" },
@@ -73,6 +74,7 @@ export const NAV_ITEMS: NavItem[] = [
 export const PAGE_TITLES: Record<PortalPage, string> = {
   overview: "Обзор",
   demand: "Потребность",
+  addresses: "Адреса",
   candidates: "Кандидаты",
   vacancies: "Описание вакансий",
   marketing: "Маркетинг",

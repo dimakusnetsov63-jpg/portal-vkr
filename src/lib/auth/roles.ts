@@ -35,6 +35,7 @@ export type PortalPermission = PortalPage | "users";
 const SECTION_ORDER: PortalPage[] = [
   "overview",
   "demand",
+  "addresses",
   "candidates",
   "vacancies",
   "marketing",
@@ -43,11 +44,25 @@ const SECTION_ORDER: PortalPage[] = [
   "settings",
 ];
 
+// "Адреса" — единственный раздел, который видят все четыре роли (в отличие
+// от остальных, которые ограничены по ролям): координатору, менеджеру и
+// рекрутеру он нужен так же, как руководителю. См.
+// docs/requirements/addresses.md.
 const ROLE_PERMISSIONS: Record<PortalRole, readonly PortalPermission[]> = {
   head: [...SECTION_ORDER, "users"],
-  coordinator: ["overview", "demand", "candidates", "vacancies", "marketing", "analytics", "notifications", "settings"],
-  manager: ["overview", "demand", "candidates", "vacancies", "notifications"],
-  recruiter: ["candidates", "vacancies", "notifications"],
+  coordinator: [
+    "overview",
+    "demand",
+    "addresses",
+    "candidates",
+    "vacancies",
+    "marketing",
+    "analytics",
+    "notifications",
+    "settings",
+  ],
+  manager: ["overview", "demand", "addresses", "candidates", "vacancies", "notifications"],
+  recruiter: ["addresses", "candidates", "vacancies", "notifications"],
 };
 
 export function isPortalRole(value: unknown): value is PortalRole {
