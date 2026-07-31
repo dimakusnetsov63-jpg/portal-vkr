@@ -37,7 +37,6 @@ import {
 import type {
   Candidate as RealCandidate,
   CandidateInsert,
-  CandidateProject,
   CandidateUpdate,
 } from "@/lib/supabase/candidates.types";
 import {
@@ -579,7 +578,7 @@ export function PortalProvider({
   const upsertDemandCell = useCallback(
     async (project: string, city: string, position: string, demandDate: string, plannedCount: number) => {
       try {
-        const saved = await upsertStaffingDemandCell(project as CandidateProject, city, position, demandDate, plannedCount);
+        const saved = await upsertStaffingDemandCell(project, city, position, demandDate, plannedCount);
         setDemandRows((prev) => {
           const idx = prev.findIndex(
             (r) => r.project === project && r.city === city && r.position === position && r.demand_date === demandDate,
@@ -598,7 +597,7 @@ export function PortalProvider({
   const deleteDemandCell = useCallback(
     async (project: string, city: string, position: string, demandDate: string) => {
       try {
-        await deleteStaffingDemandCell(project as CandidateProject, city, position, demandDate);
+        await deleteStaffingDemandCell(project, city, position, demandDate);
         setDemandRows((prev) =>
           prev.filter(
             (r) => !(r.project === project && r.city === city && r.position === position && r.demand_date === demandDate),
@@ -622,7 +621,7 @@ export function PortalProvider({
       toDate: string;
       plannedCount: number;
     }) => {
-      const rows = buildBulkRows(input).map((r) => ({ ...r, project: r.project as CandidateProject }));
+      const rows = buildBulkRows(input);
       try {
         const saved = await bulkUpsertStaffingDemand(rows);
         setDemandRows((prev) => {
@@ -646,9 +645,7 @@ export function PortalProvider({
     async (rows: { project: string; city: string; position: string; demand_date: string; planned_count: number }[]) => {
       if (rows.length === 0) return true;
       try {
-        const saved = await bulkUpsertStaffingDemand(
-          rows.map((r) => ({ ...r, project: r.project as CandidateProject })),
-        );
+        const saved = await bulkUpsertStaffingDemand(rows);
         setDemandRows((prev) => {
           const key = (r: { project: string; city: string; position: string; demand_date: string }) =>
             JSON.stringify([r.project, r.city, r.position, r.demand_date]);

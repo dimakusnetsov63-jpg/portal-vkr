@@ -65,7 +65,7 @@ export type Database = {
           planned_start_count: number
           position: string | null
           priority: number
-          project: Database["public"]["Enums"]["candidate_project"]
+          project: string
           required_count: number
           schedule_type: string | null
           shift_times: string[]
@@ -103,7 +103,7 @@ export type Database = {
           planned_start_count?: number
           position?: string | null
           priority?: number
-          project: Database["public"]["Enums"]["candidate_project"]
+          project: string
           required_count?: number
           schedule_type?: string | null
           shift_times?: string[]
@@ -141,7 +141,7 @@ export type Database = {
           planned_start_count?: number
           position?: string | null
           priority?: number
-          project?: Database["public"]["Enums"]["candidate_project"]
+          project?: string
           required_count?: number
           schedule_type?: string | null
           shift_times?: string[]
@@ -215,7 +215,7 @@ export type Database = {
           max_tag: string | null
           phone: string | null
           position: string | null
-          project: Database["public"]["Enums"]["candidate_project"]
+          project: string
           recruiter: string | null
           registration_at: string | null
           salary_card: string | null
@@ -240,7 +240,7 @@ export type Database = {
           max_tag?: string | null
           phone?: string | null
           position?: string | null
-          project: Database["public"]["Enums"]["candidate_project"]
+          project: string
           recruiter?: string | null
           registration_at?: string | null
           salary_card?: string | null
@@ -265,7 +265,7 @@ export type Database = {
           max_tag?: string | null
           phone?: string | null
           position?: string | null
-          project?: Database["public"]["Enums"]["candidate_project"]
+          project?: string
           recruiter?: string | null
           registration_at?: string | null
           salary_card?: string | null
@@ -584,7 +584,7 @@ export type Database = {
           id: string
           planned_count: number
           position: string
-          project: Database["public"]["Enums"]["candidate_project"]
+          project: string
           updated_at: string
         }
         Insert: {
@@ -594,7 +594,7 @@ export type Database = {
           id?: string
           planned_count: number
           position: string
-          project: Database["public"]["Enums"]["candidate_project"]
+          project: string
           updated_at?: string
         }
         Update: {
@@ -604,7 +604,7 @@ export type Database = {
           id?: string
           planned_count?: number
           position?: string
-          project?: Database["public"]["Enums"]["candidate_project"]
+          project?: string
           updated_at?: string
         }
         Relationships: []

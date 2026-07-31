@@ -35,7 +35,7 @@
 | `id` | uuid | not null | PK, `gen_random_uuid()` |
 | `external_id` | text | nullable | Бизнес-ID, вводится вручную, **не уникален** |
 | `full_name` | text | **not null** | ФИО одной строкой |
-| `project` | enum `candidate_project` | **not null** | Ограничен перечислением |
+| `project` | text | **not null** | Свободный текст, подсказки — `candidate_list_options` (`list_type = project`). До `20260731120000_unify_project_free_text.sql` было enum `candidate_project` (12 жёстких значений) — переведено на общий с «Адресами»/«Потребностью»/«Ставками» управляемый список, расширяется в Настройках без миграции |
 | `city` | text | nullable | |
 | `position` | text | nullable | Должность. Свободный текст, подсказки — `candidate_list_options` (`list_type = position`) |
 | `stage` | enum `candidate_stage` | nullable | NULL = стадия ещё не достигнута |
@@ -100,7 +100,7 @@ upsert.
 | Поле | Тип | Null | Примечание |
 |------|-----|------|-----------|
 | `id` | uuid | not null | PK, `gen_random_uuid()` |
-| `project` | enum `candidate_project` | **not null** | Тот же enum, что и у кандидатов |
+| `project` | text | **not null** | Свободный текст, тот же справочник `candidate_list_options` (`list_type = project`), что у кандидатов. До `20260731120000_unify_project_free_text.sql` было enum `candidate_project` |
 | `city` | text | **not null** | Свободный текст, без FK на `candidate_list_options` |
 | `position` | text | **not null** | Свободный текст, подсказки — `candidate_list_options` (`list_type = position`), тот же справочник, что и у `candidates.position` |
 | `demand_date` | date | **not null** | |
@@ -138,7 +138,7 @@ upsert.
 | Поле | Тип | Null | Примечание |
 |------|-----|------|-----------|
 | `id` | uuid | not null | PK, `gen_random_uuid()` |
-| `project` | text | **not null** | Свободный текст — здесь **не** enum `candidate_project` (сознательное отличие от `staffing_demand`, так задано) |
+| `project` | text | **not null** | Свободный текст, без FK и без обязательной связи со списком `candidate_list_options` — эта таблица независимый от других хранит статус/комментарий по паре «проект+город», её `project` не обязан совпадать буквально ни с чем (в отличие от `staffing_demand.project`, который с `20260731120000_unify_project_free_text.sql` берёт значения из общего списка) |
 | `city` | text | **not null** | Свободный текст, без FK |
 | `position` | text | **not null** | Свободный текст, без FK — определяет, к какой должности внутри города относится статус/комментарий |
 | `status` | text | **not null** | `default 'active'`; `check (status in ('active','paused','closed'))` |
@@ -215,7 +215,7 @@ city + position + свежие сверху).
 | Поле | Тип | Null | Примечание |
 |------|-----|------|-----------|
 | `id` | uuid | not null | PK, `gen_random_uuid()` |
-| `project` | enum `candidate_project` | **not null** | Тот же enum, что у кандидатов/потребности |
+| `project` | text | **not null** | Свободный текст, тот же справочник `candidate_list_options` (`list_type = project`), что у кандидатов/потребности. До `20260731120000_unify_project_free_text.sql` было enum `candidate_project` |
 | `city` | text | **not null** | Подсказки — `candidate_list_options` (`city`) |
 | `position` | text | nullable | Специализация/должность объекта. **Тот же справочник**, что `candidates.position`/`staffing_demand.position` (`candidate_list_options`, `list_type = position`) — намеренно назван `position`, а не `specialization`, чтобы не плодить второе имя одного понятия |
 | `full_address` | text | **not null** | |
@@ -274,7 +274,7 @@ city + position + свежие сверху).
 | Поле | Тип | Null | Примечание |
 |------|-----|------|-----------|
 | `id` | uuid | not null | PK, `gen_random_uuid()` |
-| `project` | text | **not null** | Свободный текст, подсказки — `candidate_list_options` (`list_type = project`). **Не** enum `candidate_project` — список клиентов «Ставок» шире (30+ против 12) |
+| `project` | text | **not null** | Свободный текст, подсказки — `candidate_list_options` (`list_type = project`) — тот же общий список, что с `20260731120000_unify_project_free_text.sql` использует и `candidates`/`staffing_demand`/`addresses` |
 | `city` | text | **not null** | Подсказки — `candidate_list_options` (`city`), тот же справочник, что у остальных разделов |
 | `legal_entity` | text | **not null** | `default ''`; пустая строка = не указано. Не NULL, потому что поле входит в `unique (project, city, legal_entity)`, а NULL с NULL в уникальном индексе не конфликтует |
 | `payroll_banks` | text[] | **not null** | `default '{}'`; слаги банков зарплатного проекта, подписи только в `rateOptions.ts` |
@@ -350,7 +350,7 @@ cascade`), а не естественный ключ без FK, как у `staff
 | `login` | text | **not null** | Уникален. `check (login ~ '^[a-z0-9._-]{3,32}$')` — хранится только в нижнем регистре, поэтому уникального индекса по самому полю достаточно |
 | `password_hash` | text | **not null** | bcrypt (`pgcrypto`: `crypt`/`gen_salt('bf', 10)`). Открытый пароль не хранится и не возвращается ни одной функцией |
 | `role` | enum `portal_user_role` | **not null** | head / coordinator / manager / recruiter |
-| `projects` | text[] | **not null** | Значения `candidate_project` как текст, без FK. `check (cardinality(projects) > 0)` |
+| `projects` | text[] | **not null** | Значения проектов как текст, без FK. `check (cardinality(projects) > 0)` |
 | `is_active` | boolean | not null | `default true`; `false` = вход запрещён |
 | `created_at` | timestamptz | not null | `default now()` |
 | `updated_at` | timestamptz | not null | `default now()`, триггер `set_candidates_updated_at()` |
@@ -359,9 +359,10 @@ cascade`), а не естественный ключ без FK, как у `staff
 **Индексы:** `unique (login)`, по `is_active`.
 
 **Почему `projects` — массив текста, а не FK:** список проектов ведётся
-enum'ом `candidate_project` и может расширяться независимо от учёток;
-привязка через FK потребовала бы отдельной таблицы проектов, которой нет.
-Поле сейчас **информационное** — ни одна политика по нему не фильтрует.
+через `candidate_list_options` (`list_type = project`) и может расширяться
+независимо от учёток, из Настроек, без миграции; привязка через FK
+потребовала бы отдельной таблицы проектов, которой нет. Поле сейчас
+**информационное** — ни одна политика по нему не фильтрует.
 
 ### `public.portal_sessions`
 
@@ -412,7 +413,6 @@ enum'ом `candidate_project` и может расширяться незави�
 
 | Enum | Значения |
 |------|----------|
-| `candidate_project` | Самокат, Купер, ДонатсКофе, Яндекс Лавка, Яндекс РБ, Газпромнефть, Евроторг, Мастер Деливери, Мастер Деливери Таксопарк, Азбука вкуса, Бургер кинг Россия, Далли (12) |
 | `candidate_stage` | Прибыл на проект, Отработал 1 смену, Отработал 10 смен, Завершил вахту (4) |
 | `candidate_list_type` | recruiter, manager, coordinator, city, position, project, legal_entity (7) |
 | `staffing_demand_history_action` | insert, update, delete (3) |
@@ -422,8 +422,20 @@ enum'ом `candidate_project` и может расширяться незави�
 Роли хранятся латинскими слагами; русские подписи («Руководитель»,
 «Координатор», «Менеджер», «Рекрутер») живут в `src/lib/auth/roles.ts`.
 
-Значения проектов и стадий заданы бизнесом дословно и не переименовываются.
-Изменение состава enum — это миграция схемы, а не правка справочника.
+Значения стадий заданы бизнесом дословно и не переименовываются. Изменение
+состава enum — это миграция схемы, а не правка справочника.
+
+**`candidate_project`** (Самокат, Купер, ДонатсКофе, Яндекс Лавка, Яндекс РБ,
+Газпромнефть, Евроторг, Мастер Деливери, Мастер Деливери Таксопарк, Азбука
+вкуса, Бургер кинг Россия, Далли — 12 значений) в схеме ещё **определён**, но
+с `20260731120000_unify_project_free_text.sql` **не используется** ни одной
+колонкой: `candidates.project`, `staffing_demand.project`,
+`addresses.project` переведены на свободный текст с общим управляемым
+списком `candidate_list_options` (`list_type = project`) — тем же, что уже
+использовали «Ставки». Тип не удалён: на него по имени ссылается
+`portal_bootstrap_admin()` (см. `migrations.md`), а удаление добавило бы
+риск без пользы. Список проектов теперь один на весь портал и расширяется в
+Настройках без миграции.
 
 ## Архивирование и обновление
 

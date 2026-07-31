@@ -9,8 +9,5 @@ export type CandidateInsert = Database["public"]["Tables"]["candidates"]["Insert
 /** Payload accepted by UPDATE on public.candidates. */
 export type CandidateUpdate = Database["public"]["Tables"]["candidates"]["Update"];
 
-/** Allowed values of candidates.project (public.candidate_project enum). */
-export type CandidateProject = Database["public"]["Enums"]["candidate_project"];
-
 /** Allowed values of candidates.stage (public.candidate_stage enum). */
 export type CandidateStage = Database["public"]["Enums"]["candidate_stage"];

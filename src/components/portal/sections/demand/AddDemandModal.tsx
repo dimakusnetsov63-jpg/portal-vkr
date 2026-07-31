@@ -6,9 +6,8 @@ import { Button } from "@/components/portal/ui/Button";
 import { Combobox } from "@/components/portal/ui/Combobox";
 import { Icon } from "@/components/portal/ui/Icon";
 import { Modal } from "@/components/portal/ui/Modal";
-import { activeListOptions, CANDIDATE_PROJECTS } from "@/lib/portal/candidateOptions";
+import { activeListOptions } from "@/lib/portal/candidateOptions";
 import { enumerateIsoDates, toIsoDate } from "@/lib/portal/demandWindow";
-import type { CandidateProject } from "@/lib/supabase/candidates.types";
 import { isLargeBulkCount } from "./demandAggregate";
 import {
   DEMAND_COMMENT_MAX_LENGTH,
@@ -46,7 +45,7 @@ export function AddDemandModal({
   }) => Promise<boolean>;
 }) {
   const { pushToast, listOptions, updateDemandRowMeta } = usePortal();
-  const [project, setProject] = useState<CandidateProject>(CANDIDATE_PROJECTS[0]);
+  const [project, setProject] = useState("");
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [cityInput, setCityInput] = useState("");
   const [selectedPositions, setSelectedPositions] = useState<string[]>([]);
@@ -60,6 +59,7 @@ export function AddDemandModal({
   const [saving, setSaving] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  const projectOptions = activeListOptions(listOptions, "project").map((o) => o.value);
   const cityOptions = activeListOptions(listOptions, "city")
     .map((o) => o.value)
     .filter((c) => !selectedCities.includes(c));
@@ -93,6 +93,7 @@ export function AddDemandModal({
   const commentTooLong = isCommentTooLong(comment);
 
   function validate(): string | null {
+    if (!project.trim()) return "Укажите проект";
     if (selectedCities.length === 0) return "Выберите хотя бы один город";
     if (selectedPositions.length === 0) return "Выберите хотя бы одну должность";
     if (!validRange) return "Дата начала должна быть не позже даты окончания";
@@ -157,13 +158,7 @@ export function AddDemandModal({
     >
       <div className={primitives.field}>
         <label>Проект</label>
-        <select value={project} onChange={(e) => setProject(e.target.value as CandidateProject)}>
-          {CANDIDATE_PROJECTS.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
+        <Combobox value={project} onChange={setProject} options={projectOptions} />
       </div>
 
       <div className={primitives.field}>

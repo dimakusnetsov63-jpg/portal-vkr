@@ -6,8 +6,8 @@ import { Button } from "@/components/portal/ui/Button";
 import { Combobox } from "@/components/portal/ui/Combobox";
 import { Modal } from "@/components/portal/ui/Modal";
 import modal from "@/components/portal/ui/Modal.module.css";
-import { activeListOptions, CANDIDATE_PROJECTS } from "@/lib/portal/candidateOptions";
-import type { CandidateInsert, CandidateProject } from "@/lib/supabase/candidates.types";
+import { activeListOptions } from "@/lib/portal/candidateOptions";
+import type { CandidateInsert } from "@/lib/supabase/candidates.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
 
 export function AddCandidateModal({
@@ -19,12 +19,13 @@ export function AddCandidateModal({
 }) {
   const { pushToast, listOptions } = usePortal();
   const [fullName, setFullName] = useState("");
-  const [project, setProject] = useState<CandidateProject>(CANDIDATE_PROJECTS[0]);
+  const [project, setProject] = useState("");
   const [city, setCity] = useState("");
   const [position, setPosition] = useState("");
   const [recruiter, setRecruiter] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const projectOptions = activeListOptions(listOptions, "project").map((o) => o.value);
   const cityOptions = activeListOptions(listOptions, "city").map((o) => o.value);
   const positionOptions = activeListOptions(listOptions, "position").map((o) => o.value);
   const recruiterOptions = activeListOptions(listOptions, "recruiter").map((o) => o.value);
@@ -34,10 +35,14 @@ export function AddCandidateModal({
       pushToast("Укажите ФИО кандидата", "error");
       return;
     }
+    if (!project.trim()) {
+      pushToast("Укажите проект", "error");
+      return;
+    }
     setSaving(true);
     const ok = await onSubmit({
       full_name: fullName.trim(),
-      project,
+      project: project.trim(),
       city: city.trim() || null,
       position: position.trim() || null,
       recruiter: recruiter.trim() || null,
@@ -72,13 +77,7 @@ export function AddCandidateModal({
       <div className={primitives.fieldRow}>
         <div className={primitives.field}>
           <label>Проект</label>
-          <select value={project} onChange={(e) => setProject(e.target.value as CandidateProject)}>
-            {CANDIDATE_PROJECTS.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
+          <Combobox value={project} onChange={setProject} options={projectOptions} />
         </div>
         <div className={primitives.field}>
           <label>Город</label>

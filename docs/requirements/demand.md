@@ -53,7 +53,7 @@
 
 | Измерение | Источник | Расширяется |
 |---|---|---|
-| Проект | enum `candidate_project` | только миграцией |
+| Проект | `candidate_list_options` (`project`) | из Настроек, без релиза |
 | Город | `candidate_list_options` (`city`) | из Настроек, без релиза |
 | Должность | `candidate_list_options` (`position`) | из Настроек, без релиза |
 

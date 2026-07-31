@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/portal/ui/Button";
 import { Modal } from "@/components/portal/ui/Modal";
+import { usePortal } from "@/components/portal/context/PortalContext";
 import { PORTAL_ROLES, ROLE_LABELS, type PortalRole } from "@/lib/auth/roles";
-import { CANDIDATE_PROJECTS } from "@/lib/portal/candidateOptions";
+import { activeListOptions } from "@/lib/portal/candidateOptions";
 import { isPortalLoginAvailable } from "@/lib/supabase/portalUsersRepo";
 import type { PortalUser } from "@/lib/supabase/portalAuth.types";
 import {
@@ -60,6 +61,8 @@ export function UserFormModal({
   /** Возвращает текст ошибки для показа в форме или null, если всё сохранилось. */
   onSubmit: (values: UserFormSubmit) => Promise<string | null>;
 }) {
+  const { listOptions } = usePortal();
+  const projectOptions = activeListOptions(listOptions, "project").map((o) => o.value);
   const mode = user ? "edit" : "create";
   const [values, setValues] = useState<UserFormValues>(() => initialValues(user));
   const [errors, setErrors] = useState<UserFormErrors>({});
@@ -149,7 +152,7 @@ export function UserFormModal({
     else onClose();
   }
 
-  const allProjectsSelected = values.projects.length === CANDIDATE_PROJECTS.length;
+  const allProjectsSelected = values.projects.length === projectOptions.length;
 
   return (
     <Modal
@@ -258,11 +261,11 @@ export function UserFormModal({
             <button
               type="button"
               className={`${styles.projectChip} ${allProjectsSelected ? styles.projectChipOn : ""}`}
-              onClick={() => set("projects", allProjectsSelected ? [] : [...CANDIDATE_PROJECTS])}
+              onClick={() => set("projects", allProjectsSelected ? [] : [...projectOptions])}
             >
               Все проекты
             </button>
-            {CANDIDATE_PROJECTS.map((project) => (
+            {projectOptions.map((project) => (
               <button
                 key={project}
                 type="button"

@@ -180,9 +180,10 @@ UI (Section/*.tsx)
 (→ `DemandProjectRow` → `DemandCityRow` → `DemandCell`) + `AddDemandModal`.
 Показываются только пары проект+город, по которым уже есть запись за
 видимый период (без полного перекрёстного произведения) — только режим
-«День» реализован, Неделя/Месяц не подключены. Проекты — из enum
-`candidate_project` (тот же источник, что у кандидатов), города — из
-`candidate_list_options` (`type = city`). Каждая строка город+проект
+«День» реализован, Неделя/Месяц не подключены. Проекты — из
+`candidate_list_options` (`type = project`, тот же источник, что у
+кандидатов/адресов/ставок), города — из `candidate_list_options` (`type =
+city`). Каждая строка город+проект
 дополнительно несёт статус и комментарий (`staffing_demand_rows`,
 `DemandRowStatusBadge`/`DemandRowCommentButton` в `DemandCityRow`) — не
 привязаны к дате, не копируются вместе со значениями потребности.
@@ -201,7 +202,7 @@ UI (Section/*.tsx)
 карточка (в отличие от «Потребности» — без матрицы по датам); архив — не
 отдельная страница, а сегментированный переключатель поверх той же таблицы.
 Проект/город/специализация — общие справочники с «Потребностью»/
-«Кандидатами» (`candidate_project`, `candidate_list_options`). Подробности —
+«Кандидатами» (`candidate_list_options`). Подробности —
 [`../../src/components/portal/sections/addresses/README.md`](../../src/components/portal/sections/addresses/README.md).
 
 ## Структура раздела «Ставки»

@@ -6,9 +6,8 @@ import { Button } from "@/components/portal/ui/Button";
 import { Combobox } from "@/components/portal/ui/Combobox";
 import { Modal } from "@/components/portal/ui/Modal";
 import modal from "@/components/portal/ui/Modal.module.css";
-import { activeListOptions, CANDIDATE_PROJECTS } from "@/lib/portal/candidateOptions";
+import { activeListOptions } from "@/lib/portal/candidateOptions";
 import type { AddressInsert, AddressObjectType } from "@/lib/supabase/addresses.types";
-import type { CandidateProject } from "@/lib/supabase/candidates.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import { OBJECT_TYPE_LABELS, OBJECT_TYPES } from "./addressOptions";
 
@@ -27,7 +26,7 @@ export function AddAddressModal({
   onSubmit: (input: AddressInsert) => Promise<boolean>;
 }) {
   const { pushToast, listOptions } = usePortal();
-  const [project, setProject] = useState<CandidateProject>(CANDIDATE_PROJECTS[0]);
+  const [project, setProject] = useState("");
   const [city, setCity] = useState("");
   const [fullAddress, setFullAddress] = useState("");
   const [metro, setMetro] = useState("");
@@ -36,17 +35,18 @@ export function AddAddressModal({
   const [position, setPosition] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const projectOptions = activeListOptions(listOptions, "project").map((o) => o.value);
   const cityOptions = activeListOptions(listOptions, "city").map((o) => o.value);
   const positionOptions = activeListOptions(listOptions, "position").map((o) => o.value);
 
   async function handleSave() {
-    if (!city.trim() || !fullAddress.trim()) {
-      pushToast("Укажите город и полный адрес", "error");
+    if (!project.trim() || !city.trim() || !fullAddress.trim()) {
+      pushToast("Укажите проект, город и полный адрес", "error");
       return;
     }
     setSaving(true);
     const ok = await onSubmit({
-      project,
+      project: project.trim(),
       city: city.trim(),
       full_address: fullAddress.trim(),
       metro: metro.trim() || null,
@@ -75,13 +75,7 @@ export function AddAddressModal({
       <div className={primitives.fieldRow}>
         <div className={primitives.field}>
           <label>Проект</label>
-          <select value={project} onChange={(e) => setProject(e.target.value as CandidateProject)}>
-            {CANDIDATE_PROJECTS.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
+          <Combobox value={project} onChange={setProject} options={projectOptions} />
         </div>
         <div className={primitives.field}>
           <label>Город</label>

@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/portal/ui/Button";
 import { Icon } from "@/components/portal/ui/Icon";
-import { CANDIDATE_PROJECTS } from "@/lib/portal/candidateOptions";
 import { DEMAND_ROW_STATUSES, DEMAND_ROW_STATUS_LABELS, type DemandRowStatus } from "./demandRowMeta";
 import primitives from "@/components/portal/ui/primitives.module.css";
 
@@ -11,6 +10,7 @@ export function DemandToolbar({
   onSearchChange,
   project,
   onProjectChange,
+  projectOptions,
   city,
   onCityChange,
   cityOptions,
@@ -34,6 +34,7 @@ export function DemandToolbar({
   onSearchChange: (value: string) => void;
   project: string;
   onProjectChange: (value: string) => void;
+  projectOptions: string[];
   city: string;
   onCityChange: (value: string) => void;
   cityOptions: string[];
@@ -66,7 +67,7 @@ export function DemandToolbar({
       </div>
       <select className={primitives.select} value={project} onChange={(e) => onProjectChange(e.target.value)}>
         <option value="">Все проекты</option>
-        {CANDIDATE_PROJECTS.map((p) => (
+        {projectOptions.map((p) => (
           <option key={p} value={p}>
             {p}
           </option>

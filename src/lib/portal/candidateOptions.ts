@@ -1,9 +1,8 @@
 import { Constants } from "@/lib/supabase/database.types";
-import type { CandidateProject, CandidateStage } from "@/lib/supabase/candidates.types";
+import type { CandidateStage } from "@/lib/supabase/candidates.types";
 import type { CandidateListOption, CandidateListType } from "@/lib/supabase/candidateListOptions.types";
 import type { BadgeColor } from "@/lib/portal/types";
 
-export const CANDIDATE_PROJECTS: readonly CandidateProject[] = Constants.public.Enums.candidate_project;
 export const CANDIDATE_STAGES: readonly CandidateStage[] = Constants.public.Enums.candidate_stage;
 export const CANDIDATE_LIST_TYPES: readonly CandidateListType[] = Constants.public.Enums.candidate_list_type;
 
@@ -18,7 +17,7 @@ export const LIST_TYPE_LABELS: Record<CandidateListType, string> = {
   coordinator: "Координаторы",
   city: "Города",
   position: "Должности",
-  project: "Проекты (Ставки)",
+  project: "Проекты",
   legal_entity: "Юр. лица (Ставки)",
 };
 

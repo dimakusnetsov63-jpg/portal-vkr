@@ -7,7 +7,7 @@ import { Button } from "@/components/portal/ui/Button";
 import { Combobox } from "@/components/portal/ui/Combobox";
 import { Drawer } from "@/components/portal/ui/Drawer";
 import { Icon } from "@/components/portal/ui/Icon";
-import { activeListOptions, CANDIDATE_PROJECTS } from "@/lib/portal/candidateOptions";
+import { activeListOptions } from "@/lib/portal/candidateOptions";
 import { fmtDateTime } from "@/lib/portal/format";
 import type {
   AddressObjectType,
@@ -127,6 +127,7 @@ export function AddressDrawer({ addressId }: { addressId: string | null }) {
   const [docTitle, setDocTitle] = useState("");
   const [docUrl, setDocUrl] = useState("");
 
+  const projectOptions = activeListOptions(listOptions, "project").map((o) => o.value);
   const cityOptions = activeListOptions(listOptions, "city").map((o) => o.value);
   const positionOptions = activeListOptions(listOptions, "position").map((o) => o.value);
   const coordinatorOptions = activeListOptions(listOptions, "coordinator").map((o) => o.value);
@@ -164,10 +165,10 @@ export function AddressDrawer({ addressId }: { addressId: string | null }) {
 
   async function handleSave() {
     if (!address || !draft) return;
-    if (!draft.city.trim() || !draft.full_address.trim()) return;
+    if (!draft.project.trim() || !draft.city.trim() || !draft.full_address.trim()) return;
     setSaving(true);
     const patch: AddressUpdate = {
-      project: draft.project as AddressUpdate["project"],
+      project: draft.project.trim(),
       city: draft.city.trim(),
       position: draft.position.trim() || null,
       full_address: draft.full_address.trim(),
@@ -257,13 +258,7 @@ export function AddressDrawer({ addressId }: { addressId: string | null }) {
               <div className={primitives.fieldRow}>
                 <div className={primitives.field}>
                   <label>Проект</label>
-                  <select value={draft.project} onChange={(e) => set("project", e.target.value)}>
-                    {CANDIDATE_PROJECTS.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </select>
+                  <Combobox value={draft.project} onChange={(v) => set("project", v)} options={projectOptions} />
                 </div>
                 <div className={primitives.field}>
                   <label>Город</label>

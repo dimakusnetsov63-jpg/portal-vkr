@@ -10,7 +10,6 @@ import { StatCard } from "@/components/portal/ui/StatCard";
 import { EmptyState, ErrorState, SkeletonCards, SkeletonRows } from "@/components/portal/ui/StateViews";
 import {
   activeListOptions,
-  CANDIDATE_PROJECTS,
   CANDIDATE_STAGES,
   medicalBookLabel,
 } from "@/lib/portal/candidateOptions";
@@ -59,6 +58,10 @@ export function CandidatesSection() {
     setVisible(PAGE_SIZE);
   }
 
+  const projectOptions = useMemo(
+    () => activeListOptions(listOptions, "project").map((o) => o.value),
+    [listOptions],
+  );
   const positionOptions = useMemo(
     () => activeListOptions(listOptions, "position").map((o) => o.value),
     [listOptions],
@@ -178,7 +181,7 @@ export function CandidatesSection() {
             }}
           >
             <option value="">Все проекты</option>
-            {CANDIDATE_PROJECTS.map((p) => (
+            {projectOptions.map((p) => (
               <option key={p} value={p}>
                 {p}
               </option>

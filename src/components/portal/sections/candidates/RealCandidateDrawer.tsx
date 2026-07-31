@@ -9,7 +9,6 @@ import { Drawer } from "@/components/portal/ui/Drawer";
 import { Icon } from "@/components/portal/ui/Icon";
 import {
   activeListOptions,
-  CANDIDATE_PROJECTS,
   CANDIDATE_STAGES,
   medicalBookLabel,
   stageColor,
@@ -101,6 +100,7 @@ export function RealCandidateDrawer({ candidateId }: { candidateId: string | nul
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const projectOptions = activeListOptions(listOptions, "project").map((o) => o.value);
   const cityOptions = activeListOptions(listOptions, "city").map((o) => o.value);
   const positionOptions = activeListOptions(listOptions, "position").map((o) => o.value);
   const recruiterOptions = activeListOptions(listOptions, "recruiter").map((o) => o.value);
@@ -123,7 +123,7 @@ export function RealCandidateDrawer({ candidateId }: { candidateId: string | nul
     setSaving(true);
     const patch: CandidateUpdate = {
       full_name: draft.full_name.trim(),
-      project: draft.project as CandidateUpdate["project"],
+      project: draft.project.trim(),
       city: draft.city.trim() || null,
       position: draft.position.trim() || null,
       stage: (draft.stage || null) as CandidateUpdate["stage"],
@@ -185,13 +185,7 @@ export function RealCandidateDrawer({ candidateId }: { candidateId: string | nul
               <div className={primitives.fieldRow}>
                 <div className={primitives.field}>
                   <label>Проект</label>
-                  <select value={draft.project} onChange={(e) => set("project", e.target.value)}>
-                    {CANDIDATE_PROJECTS.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </select>
+                  <Combobox value={draft.project} onChange={(v) => set("project", v)} options={projectOptions} />
                 </div>
                 <div className={primitives.field}>
                   <label>Город</label>

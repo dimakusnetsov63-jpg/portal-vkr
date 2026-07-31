@@ -8,7 +8,7 @@ import { PageHead } from "@/components/portal/ui/PageHead";
 import { Panel } from "@/components/portal/ui/Panel";
 import { EmptyState, ErrorState, SkeletonCards, SkeletonRows } from "@/components/portal/ui/StateViews";
 import styles from "./AddressesSection.module.css";
-import { activeListOptions, CANDIDATE_PROJECTS } from "@/lib/portal/candidateOptions";
+import { activeListOptions } from "@/lib/portal/candidateOptions";
 import type { AddressObjectType, AddressStatus } from "@/lib/supabase/addresses.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import { AddAddressModal } from "./AddAddressModal";
@@ -62,6 +62,7 @@ export function AddressesSection() {
     setFilters(EMPTY_FILTERS);
   }
 
+  const projectOptions = useMemo(() => activeListOptions(listOptions, "project").map((o) => o.value), [listOptions]);
   const cityOptions = useMemo(() => activeListOptions(listOptions, "city").map((o) => o.value), [listOptions]);
   const positionOptions = useMemo(() => activeListOptions(listOptions, "position").map((o) => o.value), [listOptions]);
   const coordinatorOptions = useMemo(
@@ -134,7 +135,7 @@ export function AddressesSection() {
 
           <select className={primitives.select} value={filters.project} onChange={(e) => setFilter("project", e.target.value)}>
             <option value="">Все проекты</option>
-            {CANDIDATE_PROJECTS.map((p) => (
+            {projectOptions.map((p) => (
               <option key={p} value={p}>
                 {p}
               </option>

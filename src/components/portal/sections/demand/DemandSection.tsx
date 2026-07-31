@@ -105,6 +105,7 @@ export function DemandSection() {
     router,
   ]);
 
+  const projectOptions = useMemo(() => activeListOptions(listOptions, "project").map((o) => o.value), [listOptions]);
   const cityOptions = useMemo(() => activeListOptions(listOptions, "city").map((o) => o.value), [listOptions]);
   const positionOptions = useMemo(() => activeListOptions(listOptions, "position").map((o) => o.value), [listOptions]);
 
@@ -207,6 +208,7 @@ export function DemandSection() {
           onSearchChange={setSearch}
           project={projectFilter}
           onProjectChange={setProjectFilter}
+          projectOptions={projectOptions}
           city={cityFilter}
           onCityChange={setCityFilter}
           cityOptions={cityOptions}
