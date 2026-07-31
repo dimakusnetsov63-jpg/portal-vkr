@@ -48,6 +48,7 @@ src/
       candidates/            # раздел «Кандидаты» (real-данные)
       demand/                # раздел «Потребность» (real-данные)
       addresses/             # раздел «Адреса» (real-данные)
+      rates/                 # раздел «Ставки» (real-данные)
       settings/              # раздел «Настройки» (команда, роли, журнал)
   lib/
     auth/                    # roles (матрица прав), session, jwt, middleware
@@ -81,8 +82,9 @@ middleware-файл называется `proxy`). Модель доступа �
 
 `PortalApp` → `PortalProvider` → `PortalShell`. Оболочка: `Sidebar` (навигация),
 `Topbar` (профиль, поиск, командная палитра), `MobileTabBar` (мобильная
-навигация), область контента с активным разделом, все три дровера
-(`CandidateDrawer`, `RealCandidateDrawer`, `AddressDrawer`) и `ToastStack`.
+навигация), область контента с активным разделом, все четыре дровера
+(`CandidateDrawer`, `RealCandidateDrawer`, `AddressDrawer`, `RateDrawer`) и
+`ToastStack`.
 
 ## Контекст
 
@@ -110,6 +112,12 @@ middleware-файл называется `proxy`). Модель доступа �
    `closeAddressDrawer`. Один объект = одна карточка (в отличие от
    «Потребности», без матрицы по датам); дефицит и укомплектованность не
    хранятся — считаются в `addressMetrics.ts`.
+6. **Ставки (Supabase):** `rateCards` + `rates` + CRUD (`addRate`,
+   `saveRate`, `deleteRateRecord`, `saveRateCard`, `deleteRateCardRecord`),
+   `refreshRates`, `selectedRateId` + `openRateDrawer`/`closeRateDrawer`.
+   Два уровня: блок условий (`rate_cards`, «проект+город+юр. лицо») и
+   строка тарифа (`rates`, должность внутри блока, FK с каскадом);
+   join — в `rateMetrics.ts`, доход за смену/неделю/месяц не хранится.
 
 Плюс кросс-раздельное: навигация (`activePage`), тосты, уведомления,
 `currentUser`, `can(permission)`, `signOut`, плотность таблиц.
@@ -132,11 +140,12 @@ middleware-файл называется `proxy`). Модель доступа �
 ## Разделы портала
 
 Переключаются клиентски (`NAV_ITEMS` в `lib/portal/constants.ts`): Обзор,
-Потребность, Адреса, Кандидаты, Описание вакансий, Маркетинг, Аналитика,
-Уведомления, Настройки. На реальные данные Supabase переведены разделы
-**Кандидаты**, **Потребность** и **Адреса** (и справочники в Настройках);
-остальные работают на mock-данных / статических данных (`vacancyData`).
-«Адреса» — единственный раздел, доступный всем четырём ролям (см.
+Потребность, Адреса, Кандидаты, Описание вакансий, Ставки, Маркетинг,
+Аналитика, Уведомления, Настройки. На реальные данные Supabase переведены
+разделы **Кандидаты**, **Потребность**, **Адреса** и **Ставки** (и
+справочники в Настройках); остальные работают на mock-данных / статических
+данных (`vacancyData`). «Адреса» и «Ставки» — единственные разделы,
+доступные всем четырём ролям, вместе с «Уведомлениями» (см.
 [`../requirements/access-control.md`](../requirements/access-control.md)).
 
 ## Data-flow
@@ -195,9 +204,27 @@ UI (Section/*.tsx)
 «Кандидатами» (`candidate_project`, `candidate_list_options`). Подробности —
 [`../../src/components/portal/sections/addresses/README.md`](../../src/components/portal/sections/addresses/README.md).
 
+## Структура раздела «Ставки»
+
+Оркестратор `RatesSection` берёт `rates`/`rateCards` из контекста, сводит их
+в `RateWithCard[]` через `joinRatesWithCards` (`rateMetrics.ts`) — join на
+клиенте, без дополнительных запросов, — прогоняет через чистую `filterRates`
+(поиск сразу по нескольким полям: должность/проект/город/юр. лицо/
+комментарий), считает `calculateRateMetrics`, и композитит `RatesDashboard` +
+`RatesTable` + `AddRateModal`. Карточку рисует `RateDrawer` — одна карточка
+показывает и строку тарифа, и условия её блока (`rate_cards`) с явным
+предупреждением о числе ставок, которые их разделяют. Два уровня хранения,
+не один: блок условий («проект+город+юр. лицо») отдельно от строки тарифа
+(должность внутри блока), связаны настоящим FK с каскадом — в отличие от
+`staffing_demand_rows`, которая связана с `staffing_demand` естественным
+ключом без FK. Доход за смену/неделю/месяц не хранится — считается в
+`rateMetrics.ts` из ставок и графика. Удаление — настоящее (`DELETE`), не
+soft-delete, как у `staffing_demand`. Подробности —
+[`../../src/components/portal/sections/rates/README.md`](../../src/components/portal/sections/rates/README.md).
+
 ## Mock и real-данные
 
-- **Real (Supabase):** кандидаты, справочники списков, потребность, адреса.
+- **Real (Supabase):** кандидаты, справочники списков, потребность, адреса, ставки.
 - **Mock (`lib/portal/generate*.ts`, `constants.ts`):** данные для Обзора,
   Маркетинга, Аналитики и legacy-слоя кандидатов в контексте
   (`generateDemand.ts` тоже остаётся — его использует только

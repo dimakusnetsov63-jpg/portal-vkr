@@ -404,6 +404,178 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_cards: {
+        Row: {
+          bonuses: string | null
+          city: string
+          created_at: string
+          created_by: string | null
+          created_by_login: string | null
+          hiring_conditions: string | null
+          id: string
+          legal_entity: string
+          manager: string | null
+          notes: string | null
+          office_status: string
+          payroll_banks: string[]
+          project: string
+          promotions: string | null
+          surcharges: string | null
+          updated_at: string
+          updated_by: string | null
+          updated_by_login: string | null
+        }
+        Insert: {
+          bonuses?: string | null
+          city: string
+          created_at?: string
+          created_by?: string | null
+          created_by_login?: string | null
+          hiring_conditions?: string | null
+          id?: string
+          legal_entity?: string
+          manager?: string | null
+          notes?: string | null
+          office_status?: string
+          payroll_banks?: string[]
+          project: string
+          promotions?: string | null
+          surcharges?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_login?: string | null
+        }
+        Update: {
+          bonuses?: string | null
+          city?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_login?: string | null
+          hiring_conditions?: string | null
+          id?: string
+          legal_entity?: string
+          manager?: string | null
+          notes?: string | null
+          office_status?: string
+          payroll_banks?: string[]
+          project?: string
+          promotions?: string | null
+          surcharges?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_login?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rate_cards_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rate_cards_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rates: {
+        Row: {
+          comment: string | null
+          created_at: string
+          created_by: string | null
+          created_by_login: string | null
+          extras: Json
+          id: string
+          pieces_per_shift: number | null
+          position: string
+          rate_card_id: string
+          rate_hour: number | null
+          rate_hour_priority: number | null
+          rate_piece: number | null
+          rate_shift: number | null
+          schedule: string | null
+          shift_hours: number
+          sort_order: number
+          surcharge_per_shift: number | null
+          unit: string
+          updated_at: string
+          updated_by: string | null
+          updated_by_login: string | null
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_login?: string | null
+          extras?: Json
+          id?: string
+          pieces_per_shift?: number | null
+          position: string
+          rate_card_id: string
+          rate_hour?: number | null
+          rate_hour_priority?: number | null
+          rate_piece?: number | null
+          rate_shift?: number | null
+          schedule?: string | null
+          shift_hours?: number
+          sort_order?: number
+          surcharge_per_shift?: number | null
+          unit?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_login?: string | null
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_login?: string | null
+          extras?: Json
+          id?: string
+          pieces_per_shift?: number | null
+          position?: string
+          rate_card_id?: string
+          rate_hour?: number | null
+          rate_hour_priority?: number | null
+          rate_piece?: number | null
+          rate_shift?: number | null
+          schedule?: string | null
+          shift_hours?: number
+          sort_order?: number
+          surcharge_per_shift?: number | null
+          unit?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_login?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rates_rate_card_id_fkey"
+            columns: ["rate_card_id"]
+            isOneToOne: false
+            referencedRelation: "rate_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rates_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staffing_demand: {
         Row: {
           city: string
@@ -643,6 +815,8 @@ export type Database = {
         | "coordinator"
         | "city"
         | "position"
+        | "project"
+        | "legal_entity"
       candidate_project:
         | "Самокат"
         | "Купер"
@@ -809,6 +983,8 @@ export const Constants = {
         "coordinator",
         "city",
         "position",
+        "project",
+        "legal_entity",
       ],
       candidate_project: [
         "Самокат",

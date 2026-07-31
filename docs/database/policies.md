@@ -6,7 +6,7 @@
 
 ## Действующая модель
 
-RLS включён на **всех девяти** таблицах схемы `public`. Политики созданы
+RLS включён на **всех одиннадцати** таблицах схемы `public`. Политики созданы
 только для роли `authenticated`; для `anon` политик нет ни на одной таблице —
 неавторизованный доступ запрещён по умолчанию.
 
@@ -37,6 +37,8 @@ create policy "portal_select_staffing_demand"
 | `staffing_demand_rows` | `demand` | ✅ | ✅ | ✅ | ❌ |
 | `staffing_demand_history` | `demand` | ✅ | ❌ | ❌ | ❌ |
 | `addresses` | `addresses` | ✅ | ✅ | ✅ | ❌ |
+| `rate_cards` | `rates` | ✅ | ✅ | ✅ | **✅** |
+| `rates` | `rates` | ✅ | ✅ | ✅ | **✅** |
 | `portal_users` | — | ❌ | ❌ | ❌ | ❌ |
 | `portal_sessions` | — | ❌ | ❌ | ❌ | ❌ |
 | `portal_audit_log` | — | ❌ | ❌ | ❌ | ❌ |
@@ -56,6 +58,11 @@ create policy "portal_select_staffing_demand"
 - **`candidate_list_options`: читают все, правит только «Настройки».**
   Подсказки нужны в карточке кандидата любой роли, а редактируются лишь в
   одном месте.
+- **`rate_cards`/`rates` — вторая пара таблиц с delete-политикой**, вместе
+  со `staffing_demand`. У «Ставок» нет соображений для истории устаревшего
+  тарифа, поэтому удаление — обычный `DELETE`, а не `archived_at`. Доступ ко
+  всем четырём операциям есть у всех четырёх ролей, как у `addresses` —
+  «Ставки» не ограничены по ролям так же строго, как большинство разделов.
 - **`staffing_demand_history` только на чтение** — записи создаются
   исключительно триггерами `log_staffing_demand_change` и
   `log_staffing_demand_rows_change` (`SECURITY DEFINER`).

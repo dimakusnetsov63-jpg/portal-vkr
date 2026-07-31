@@ -1,0 +1,193 @@
+/* Dashboard: 8 stat cards (Всего ставок/Блоков условий/Проектов/Городов/
+   Должностей/Средняя ставка за час/Средний доход за смену/за месяц) */
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
+}
+@media (max-width: 1024px) {
+  .statGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .statGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Table: everything structural lives in primitives.module.css; the section
+   only declares how wide its columns need to be. */
+.table {
+  min-width: 1400px;
+}
+
+/* Drawer — карточка одной ставки и её блока условий. Head and foot are
+   fixed, only the middle scrolls, so «Сохранить»/«Удалить» stay reachable
+   from anywhere in a long form — same layout as AddressDrawer. */
+.drawerHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+.drawerHead h3 {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+}
+.drawerHead p {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+  margin-top: var(--sp-1);
+}
+.drawerBody {
+  padding: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.drawerFoot {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  align-items: center;
+  padding: var(--sp-4) var(--sp-5);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  flex: none;
+}
+.drawerFoot > :first-child {
+  margin-right: auto;
+}
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--border-subtle);
+}
+.section:first-of-type {
+  padding-top: 0;
+  border-top: none;
+}
+.section h4 {
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+}
+.computedNote {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  line-height: var(--lh-snug);
+}
+.commentTextarea {
+  min-height: 64px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border);
+  padding: var(--sp-3);
+  background: var(--surface-2);
+  outline: none;
+  resize: vertical;
+  font: inherit;
+  line-height: var(--lh-base);
+  transition:
+    background-color var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    box-shadow var(--dur-1) var(--ease);
+}
+.commentTextarea:hover {
+  border-color: var(--border-strong);
+}
+.commentTextarea:focus {
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+  background: var(--surface);
+}
+
+.serviceInfo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+  font-size: var(--fs-xs);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: var(--sp-3);
+}
+.serviceInfo > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+@media (max-width: 480px) {
+  .serviceInfo {
+    grid-template-columns: 1fr;
+  }
+}
+
+.featureGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2) var(--sp-4);
+}
+@media (max-width: 480px) {
+  .featureGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.documentList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.documentRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+  transition:
+    background-color var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease);
+}
+.documentRow:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+.documentRow span {
+  font-size: var(--fs-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.documentRow button {
+  flex: none;
+  color: var(--text-3);
+  background: none;
+  border: none;
+  display: flex;
+  padding: var(--sp-1);
+  border-radius: var(--radius-xs);
+  transition:
+    color var(--dur-1) var(--ease),
+    background-color var(--dur-1) var(--ease);
+}
+.documentRow button:hover {
+  color: var(--red);
+  background: var(--red-soft);
+}

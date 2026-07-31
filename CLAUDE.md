@@ -163,7 +163,28 @@
 самой строке (`created_by`/`updated_by`); полноценный аудит — следующая
 задача.
 
-## 6.2. Раздел «Настройки»
+## 6.2. Раздел «Ставки»
+
+`src/components/portal/sections/rates/`: `RatesSection.tsx` (оркестратор —
+фильтры, поиск, данные из контекста), `RatesDashboard.tsx` (8 KPI),
+`RatesTable.tsx`, `AddRateModal.tsx`, `RateDrawer.tsx` (карточка ставки и
+условий её блока), `rateFilters.ts`, `rateMetrics.ts` (join + вычисляемые
+доход за смену/неделю/месяц, чистые, с тестами), `rateOptions.ts`. Детали —
+[`rates/README.md`](src/components/portal/sections/rates/README.md),
+бизнес-правила — [`docs/requirements/rates.md`](docs/requirements/rates.md).
+
+Два уровня хранения: `public.rate_cards` — блок условий «проект + город +
+юр. лицо» (зарплатный проект, бонусы, акции, надбавки, менеджер, работа
+офиса), общий для всех тарифов блока; `public.rates` — строка тарифа по
+должности внутри блока, связана с ним настоящим FK с каскадом
+(`rate_card_id ... on delete cascade`). Раздел доступен всем четырём ролям,
+как «Адреса». Доход за смену/неделю/месяц **не хранится** — считается на
+клиенте из ставок и графика. Удаление — настоящее (`DELETE`), не архив: у
+устаревшего тарифа нет исторической ценности. Список проектов раздела — не
+тот же enum `candidate_project`, что у остальных разделов, а свободный
+текст со справочником `candidate_list_options` (список клиентов шире).
+
+## 6.3. Раздел «Настройки»
 
 `src/components/portal/sections/settings/`: `SettingsSection.tsx`
 (оркестратор), `TeamPanel.tsx` (команда и роли), `UserFormModal.tsx`,
@@ -180,14 +201,15 @@
   `createPortalAuthClient()` (RPC управления пользователями). Оба используют
   только publishable-ключ; `service_role` в коде не используется.
 - **Репозитории:** `candidatesRepo.ts`, `candidateListOptionsRepo.ts`,
-  `staffingDemand*Repo.ts`, `portalUsersRepo.ts`, `addressesRepo.ts` — вся
-  работа с БД, возвращают типы.
+  `staffingDemand*Repo.ts`, `portalUsersRepo.ts`, `addressesRepo.ts`,
+  `ratesRepo.ts` — вся работа с БД, возвращают типы.
 - **Типы:** `candidates.types.ts`, `candidateListOptions.types.ts`,
-  `addresses.types.ts` и др. выведены из `database.types.ts` (у `addresses`
-  поле `document_links` переопределено поверх сгенерированного `Json`, см.
-  комментарий в файле). Исключение — `portalAuth.types.ts`: описывает не
-  таблицы (закрыты RLS полностью), а типизированный RPC-клиент, поэтому
-  написан руками отдельно от `Database`.
+  `addresses.types.ts`, `rates.types.ts` и др. выведены из
+  `database.types.ts` (у `addresses` поле `document_links`, у `rates` поле
+  `extras` переопределены поверх сгенерированного `Json`, см. комментарий в
+  файле). Исключение — `portalAuth.types.ts`: описывает не таблицы (закрыты
+  RLS полностью), а типизированный RPC-клиент, поэтому написан руками
+  отдельно от `Database`.
 - **Миграции:** `supabase/migrations/*.sql` — источник истины для схемы.
 - **Env (в `.env.local`, НЕ коммитить):** `NEXT_PUBLIC_SUPABASE_URL`,
   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_JWT_SECRET` (серверная,

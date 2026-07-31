@@ -66,6 +66,10 @@ npx supabase db query --linked "select conname, pg_get_constraintdef(oid) from p
 | `20260729130000_create_addresses.sql` | Таблица `addresses` (раздел «Адреса»), text+CHECK вместо enum для `object_type`/`status`/`schedule_type`/`shift_type`/`payment_type`, индексы, триггер `set_addresses_audit_fields()` (`created_by`/`updated_by` + снимок логина) |
 | `20260729130100_addresses_rls_policies.sql` | RLS-политики `addresses` (`select`/`insert`/`update` на `portal_can('addresses')`, без `delete` — soft-delete как у `candidates`) |
 | `20260729130200_update_portal_role_sections_addresses.sql` | Добавляет `'addresses'` во все четыре роли в `portal_role_sections()` — раздел видят все, в отличие от большинства |
+| `20260731100000_rates_list_types.sql` | Значения `project`/`legal_entity` в enum `candidate_list_type` (раздельно от следующей миграции — новое значение enum нельзя использовать в той же транзакции) |
+| `20260731100100_create_rates.sql` | Таблицы `rate_cards` (блок условий) и `rates` (строка тарифа, FK `rate_card_id ... on delete cascade`), text+CHECK для `unit`/`schedule`/`office_status`, индексы, общий триггер `set_rates_audit_fields()`, засев 25 проектов и 11 юр. лиц в `candidate_list_options` |
+| `20260731100200_rates_rls_policies.sql` | RLS-политики `rate_cards`/`rates` (`select`/`insert`/`update`/**`delete`** на `portal_can('rates')` — настоящий `delete`, как у `staffing_demand`, не soft-delete) |
+| `20260731100300_update_portal_role_sections_rates.sql` | Добавляет `'rates'` во все четыре роли в `portal_role_sections()` — раздел видят все, как «Адреса» |
 
 ## Миграция `20260728120000_portal_auth.sql`: что учесть при применении
 
@@ -125,7 +129,14 @@ npx supabase db query --linked "select conname, pg_get_constraintdef(oid) from p
 - ограничений длины у текстовых полей;
 - партиционирования и политики хранения для растущей `staffing_demand_history`.
 
-`20260729130000_create_addresses.sql` (и две последующие), как и
-`20260728120000_portal_auth.sql`, **применены к боевой БД**;
-`database.types.ts` регенерирован — `addresses` и `portal_users`/
-`portal_sessions`/`portal_audit_log` в нём отражены (см. `schema.md`).
+`20260729130000_create_addresses.sql` (и две последующие), `20260728120000_portal_auth.sql`
+и `20260731100000_rates_list_types.sql`…`20260731100300_update_portal_role_sections_rates.sql`
+**применены к боевой БД**; `database.types.ts` регенерирован — `addresses`,
+`rate_cards`/`rates` и `portal_users`/`portal_sessions`/`portal_audit_log` в
+нём отражены (см. `schema.md`).
+
+Технически применены не через `supabase db push` (в среде разработки
+заблокирован прямой Postgres-протокол, порты 5432/6543 — доходит только
+HTTPS до Management API), а вручную через SQL Editor Supabase, с ручной
+регистрацией версий в `supabase_migrations.schema_migrations` — файлы
+миграций от этого не отличаются от применённых штатным способом.

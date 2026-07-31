@@ -98,6 +98,7 @@ export type PortalPage =
   | "addresses"
   | "candidates"
   | "vacancies"
+  | "rates"
   | "marketing"
   | "analytics"
   | "notifications"

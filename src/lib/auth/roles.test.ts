@@ -16,6 +16,7 @@ describe("canAccess — минимальные права из ТЗ", () => {
       "addresses",
       "candidates",
       "vacancies",
+      "rates",
       "marketing",
       "analytics",
       "notifications",
@@ -34,12 +35,14 @@ describe("canAccess — минимальные права из ТЗ", () => {
     expect(canAccess("manager", "marketing")).toBe(false);
     expect(canAccess("manager", "analytics")).toBe(false);
     expect(canAccess("manager", "demand")).toBe(true);
+    expect(canAccess("manager", "rates")).toBe(true);
   });
 
-  it("оставляет рекрутеру только адреса, кандидатов, описание вакансий и уведомления", () => {
+  it("оставляет рекрутеру только адреса, кандидатов, описание вакансий, ставки и уведомления", () => {
     expect(canAccess("recruiter", "addresses")).toBe(true);
     expect(canAccess("recruiter", "candidates")).toBe(true);
     expect(canAccess("recruiter", "vacancies")).toBe(true);
+    expect(canAccess("recruiter", "rates")).toBe(true);
     expect(canAccess("recruiter", "overview")).toBe(false);
     expect(canAccess("recruiter", "demand")).toBe(false);
     expect(canAccess("recruiter", "marketing")).toBe(false);
@@ -48,9 +51,11 @@ describe("canAccess — минимальные права из ТЗ", () => {
     expect(canAccess("recruiter", "users")).toBe(false);
   });
 
-  it("даёт «Адреса» всем четырём ролям, в отличие от большинства разделов", () => {
+  it("даёт «Адреса» и «Ставки» всем четырём ролям, в отличие от большинства разделов", () => {
     const withAddresses = PORTAL_ROLES.filter((role) => canAccess(role, "addresses"));
     expect(withAddresses).toEqual([...PORTAL_ROLES]);
+    const withRates = PORTAL_ROLES.filter((role) => canAccess(role, "rates"));
+    expect(withRates).toEqual([...PORTAL_ROLES]);
   });
 
   it("отдаёт управление пользователями только руководителю", () => {

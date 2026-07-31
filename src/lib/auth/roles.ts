@@ -38,16 +38,18 @@ const SECTION_ORDER: PortalPage[] = [
   "addresses",
   "candidates",
   "vacancies",
+  "rates",
   "marketing",
   "analytics",
   "notifications",
   "settings",
 ];
 
-// "Адреса" — единственный раздел, который видят все четыре роли (в отличие
-// от остальных, которые ограничены по ролям): координатору, менеджеру и
-// рекрутеру он нужен так же, как руководителю. См.
-// docs/requirements/addresses.md.
+// "Адреса", "Ставки" и "Уведомления" — единственные разделы, которые видят
+// все четыре роли (в отличие от остальных, которые ограничены по ролям):
+// рекрутёру нужно называть кандидату актуальную ставку так же, как
+// координатору и менеджеру — сверять её с условиями клиента. См.
+// docs/requirements/addresses.md и docs/requirements/rates.md.
 const ROLE_PERMISSIONS: Record<PortalRole, readonly PortalPermission[]> = {
   head: [...SECTION_ORDER, "users"],
   coordinator: [
@@ -56,13 +58,14 @@ const ROLE_PERMISSIONS: Record<PortalRole, readonly PortalPermission[]> = {
     "addresses",
     "candidates",
     "vacancies",
+    "rates",
     "marketing",
     "analytics",
     "notifications",
     "settings",
   ],
-  manager: ["overview", "demand", "addresses", "candidates", "vacancies", "notifications"],
-  recruiter: ["addresses", "candidates", "vacancies", "notifications"],
+  manager: ["overview", "demand", "addresses", "candidates", "vacancies", "rates", "notifications"],
+  recruiter: ["addresses", "candidates", "vacancies", "rates", "notifications"],
 };
 
 export function isPortalRole(value: unknown): value is PortalRole {

@@ -66,6 +66,17 @@ import {
   updateAddress,
 } from "@/lib/supabase/addressesRepo";
 import type { AddressInsert, AddressRow, AddressUpdate } from "@/lib/supabase/addresses.types";
+import {
+  createRate,
+  deleteRate,
+  deleteRateCard,
+  findOrCreateRateCard,
+  listRateCards,
+  listRates,
+  updateRate,
+  updateRateCard,
+} from "@/lib/supabase/ratesRepo";
+import type { RateCardRow, RateCardUpdate, RateInsert, RateRow, RateUpdate } from "@/lib/supabase/rates.types";
 
 const staffRng = createRng(20260722);
 
@@ -176,6 +187,26 @@ interface PortalContextValue {
   selectedAddressId: string | null;
   openAddressDrawer: (id: string) => void;
   closeAddressDrawer: () => void;
+
+  rateCards: RateCardRow[];
+  rates: RateRow[];
+  ratesLoading: boolean;
+  ratesError: string | null;
+  refreshRates: () => Promise<void>;
+  addRate: (input: {
+    project: string;
+    city: string;
+    legalEntity: string;
+    rate: Omit<RateInsert, "rate_card_id">;
+  }) => Promise<boolean>;
+  saveRate: (id: string, patch: RateUpdate) => Promise<boolean>;
+  deleteRateRecord: (id: string) => Promise<boolean>;
+  saveRateCard: (id: string, patch: RateCardUpdate) => Promise<boolean>;
+  deleteRateCardRecord: (id: string) => Promise<boolean>;
+
+  selectedRateId: string | null;
+  openRateDrawer: (id: string) => void;
+  closeRateDrawer: () => void;
 }
 
 export interface ContextAction {
@@ -230,6 +261,12 @@ export function PortalProvider({
   const [addressesLoading, setAddressesLoading] = useState(true);
   const [addressesError, setAddressesError] = useState<string | null>(null);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+
+  const [rateCards, setRateCards] = useState<RateCardRow[]>([]);
+  const [rates, setRates] = useState<RateRow[]>([]);
+  const [ratesLoading, setRatesLoading] = useState(true);
+  const [ratesError, setRatesError] = useState<string | null>(null);
+  const [selectedRateId, setSelectedRateId] = useState<string | null>(null);
 
   const can = useCallback(
     (permission: PortalPermission) => canAccess(currentUser.role, permission),
@@ -809,6 +846,114 @@ export function PortalProvider({
     [addresses, pushToast, openAddressDrawer],
   );
 
+  const refreshRates = useCallback(async () => {
+    setRatesLoading(true);
+    setRatesError(null);
+    try {
+      // Один раунд-трип на каждую таблицу раздела, без запроса на карточку
+      // (N+1) — группировка ставок по rate_card_id происходит на клиенте.
+      const [cards, rows] = await Promise.all([listRateCards(), listRates()]);
+      setRateCards(cards);
+      setRates(rows);
+    } catch (e) {
+      setRatesError(e instanceof Error ? e.message : "Не удалось загрузить ставки");
+    } finally {
+      setRatesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data load on mount
+    refreshRates();
+  }, [refreshRates]);
+
+  const addRate = useCallback(
+    async (input: {
+      project: string;
+      city: string;
+      legalEntity: string;
+      rate: Omit<RateInsert, "rate_card_id">;
+    }) => {
+      try {
+        const card = await findOrCreateRateCard(input.project, input.city, input.legalEntity);
+        const created = await createRate({ ...input.rate, rate_card_id: card.id });
+        setRateCards((prev) => (prev.some((c) => c.id === card.id) ? prev : [card, ...prev]));
+        setRates((prev) => [created, ...prev]);
+        pushToast("Ставка добавлена");
+        return true;
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось добавить ставку", "error");
+        return false;
+      }
+    },
+    [pushToast],
+  );
+
+  const saveRate = useCallback(
+    async (id: string, patch: RateUpdate) => {
+      try {
+        const updated = await updateRate(id, patch);
+        setRates((prev) => prev.map((r) => (r.id === id ? updated : r)));
+        pushToast("Изменения сохранены");
+        return true;
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось сохранить изменения", "error");
+        return false;
+      }
+    },
+    [pushToast],
+  );
+
+  const deleteRateRecord = useCallback(
+    async (id: string) => {
+      try {
+        await deleteRate(id);
+        setRates((prev) => prev.filter((r) => r.id !== id));
+        pushToast("Ставка удалена");
+        return true;
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось удалить ставку", "error");
+        return false;
+      }
+    },
+    [pushToast],
+  );
+
+  const saveRateCard = useCallback(
+    async (id: string, patch: RateCardUpdate) => {
+      try {
+        const updated = await updateRateCard(id, patch);
+        setRateCards((prev) => prev.map((c) => (c.id === id ? updated : c)));
+        pushToast("Условия сохранены");
+        return true;
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось сохранить условия", "error");
+        return false;
+      }
+    },
+    [pushToast],
+  );
+
+  const deleteRateCardRecord = useCallback(
+    async (id: string) => {
+      try {
+        await deleteRateCard(id);
+        // Каскад в БД удаляет и строки тарифов блока — синхронизируем локально так же.
+        setRateCards((prev) => prev.filter((c) => c.id !== id));
+        setRates((prev) => prev.filter((r) => r.rate_card_id !== id));
+        pushToast("Блок условий удалён");
+        return true;
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось удалить блок условий", "error");
+        return false;
+      }
+    },
+    [pushToast],
+  );
+
+  const openRateDrawer = useCallback((id: string) => setSelectedRateId(id), []);
+  const closeRateDrawer = useCallback(() => setSelectedRateId(null), []);
+
   const markNotificationRead = useCallback((id: number) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   }, []);
@@ -896,6 +1041,19 @@ export function PortalProvider({
       selectedAddressId,
       openAddressDrawer,
       closeAddressDrawer,
+      rateCards,
+      rates,
+      ratesLoading,
+      ratesError,
+      refreshRates,
+      addRate,
+      saveRate,
+      deleteRateRecord,
+      saveRateCard,
+      deleteRateCardRecord,
+      selectedRateId,
+      openRateDrawer,
+      closeRateDrawer,
     }),
     [
       activePage,
@@ -967,6 +1125,19 @@ export function PortalProvider({
       selectedAddressId,
       openAddressDrawer,
       closeAddressDrawer,
+      rateCards,
+      rates,
+      ratesLoading,
+      ratesError,
+      refreshRates,
+      addRate,
+      saveRate,
+      deleteRateRecord,
+      saveRateCard,
+      deleteRateCardRecord,
+      selectedRateId,
+      openRateDrawer,
+      closeRateDrawer,
     ],
   );
 

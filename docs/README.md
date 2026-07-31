@@ -43,6 +43,7 @@
 | [`addresses.md`](requirements/addresses.md) | Адреса: карточка объекта, KPI, вычисляемые показатели, ограничения |
 | [`candidates.md`](requirements/candidates.md) | Кандидаты: модель, стадии, правила метрик |
 | [`vacancies.md`](requirements/vacancies.md) | Описание вакансий (статические данные) |
+| [`rates.md`](requirements/rates.md) | Ставки: тарифы по проекту/городу/юр. лицу/должности, доход за смену/неделю/месяц |
 | [`analytics.md`](requirements/analytics.md) | Аналитика (демонстрационный раздел) |
 
 ### Архитектура — [`architecture/`](architecture/)
@@ -75,6 +76,8 @@
 |---|---|
 | [`current.md`](tasks/current.md) | Активные задачи |
 | [`TASK-006-ui-polish.md`](tasks/TASK-006-ui-polish.md) | Визуальный рефакторинг: токены, состояния, таблицы, дроверы |
+| [`TASK-007-bulk-clear.md`](tasks/TASK-007-bulk-clear.md) | Массовая очистка потребности |
+| [`TASK-008-rates.md`](tasks/TASK-008-rates.md) | Раздел «Ставки»: тарифы по проекту/городу/юр. лицу/должности |
 | [`backlog.md`](tasks/backlog.md) | Отложенное, с приоритетами и оценками |
 | [`completed.md`](tasks/completed.md) | Завершённое, с коммитами |
 | [`TEMPLATE.md`](tasks/TEMPLATE.md) | Шаблон технического задания |
@@ -99,6 +102,7 @@
 [`sections/demand/README.md`](../src/components/portal/sections/demand/README.md),
 [`sections/addresses/README.md`](../src/components/portal/sections/addresses/README.md),
 [`sections/candidates/README.md`](../src/components/portal/sections/candidates/README.md),
+[`sections/rates/README.md`](../src/components/portal/sections/rates/README.md),
 [`sections/settings/README.md`](../src/components/portal/sections/settings/README.md).
 
 ## Текущее состояние проекта
@@ -106,11 +110,13 @@
 Чтобы не создавать ложных ожиданий:
 
 - На реальных данных Supabase работают **Потребность**, **Адреса**,
-  **Кандидаты**, а в **Настройках** — справочники, команда и роли, журнал
-  действий. У «Адресов» пока нет полноценной построчной истории изменений
-  (как у «Потребности») — только снимок «кто/когда» в самой строке;
-  документы — только внешние ссылки, без загрузки файлов (в проекте нет
-  Supabase Storage).
+  **Кандидаты**, **Ставки**, а в **Настройках** — справочники, команда и
+  роли, журнал действий. У «Адресов» и «Ставок» пока нет полноценной
+  построчной истории изменений (как у «Потребности») — только снимок
+  «кто/когда» в самой строке; у «Адресов» документы — только внешние
+  ссылки, без загрузки файлов (в проекте нет Supabase Storage). У «Ставок»
+  список проектов — свободный текст со справочником, не тот же enum, что у
+  «Кандидатов»/«Потребности»/«Адресов» (см. `requirements/rates.md`).
 - Разделы **Обзор**, **Маркетинг**, **Аналитика** работают на сгенерированных
   данных; **Описание вакансий** — на статических из Excel. Цифры там
   демонстрационные.

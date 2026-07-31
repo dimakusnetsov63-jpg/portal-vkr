@@ -18,6 +18,8 @@ export const LIST_TYPE_LABELS: Record<CandidateListType, string> = {
   coordinator: "Координаторы",
   city: "Города",
   position: "Должности",
+  project: "Проекты (Ставки)",
+  legal_entity: "Юр. лица (Ставки)",
 };
 
 const STAGE_COLORS: Record<CandidateStage, BadgeColor> = {

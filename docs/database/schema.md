@@ -10,14 +10,17 @@
 
 ## Таблицы
 
-Подтверждены девять таблиц в схеме `public`: `candidates`,
+Подтверждены одиннадцать таблиц в схеме `public`: `candidates`,
 `candidate_list_options`, `staffing_demand`, `staffing_demand_rows`,
-`staffing_demand_history`, `addresses` и три таблицы встроенной авторизации —
-`portal_users`, `portal_sessions`, `portal_audit_log`.
+`staffing_demand_history`, `addresses`, `rate_cards`, `rates` и три таблицы
+встроенной авторизации — `portal_users`, `portal_sessions`,
+`portal_audit_log`.
 
-`addresses` (миграция `20260729130000_create_addresses.sql` + две последующие)
-и встроенная авторизация (`20260728120000_portal_auth.sql`) применены к
-боевой БД, `database.types.ts` регенерирован — обе таблицы отражены в нём.
+`addresses` (миграция `20260729130000_create_addresses.sql` + две последующие),
+`rate_cards`/`rates` (миграции `20260731100000`…`20260731100300`, см.
+[`migrations.md`](migrations.md)) и встроенная авторизация
+(`20260728120000_portal_auth.sql`) применены к боевой БД, `database.types.ts`
+регенерирован — все три отражены в нём.
 
 Схема `auth` Supabase **больше не используется**: с июля 2026 портал ведёт
 пользователей сам (см. [ADR-004](../architecture/decisions/ADR-004-portal-auth.md)).
@@ -260,6 +263,81 @@ city + position + свежие сверху).
 сделана** — только снимок «кто/когда создал/изменил» в самой строке
 (`created_by*`/`updated_by*` выше). Следующая задача.
 
+### `public.rate_cards`
+
+Блок условий раздела «Ставки»: проект + город + юр. лицо. Зарплатные
+проекты, бонусы, акции, надбавки, условия оформления, менеджер, работа
+офиса — хранятся **один раз на блок** и общие для всех его ставок
+(`public.rates`). Структура снята с рабочей таблицы «ВКР Потребность.xlsx»,
+где эти же условия заданы объединёнными ячейками на группу строк.
+
+| Поле | Тип | Null | Примечание |
+|------|-----|------|-----------|
+| `id` | uuid | not null | PK, `gen_random_uuid()` |
+| `project` | text | **not null** | Свободный текст, подсказки — `candidate_list_options` (`list_type = project`). **Не** enum `candidate_project` — список клиентов «Ставок» шире (30+ против 12) |
+| `city` | text | **not null** | Подсказки — `candidate_list_options` (`city`), тот же справочник, что у остальных разделов |
+| `legal_entity` | text | **not null** | `default ''`; пустая строка = не указано. Не NULL, потому что поле входит в `unique (project, city, legal_entity)`, а NULL с NULL в уникальном индексе не конфликтует |
+| `payroll_banks` | text[] | **not null** | `default '{}'`; слаги банков зарплатного проекта, подписи только в `rateOptions.ts` |
+| `bonuses` / `promotions` / `surcharges` / `hiring_conditions` / `notes` | text | nullable | `check (char_length <= 4000)` на каждом |
+| `manager` | text | nullable | Подсказки — `candidate_list_options` (`manager`) |
+| `office_status` | text | **not null** | `default 'unknown'`; `check in ('working','not_working','unknown')` |
+| `created_at` / `updated_at` | timestamptz | not null | `default now()`, поддерживаются триггером `set_rates_audit_fields()` |
+| `created_by` / `updated_by` | uuid | nullable | `references portal_users(id) on delete set null` |
+| `created_by_login` / `updated_by_login` | text | nullable | Текстовый снимок логина на момент записи — `portal_users` закрыта RLS, `join` из клиента не сработает |
+
+**Ограничение:** `unique (project, city, legal_entity)`. **Индексы:** по
+`project`, `city`, `legal_entity`, `manager`, `office_status`.
+
+**Триггер:** `trg_rate_cards_set_audit_fields` — своя функция
+`set_rates_audit_fields()` (`security definer`, та же логика, что
+`set_addresses_audit_fields()`), общая с `public.rates`.
+
+### `public.rates`
+
+Строка тарифа раздела «Ставки»: должность внутри блока `public.rate_cards`.
+Связь — настоящий внешний ключ с каскадом (`rate_card_id ... on delete
+cascade`), а не естественный ключ без FK, как у `staffing_demand_rows`:
+переименование города в блоке не должно отцеплять от него строки, а
+удаление блока не должно оставлять сирот.
+
+| Поле | Тип | Null | Примечание |
+|------|-----|------|-----------|
+| `id` | uuid | not null | PK, `gen_random_uuid()` |
+| `rate_card_id` | uuid | **not null** | FK → `rate_cards(id)`, **`on delete cascade`** |
+| `position` | text | **not null** | Свободный текст, подсказки — `candidate_list_options` (`position`), тот же справочник, что у «Потребности»/«Кандидатов»/«Адресов» |
+| `unit` | text | **not null** | `default 'hour'`; `check in ('hour','hour_order','hour_item','order','stop','shift','day','route')` |
+| `rate_hour` / `rate_hour_priority` | numeric | nullable | `check (>= 0)`. Основная/приоритетная ставки за час — в Excel это одна колонка вида «235/255» |
+| `rate_piece` | numeric | nullable | `check (>= 0)`; ставка за единицу — что считать единицей, задаёт `unit` |
+| `pieces_per_shift` | numeric | nullable | `check (>= 0)`; единиц за смену |
+| `rate_shift` | numeric | nullable | `check (>= 0)`; фиксированная оплата за смену/сутки/маршрут |
+| `shift_hours` | numeric | **not null** | `default 12`; `check (> 0 and <= 24)` |
+| `surcharge_per_shift` | numeric | nullable | `check (>= 0)`; средняя сумма надбавок за смену — вводимое значение, не расчёт |
+| `schedule` | text | nullable | `check in ('2/2','3/3','5/2','6/1','7/0','flexible','parttime')` — тот же набор значений, что `addresses.schedule_type`, но отдельное поле |
+| `extras` | jsonb | **not null** | `default '[]'`; массив `{id, label, value}` — показатели, специфичные для отдельных клиентов (SLA-стопы, доплата за вес, топливная карта…) |
+| `comment` | text | nullable | `check (char_length <= 4000)` |
+| `sort_order` | integer | **not null** | `default 0`; порядок должностей внутри блока |
+| `created_at` / `updated_at` | timestamptz | not null | `default now()`, поддерживаются триггером `set_rates_audit_fields()` |
+| `created_by` / `updated_by` | uuid | nullable | `references portal_users(id) on delete set null` |
+| `created_by_login` / `updated_by_login` | text | nullable | Как у `rate_cards` |
+
+**Ограничение:** `unique (rate_card_id, position)`. **Индексы:** по
+`rate_card_id`, `position`, `unit`; GIN trigram по `position` для поиска
+(расширение `pg_trgm` уже включено миграцией `candidates`).
+
+**Триггер:** `trg_rates_set_audit_fields` — та же функция
+`set_rates_audit_fields()`, что у `rate_cards`.
+
+**Доход за смену/неделю/месяц — не колонки.** Считаются в TS из тарифных
+полей и графика (`rateMetrics.ts`): `за смену = ставка_за_час × часов +
+ставка_за_единицу × единиц + фиксированная_оплата + средняя_надбавка`;
+неделя/месяц — то же × среднее число смен для графика (модель усреднённая,
+не воспроизводит индивидуальные множители исходной таблицы Excel — см.
+`requirements/rates.md`). Для `flexible`/`parttime` неделя/месяц не
+считаются вовсе (`null`, не `0`).
+
+**Удаляется физически** (не soft-delete) — как `staffing_demand`, у
+«Ставок» нет исторической ценности в устаревшем тарифе.
+
 ### `public.portal_users`
 
 Учётные записи портала. Создаются только через интерфейс («Настройки →
@@ -336,7 +414,7 @@ enum'ом `candidate_project` и может расширяться незави�
 |------|----------|
 | `candidate_project` | Самокат, Купер, ДонатсКофе, Яндекс Лавка, Яндекс РБ, Газпромнефть, Евроторг, Мастер Деливери, Мастер Деливери Таксопарк, Азбука вкуса, Бургер кинг Россия, Далли (12) |
 | `candidate_stage` | Прибыл на проект, Отработал 1 смену, Отработал 10 смен, Завершил вахту (4) |
-| `candidate_list_type` | recruiter, manager, coordinator, city, position (5) |
+| `candidate_list_type` | recruiter, manager, coordinator, city, position, project, legal_entity (7) |
 | `staffing_demand_history_action` | insert, update, delete (3) |
 | `portal_user_role` | head, coordinator, manager, recruiter (4) |
 | `portal_audit_action` | user_created, user_updated, user_role_changed, user_password_changed, user_activated, user_deactivated, login_success, login_failed, logout (9) |
@@ -359,6 +437,9 @@ enum'ом `candidate_project` и может расширяться незави�
   исключение из общего правила soft-delete, см. раздел таблицы выше.
 - **Адреса (`addresses`) не удаляются физически** — soft-delete через
   `archived_at`, как `candidates`.
+- **Ставки (`rate_cards`/`rates`) удаляются физически** — как
+  `staffing_demand`, без исторической ценности в устаревшем тарифе.
+  Удаление `rate_cards` каскадом удаляет и все `rates` этого блока.
 - **Метаданные строки (`staffing_demand_rows`) не удаляются вовсе** —
   только `UPDATE` статуса/комментария, delete-политики нет.
 - **История (`staffing_demand_history`) только пишется** — `insert`
@@ -397,13 +478,23 @@ enum'ом `candidate_project` и может расширяться незави�
   `restoreAddress` (обёртка над `updateAddress` с `archived_at`, как
   `candidatesRepo`). Дублирование адреса — не отдельная функция репозитория,
   а логика в `PortalContext.duplicateAddressRecord`.
+- [`ratesRepo.ts`](../../src/lib/supabase/ratesRepo.ts): `listRateCards`,
+  `listRates`, `findOrCreateRateCard` (race-safe `upsert` с
+  `ignoreDuplicates` по `unique (project, city, legal_entity)`, затем
+  чтение по естественному ключу), `updateRateCard`, `deleteRateCard`,
+  `createRate`, `updateRate`, `deleteRate`. Единственный репозиторий, где
+  есть настоящая функция удаления (не soft-delete-обёртка).
 
 Типы: [`candidates.types.ts`](../../src/lib/supabase/candidates.types.ts),
 [`candidateListOptions.types.ts`](../../src/lib/supabase/candidateListOptions.types.ts),
 [`staffingDemand.types.ts`](../../src/lib/supabase/staffingDemand.types.ts),
 [`staffingDemandRows.types.ts`](../../src/lib/supabase/staffingDemandRows.types.ts),
-[`staffingDemandHistory.types.ts`](../../src/lib/supabase/staffingDemandHistory.types.ts)
-— выведены из `database.types.ts` (`Row`/`Insert`/`Update`/`Enums`).
+[`staffingDemandHistory.types.ts`](../../src/lib/supabase/staffingDemandHistory.types.ts),
+[`rates.types.ts`](../../src/lib/supabase/rates.types.ts)
+— выведены из `database.types.ts` (`Row`/`Insert`/`Update`/`Enums`), кроме
+поля `rates.extras` (в сгенерированном типе `Json`, приложение
+переопределяет его до `{id, label, value}[]` — тот же приём, что
+`addresses.document_links`).
 
 [`portalAuth.types.ts`](../../src/lib/supabase/portalAuth.types.ts) — всё ещё
 **написан руками**, хотя `20260728120000` уже применена и `portal_users`/

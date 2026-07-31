@@ -13,7 +13,7 @@
 | E2E | **отсутствует** | — |
 | CI | **отсутствует** | — |
 
-На момент написания: 14 файлов тестов, 170 проверок, все проходят.
+На момент написания: 16 файлов тестов, 186 проверок, все проходят.
 
 Это осознанный компромисс, а не забывчивость: чистая логика даёт наибольший
 возврат на вложенное время, а компонентные тесты потребовали бы jsdom +
@@ -29,8 +29,12 @@ Testing Library и поддержки моков Supabase. Но **важно п�
 - `demandAggregate.ts` — сборка матрицы, список видимых строк, bulk-строки,
   фильтрация групп по предикату ячейки;
 - `demandMetrics.ts` — итоги по должности / городу / проекту / колонке / периоду;
-- `demandFilters.ts`, `candidateFilters.ts`, `addressFilters.ts` — фильтрация;
-- `candidateMetrics.ts`, `addressMetrics.ts` — метрики выборки;
+- `demandFilters.ts`, `candidateFilters.ts`, `addressFilters.ts`,
+  `rateFilters.ts` — фильтрация (`rateFilters.ts` — над уже соединённым
+  `RateWithCard[]`);
+- `candidateMetrics.ts`, `addressMetrics.ts`, `rateMetrics.ts` — метрики
+  выборки (`rateMetrics.ts` — ещё и join `rates`+`rate_cards`, вычисляемый
+  доход за смену/неделю/месяц);
 - `demandRowMeta.ts` — статусы, слияние патчей, композитные ключи;
 - `demandQueryParams.ts` — сериализация состояния в URL;
 - `demandCellEdit.ts` — решение о том, что делать с введённым значением;

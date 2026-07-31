@@ -12,6 +12,7 @@ import { AddressesSection, AddressDrawer } from "@/components/portal/sections/ad
 import { CandidatesSection, RealCandidateDrawer } from "@/components/portal/sections/candidates";
 import { CandidateDrawer } from "@/components/portal/sections/CandidateDrawer";
 import { VacanciesSection } from "@/components/portal/sections/VacanciesSection";
+import { RatesSection, RateDrawer } from "@/components/portal/sections/rates";
 import { MarketingSection } from "@/components/portal/sections/MarketingSection";
 import { AnalyticsSection } from "@/components/portal/sections/AnalyticsSection";
 import { NotificationsSection } from "@/components/portal/sections/NotificationsSection";
@@ -45,6 +46,8 @@ function ActiveSection() {
       return <CandidatesSection />;
     case "vacancies":
       return <VacanciesSection />;
+    case "rates":
+      return <RatesSection />;
     case "marketing":
       return <MarketingSection />;
     case "analytics":
@@ -59,7 +62,7 @@ function ActiveSection() {
 }
 
 function PortalShell() {
-  const { activePage, selectedCandidateId, selectedRealCandidateId, selectedAddressId } = usePortal();
+  const { activePage, selectedCandidateId, selectedRealCandidateId, selectedAddressId, selectedRateId } = usePortal();
   return (
     <div className={styles.app}>
       <Sidebar />
@@ -73,6 +76,7 @@ function PortalShell() {
       <CandidateDrawer candidateId={selectedCandidateId} />
       <RealCandidateDrawer candidateId={selectedRealCandidateId} />
       <AddressDrawer addressId={selectedAddressId} />
+      <RateDrawer rateId={selectedRateId} />
       <ToastStack />
     </div>
   );
