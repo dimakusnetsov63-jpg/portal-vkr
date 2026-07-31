@@ -50,9 +50,67 @@ const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
 ];
 
+/**
+ * Origin Supabase для `connect-src`.
+ *
+ * Точный хост, а не `https://*.supabase.co`: wildcard разрешил бы соединение
+ * с любым чужим проектом Supabase, то есть при наличии XSS дал бы готовый
+ * канал эксфильтрации. Значение и так публично — оно приходит из
+ * `NEXT_PUBLIC_*` и лежит в клиентском бандле.
+ *
+ * Fallback на wildcard нужен, чтобы сборка не падала там, где переменная не
+ * задана (например, при анализе бандла в чистом окружении): CSP тогда просто
+ * менее строгая, а не сломанная.
+ */
+const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL
+  ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin
+  : "https://*.supabase.co";
+
+/**
+ * CSP в режиме наблюдения (C-2.2a). Ничего не блокирует — только сообщает о
+ * нарушениях в консоль браузера. Приёмник отчётов (`report-uri`/`report-to`)
+ * намеренно не задан: это была бы новая неаутентифицированная точка входа
+ * без ограничения частоты и без логирования, то есть ровно та поверхность,
+ * которую закрывает C-3.
+ *
+ * Известно заранее, что сработает `script-src`: Next.js отдаёт шесть
+ * инлайновых <script> с RSC-payload на страницу, и без nonce они политике не
+ * соответствуют. Это ожидаемо и является измерением для C-2.3, а не
+ * дефектом.
+ *
+ * `'unsafe-inline'` в `style-src` — сознательная уступка: в портале 50
+ * инлайновых `style={{}}` (находка M-27). Инлайновых <style>-блоков при этом
+ * ноль, поэтому после закрытия M-27 директиву можно будет ужесточить до
+ * `style-src 'self'; style-src-attr 'unsafe-inline'`.
+ *
+ * `wss:` не добавлен намеренно — Supabase Realtime в портале не используется.
+ */
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  // `data:` обязателен: стрелка селекта в primitives.module.css — inline SVG.
+  "img-src 'self' data: https:",
+  // Шрифты самохостятся next/font, внешний домен не нужен.
+  "font-src 'self'",
+  `connect-src 'self' ${supabaseOrigin}`,
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join("; ");
+
 const nextConfig: NextConfig = {
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          ...securityHeaders,
+          { key: "Content-Security-Policy-Report-Only", value: contentSecurityPolicy },
+        ],
+      },
+    ];
   },
 };
 
