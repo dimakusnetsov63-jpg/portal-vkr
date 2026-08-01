@@ -4,41 +4,26 @@ import { useEffect, useRef, useState } from "react";
 import { usePortal } from "@/components/portal/context/PortalContext";
 import { PAGE_TITLES } from "@/lib/portal/constants";
 import { ROLE_LABELS } from "@/lib/auth/roles";
-import { avatarColor, initials, relativeTime } from "@/lib/portal/format";
-import { NOTIF_TYPE_LABELS } from "@/lib/portal/notifications";
+import { avatarColor, initials } from "@/lib/portal/format";
 import { Icon } from "@/components/portal/ui/Icon";
 import { Button } from "@/components/portal/ui/Button";
 import { CommandPalette } from "@/components/portal/ui/CommandPalette";
-import { DropdownFoot, DropdownHead, DropdownList, DropdownPanel } from "@/components/portal/ui/Dropdown";
+import { DropdownPanel } from "@/components/portal/ui/Dropdown";
 import dropdownStyles from "@/components/portal/ui/Dropdown.module.css";
 import styles from "./Topbar.module.css";
 
-type OpenMenu = "notifications" | "profile" | null;
-
-const NOTIF_ICO_CLASS = {
-  critical: dropdownStyles.notifIcoCritical,
-  important: dropdownStyles.notifIcoImportant,
-  info: dropdownStyles.notifIcoInfo,
-};
+// Раньше здесь было ещё значение "notifications": колокольчик открывал список
+// выдуманных уведомлений, а точка на нём считалась по ним же (C-7). Список и
+// колокольчик убраны до появления настоящего источника событий; раздел
+// «Уведомления» остался в меню и честно сообщает, что он в разработке.
+type OpenMenu = "profile" | null;
 
 export function Topbar() {
-  const {
-    activePage,
-    goto,
-    openMobileSidebar,
-    notifications,
-    markAllNotificationsRead,
-    contextAction,
-    currentUser,
-    can,
-    signOut,
-  } = usePortal();
+  const { activePage, goto, openMobileSidebar, contextAction, currentUser, can, signOut } = usePortal();
 
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const [commandOpen, setCommandOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
-
-  const unread = notifications.filter((n) => !n.read).length;
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -75,64 +60,6 @@ export function Topbar() {
       </button>
 
       <div className={styles.actions}>
-        <div style={{ position: "relative" }}>
-          <button
-            className={styles.iconBtn}
-            aria-label="Уведомления"
-            onClick={() => setOpenMenu((m) => (m === "notifications" ? null : "notifications"))}
-          >
-            <Icon name="bell" size={20} />
-            {unread > 0 && <span className={styles.dot} />}
-          </button>
-          {openMenu === "notifications" && (
-            <DropdownPanel>
-              <DropdownHead>
-                Уведомления{" "}
-                <a
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setOpenMenu(null);
-                    goto("notifications");
-                  }}
-                >
-                  Все
-                </a>
-              </DropdownHead>
-              <DropdownList>
-                {notifications.slice(0, 5).map((n) => {
-                  const meta = NOTIF_TYPE_LABELS[n.type];
-                  return (
-                    <div
-                      key={n.id}
-                      className={`${dropdownStyles.notifItem} ${n.read ? "" : dropdownStyles.notifItemUnread}`}
-                    >
-                      <span className={`${dropdownStyles.notifIco} ${NOTIF_ICO_CLASS[n.type]}`}>
-                        <Icon name={meta.icon as "alert" | "bell" | "info"} size={14} />
-                      </span>
-                      <div className={dropdownStyles.notifBody}>
-                        <b>{n.title}</b>
-                        <p>{n.text}</p>
-                      </div>
-                      <span className={dropdownStyles.notifTime}>{relativeTime(n.minsAgo)}</span>
-                    </div>
-                  );
-                })}
-              </DropdownList>
-              <DropdownFoot>
-                <button
-                  onClick={() => {
-                    setOpenMenu(null);
-                    markAllNotificationsRead();
-                  }}
-                >
-                  Отметить всё прочитанным
-                </button>
-              </DropdownFoot>
-            </DropdownPanel>
-          )}
-        </div>
-
         <div style={{ position: "relative" }}>
           <button
             className={styles.profileTrigger}

@@ -9,8 +9,7 @@ import { Icon } from "@/components/portal/ui/Icon";
 import styles from "./Sidebar.module.css";
 
 export function Sidebar() {
-  const { activePage, goto, mobileSidebarOpen, closeMobileSidebar, notifications, currentUser, can } = usePortal();
-  const unread = notifications.filter((n) => !n.read).length;
+  const { activePage, goto, mobileSidebarOpen, closeMobileSidebar, currentUser, can } = usePortal();
 
   // Меню показывает только разделы роли. Это удобство, а не защита: данные
   // закрыты RLS, маршруты — middleware.
@@ -28,9 +27,11 @@ export function Sidebar() {
         </div>
 
         <nav className={styles.nav}>
+          {/* Счётчика непрочитанных у «Уведомлений» больше нет: он считался по
+              выдуманным записям и висел на каждом экране портала (C-7).
+              Вернётся вместе с настоящим источником событий. */}
           {navItems.map((item) => {
             const isActive = activePage === item.id;
-            const badge = item.id === "notifications" ? unread : 0;
             return (
               <button
                 key={item.id}
@@ -39,7 +40,6 @@ export function Sidebar() {
               >
                 <Icon name={item.icon} size={18} />
                 <span className={styles.navLabel}>{item.label}</span>
-                {badge > 0 && <span className={styles.navBadge}>{badge}</span>}
               </button>
             );
           })}
