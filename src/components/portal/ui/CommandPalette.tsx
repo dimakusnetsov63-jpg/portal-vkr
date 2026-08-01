@@ -9,7 +9,7 @@ import primitives from "./primitives.module.css";
 import styles from "./CommandPalette.module.css";
 
 export function CommandPalette({ onClose }: { onClose: () => void }) {
-  const { goto, candidates, openCandidateDrawer, can } = usePortal();
+  const { goto, realCandidates, openRealCandidateDrawer, can } = usePortal();
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -26,10 +26,21 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     [q, can],
   );
 
+  // Поиск идёт по реальному реестру. Роль без доступа к «Кандидатам» не
+  // получает результатов вовсе — палитра не должна быть обходным путём к
+  // данным, которых нет в меню (та же логика, что у navMatches выше).
+  const canSeeCandidates = can("candidates");
   const candidateMatches = useMemo(() => {
-    if (!q) return [];
-    return candidates.filter((c) => c.fio.toLowerCase().includes(q) || c.id.toLowerCase().includes(q)).slice(0, 6);
-  }, [q, candidates]);
+    if (!q || !canSeeCandidates) return [];
+    return realCandidates
+      .filter(
+        (c) =>
+          c.full_name.toLowerCase().includes(q) ||
+          (c.external_id ?? "").toLowerCase().includes(q) ||
+          (c.phone ?? "").toLowerCase().includes(q),
+      )
+      .slice(0, 6);
+  }, [q, canSeeCandidates, realCandidates]);
 
   const hasResults = navMatches.length > 0 || candidateMatches.length > 0;
 
@@ -90,14 +101,19 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                   onClick={() => {
                     onClose();
                     goto("candidates");
-                    openCandidateDrawer(c.id);
+                    openRealCandidateDrawer(c.id);
                   }}
                 >
                   <span className={styles.itemIco}>
                     <Icon name="users" size={16} />
                   </span>
-                  <b>{c.fio}</b>
-                  <span className={styles.itemMeta}>{c.id}</span>
+                  <b>{c.full_name}</b>
+                  <span className={styles.itemMeta}>
+                    {/* Внутренний uuid пользователю ничего не говорит — показываем
+                        бизнес-ID, а при его отсутствии город. Архив помечаем явно,
+                        иначе выход по поиску на архивную карточку выглядит ошибкой. */}
+                    {[c.external_id || c.city, c.archived_at ? "архив" : null].filter(Boolean).join(" · ")}
+                  </span>
                 </button>
               ))}
             </>

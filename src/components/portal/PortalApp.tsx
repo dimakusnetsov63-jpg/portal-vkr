@@ -10,7 +10,6 @@ import { OverviewSection } from "@/components/portal/sections/OverviewSection";
 import { DemandSection } from "@/components/portal/sections/demand";
 import { AddressesSection, AddressDrawer } from "@/components/portal/sections/addresses";
 import { CandidatesSection, RealCandidateDrawer } from "@/components/portal/sections/candidates";
-import { CandidateDrawer } from "@/components/portal/sections/CandidateDrawer";
 import { VacanciesSection } from "@/components/portal/sections/VacanciesSection";
 import { RatesSection, RateDrawer } from "@/components/portal/sections/rates";
 import { MarketingSection } from "@/components/portal/sections/MarketingSection";
@@ -62,7 +61,7 @@ function ActiveSection() {
 }
 
 function PortalShell() {
-  const { activePage, selectedCandidateId, selectedRealCandidateId, selectedAddressId, selectedRateId } = usePortal();
+  const { activePage, selectedRealCandidateId, selectedAddressId, selectedRateId } = usePortal();
   return (
     <div className={styles.app}>
       <Sidebar />
@@ -73,7 +72,6 @@ function PortalShell() {
         </main>
       </div>
       <MobileTabBar />
-      <CandidateDrawer candidateId={selectedCandidateId} />
       <RealCandidateDrawer candidateId={selectedRealCandidateId} />
       <AddressDrawer addressId={selectedAddressId} />
       <RateDrawer rateId={selectedRateId} />
