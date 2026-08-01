@@ -174,6 +174,70 @@ HTTPS до Management API), а вручную через SQL Editor Supabase, с
 происходит автоматически по событию DDL; если RPC отвечает «function not
 found», подождать или дёрнуть `notify pgrst, 'reload schema'`).
 
+#### Проверка после применения
+
+Выполнять **на стенде, не на боевой БД**: скрипт намеренно создаёт неудачные
+попытки входа. Он безопасен (использует заведомо несуществующий логин), но
+оставляет строки в `portal_login_attempts`.
+
+```sql
+-- 1. Объекты на месте
+select to_regclass('public.portal_login_attempts')            as table_ok,
+       to_regprocedure('public.portal_login(text,text,text,text)') as login_4arg,
+       to_regprocedure('public.portal_login(text,text,text)')      as login_3arg_gone,
+       exists(select 1 from pg_roles where rolname = 'portal_auth_caller') as role_ok;
+-- ожидается: table_ok и login_4arg заполнены, login_3arg_gone = NULL, role_ok = true
+
+-- 2. Роль выдана authenticator и не имеет грантов на таблицы
+select r.rolname as member
+from pg_auth_members m
+join pg_roles r on r.oid = m.member
+join pg_roles g on g.oid = m.roleid
+where g.rolname = 'portal_auth_caller';
+-- ожидается: authenticator
+
+select count(*) as table_grants
+from information_schema.role_table_grants
+where grantee = 'portal_auth_caller';
+-- ожидается: 0
+
+-- 3. Старый путь работает: три именованных аргумента, p_ip по умолчанию
+select public.portal_login('нет-такого-логина', 'x', 'smoke-test') ->> 'reason';
+-- ожидается: invalid_credentials
+
+-- 4. Ограничение по источнику: 12 неудач с одного IP
+do $$
+begin
+  for i in 1..12 loop
+    perform public.portal_login('нет-такого-логина', 'x', 'smoke', '203.0.113.7');
+  end loop;
+end
+$$;
+
+select public.portal_login('нет-такого-логина', 'x', 'smoke', '203.0.113.7') as throttled;
+-- ожидается: {"ok": false, "reason": "throttled", "retry_after": <секунды>}
+
+-- 5. Другой источник не затронут — это и есть проверка, что C-4 не вернулся
+select public.portal_login('нет-такого-логина', 'x', 'smoke', '198.51.100.4') ->> 'reason';
+-- ожидается: invalid_credentials (НЕ throttled)
+
+-- 6. В журнал попытки по несуществующему логину не пишутся (вторая половина C-3)
+select count(*) as should_be_zero
+from public.portal_audit_log
+where action = 'login_failed' and details ->> 'login' = 'нет-такого-логина';
+-- ожидается: 0
+
+-- 7. Ретенция выполняется
+select public.portal_purge_login_attempts(interval '0 seconds') as deleted;
+-- ожидается: число удалённых строк > 0
+```
+
+Отдельно, под реальной учётной записью стенда, проверить **сброс счётчика
+успешным входом**: сделать 10+ неудач с одного IP по существующему логину,
+затем войти верно с того же IP — следующая попытка не должна получать
+`throttled`. Это самостоятельный сценарий, потому что он проверяет
+единственное место, где неудачи удаляются.
+
 ### Фаза 2 — код
 
 Сервер начинает подписывать JWT с `role = portal_auth_caller` и передавать
