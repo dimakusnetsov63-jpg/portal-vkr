@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { usePortal } from "@/components/portal/context/PortalContext";
 import { PageHead } from "@/components/portal/ui/PageHead";
 import { Panel, PanelBody, PanelHead } from "@/components/portal/ui/Panel";
@@ -11,45 +10,22 @@ import { TeamPanel } from "./TeamPanel";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import styles from "./SettingsSection.module.css";
 
-interface Integration {
-  name: string;
-  desc: string;
-  on: boolean;
-}
-
-const INITIAL_INTEGRATIONS: Integration[] = [
-  { name: "1С:Зарплата и управление персоналом", desc: "Синхронизация оформленных сотрудников", on: true },
-  { name: "Telegram-бот уведомлений", desc: "Критические оповещения в чат команды", on: true },
-  { name: "Google Календарь", desc: "Синхронизация выходов на смены", on: false },
-  { name: "HR-система заказчика", desc: "Обмен статусами кандидатов по API", on: false },
-];
-
-interface NotifSetting {
-  label: string;
-  desc: string;
-  on: boolean;
-}
-
-const INITIAL_NOTIF_SETTINGS: NotifSetting[] = [
-  { label: "Email-уведомления", desc: "Дублировать критичные события на почту", on: true },
-  { label: "Push-уведомления", desc: "Уведомления в браузере в реальном времени", on: true },
-  { label: "Ежедневный дайджест", desc: "Сводка за день в 9:00 по МСК", on: false },
-];
-
 /**
- * Настройки: профиль, команда и роли, справочники, журнал действий.
+ * Настройки: профиль, команда и роли, справочники, журнал действий,
+ * отображение.
  *
- * На реальных данных работают «Профиль» (текущая учётная запись),
- * «Команда и роли», «Журнал действий» и «Списки для кандидатов».
- * «Интеграции», «Уведомления» и «Отображение» — демонстрационные:
- * переключатели живут только в состоянии страницы и никуда не сохраняются.
+ * Все панели работают на реальных данных. Раньше здесь были ещё три
+ * демонстрационные — «Интеграции» (переключатель отвечал тостом
+ * «Интеграция подключена», ничего не подключая), «Уведомления» (email/push/
+ * дайджест, состояние жило до перезагрузки) и «Показывать подсказки»
+ * (переключатель не делал ничего вообще). Удалены в C-7.
+ *
+ * «Плотность таблиц» осталась — она действительно работает, вешая класс на
+ * `body`. Её единственное ограничение в том, что выбор не сохраняется между
+ * сессиями; это отсутствующая функция, а не имитация существующей.
  */
 export function SettingsSection() {
-  const { pushToast, densityCompact, toggleDensity, currentUser, can } = usePortal();
-
-  const [integrations, setIntegrations] = useState(INITIAL_INTEGRATIONS);
-  const [notifSettings, setNotifSettings] = useState(INITIAL_NOTIF_SETTINGS);
-  const [tipsOn, setTipsOn] = useState(true);
+  const { densityCompact, toggleDensity, currentUser, can } = usePortal();
 
   const manageUsers = can("users");
 
@@ -92,56 +68,9 @@ export function SettingsSection() {
           </Panel>
 
           {manageUsers && <TeamPanel />}
-
-          <Panel>
-            <PanelHead>
-              <h3>Интеграции</h3>
-            </PanelHead>
-            <PanelBody>
-              {integrations.map((it, i) => (
-                <div className={styles.settingsRow} key={it.name}>
-                  <div className={styles.txt}>
-                    <b>{it.name}</b>
-                    <span>{it.desc}</span>
-                  </div>
-                  <div className={styles.ctl}>
-                    <button
-                      className={`${primitives.toggle} ${it.on ? primitives.toggleOn : ""}`}
-                      onClick={() => {
-                        setIntegrations((prev) => prev.map((x, xi) => (xi === i ? { ...x, on: !x.on } : x)));
-                        pushToast(it.on ? "Интеграция отключена" : "Интеграция подключена");
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </PanelBody>
-          </Panel>
         </div>
 
         <div className={styles.column}>
-          <Panel>
-            <PanelHead>
-              <h3>Уведомления</h3>
-            </PanelHead>
-            <PanelBody>
-              {notifSettings.map((s, i) => (
-                <div className={styles.settingsRow} key={s.label}>
-                  <div className={styles.txt}>
-                    <b>{s.label}</b>
-                    <span>{s.desc}</span>
-                  </div>
-                  <div className={styles.ctl}>
-                    <button
-                      className={`${primitives.toggle} ${s.on ? primitives.toggleOn : ""}`}
-                      onClick={() => setNotifSettings((prev) => prev.map((x, xi) => (xi === i ? { ...x, on: !x.on } : x)))}
-                    />
-                  </div>
-                </div>
-              ))}
-            </PanelBody>
-          </Panel>
-
           <Panel>
             <PanelHead>
               <h3>Отображение</h3>
@@ -156,18 +85,6 @@ export function SettingsSection() {
                   <button
                     className={`${primitives.toggle} ${densityCompact ? primitives.toggleOn : ""}`}
                     onClick={toggleDensity}
-                  />
-                </div>
-              </div>
-              <div className={styles.settingsRow}>
-                <div className={styles.txt}>
-                  <b>Показывать подсказки</b>
-                  <span>Всплывающие пояснения к элементам интерфейса</span>
-                </div>
-                <div className={styles.ctl}>
-                  <button
-                    className={`${primitives.toggle} ${tipsOn ? primitives.toggleOn : ""}`}
-                    onClick={() => setTipsOn((v) => !v)}
                   />
                 </div>
               </div>
