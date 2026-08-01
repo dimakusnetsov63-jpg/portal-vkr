@@ -97,6 +97,7 @@
 | [`changelog/CHANGELOG.md`](changelog/CHANGELOG.md) | Заметные изменения продукта |
 | [`DEVELOPMENT.md`](DEVELOPMENT.md) | Практический workflow: запуск, env, проверки, коммиты |
 | [`SECURITY.md`](SECURITY.md) | Проверка зависимостей, реестр принятых исключений по уязвимостям |
+| [`ROLLOUT-login-rate-limit.md`](ROLLOUT-login-rate-limit.md) | Пошаговый выкат защиты входа (C-3/C-4): три фазы, точки отката, чек-лист, ложноположительные проверки |
 | [`AUDIT-2026-07.md`](AUDIT-2026-07.md) | Технический аудит, июль 2026 |
 | [`AUDIT-2026-07-31.md`](AUDIT-2026-07-31.md) | Технический аудит перед production-релизом, 31 июля 2026 |
 | [`ROADMAP-1.0.md`](ROADMAP-1.0.md) | План доведения до версии 1.0 |
