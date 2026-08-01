@@ -30,7 +30,14 @@ export type PortalLoginFailure = "invalid_credentials" | "disabled" | "throttled
 
 export type PortalLoginResult =
   | { ok: true; token: string; session_id: string; expires_at: string; user: PortalUser }
-  | { ok: false; reason: PortalLoginFailure };
+  /**
+   * `retry_after` — секунды до следующей разрешённой попытки. Приходит только
+   * с `reason: "throttled"`: окно растёт экспоненциально с каждой неудачей
+   * (см. миграцию `20260801100000_login_rate_limit.sql`), поэтому фиксированной
+   * подписи «попробуйте через 15 минут» больше недостаточно — она была бы
+   * неправдой в большинстве случаев.
+   */
+  | { ok: false; reason: PortalLoginFailure; retry_after?: number };
 
 export type PortalSessionResult =
   | { ok: true; session_id: string; user: PortalUser }
@@ -82,7 +89,10 @@ export type PortalAuthDatabase = {
     };
     Functions: {
       portal_login: {
-        Args: { p_login: string; p_password: string; p_user_agent?: string | null };
+        // `p_ip` необязателен, потому что у параметра есть значение по
+        // умолчанию в SQL. Обязательность обеспечивается уровнем выше — в
+        // `lib/auth/session.ts` аргумент `ip` требуется явно.
+        Args: { p_login: string; p_password: string; p_user_agent?: string | null; p_ip?: string | null };
         Returns: PortalLoginResult;
       };
       portal_session_context: {

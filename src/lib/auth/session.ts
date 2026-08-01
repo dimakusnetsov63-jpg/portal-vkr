@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { supabaseEnv } from "@/lib/supabase/env";
+import { signPortalServiceJwt } from "./jwt";
 import type { PortalAuthDatabase, PortalLoginResult, PortalUser } from "@/lib/supabase/portalAuth.types";
 
 /**
@@ -23,10 +24,19 @@ export interface PortalSession {
   user: PortalUser;
 }
 
-/** Клиент без сессии: auth-RPC вызываются от роли `anon`, право проверяется внутри функций. */
+/**
+ * Клиент для auth-RPC. Ходит под доверенной ролью `portal_auth_caller`, а не
+ * под `anon`: только так ограничение частоты по источнику внутри
+ * `portal_login` становится достоверным — см. `signPortalServiceJwt`.
+ *
+ * Токен передаётся через опцию `accessToken`, тем же способом, что и в
+ * `lib/supabase/client.ts`: supabase-js тогда не поднимает собственный
+ * auth-клиент и просто подставляет заголовок. Функция остаётся синхронной, а
+ * подпись выполняется лениво, уже внутри запроса.
+ */
 function authDb() {
   return createClient<PortalAuthDatabase>(supabaseEnv.url(), supabaseEnv.publishableKey(), {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    accessToken: signPortalServiceJwt,
   });
 }
 
@@ -37,11 +47,26 @@ export const sessionCookieOptions = {
   path: "/",
 } as const;
 
-export async function login(loginName: string, password: string, userAgent: string | null): Promise<PortalLoginResult> {
+/**
+ * Вход. `ip` — обязательный аргумент, а не опциональный: без него ограничение
+ * частоты по источнику молча не работает, и такую ошибку не поймает ничто.
+ * Пусть вызывающий явно передаст `null`, если источник неизвестен.
+ *
+ * Адрес берётся только из заголовка запроса на сервере (см.
+ * `/api/auth/login`) и никогда из тела: значение в теле контролирует клиент,
+ * то есть атакующий обошёл бы лимит одной строкой.
+ */
+export async function login(
+  loginName: string,
+  password: string,
+  userAgent: string | null,
+  ip: string | null,
+): Promise<PortalLoginResult> {
   const { data, error } = await authDb().rpc("portal_login", {
     p_login: loginName,
     p_password: password,
     p_user_agent: userAgent,
+    p_ip: ip,
   });
   if (error) throw error;
   return data;
