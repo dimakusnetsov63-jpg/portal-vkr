@@ -11,19 +11,8 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MANAGERS, COORDINATORS, NAV_ITEMS } from "@/lib/portal/constants";
-import { generateCandidates } from "@/lib/portal/generateCandidates";
-import { INITIAL_NOTIFICATIONS } from "@/lib/portal/notifications";
-import { pick } from "@/lib/portal/random";
-import { createRng } from "@/lib/portal/random";
-import type {
-  Candidate,
-  NewCandidateInput,
-  PortalNotification,
-  PortalPage,
-  Toast,
-  ToastType,
-} from "@/lib/portal/types";
+import { NAV_ITEMS } from "@/lib/portal/constants";
+import type { PortalPage, Toast, ToastType } from "@/lib/portal/types";
 import { clearPortalAccessToken } from "@/lib/supabase/accessToken";
 import { canAccess, defaultPageForRole, type PortalPermission } from "@/lib/auth/roles";
 import type { PortalUser } from "@/lib/supabase/portalAuth.types";
@@ -77,8 +66,6 @@ import {
 } from "@/lib/supabase/ratesRepo";
 import type { RateCardRow, RateCardUpdate, RateInsert, RateRow, RateUpdate } from "@/lib/supabase/rates.types";
 
-const staffRng = createRng(20260722);
-
 interface PortalContextValue {
   activePage: PortalPage;
   goto: (page: PortalPage) => void;
@@ -86,18 +73,6 @@ interface PortalContextValue {
   mobileSidebarOpen: boolean;
   openMobileSidebar: () => void;
   closeMobileSidebar: () => void;
-
-  candidates: Candidate[];
-  addCandidate: (input: NewCandidateInput) => void;
-  addComment: (candidateId: string, text: string) => void;
-
-  selectedCandidateId: string | null;
-  openCandidateDrawer: (id: string) => void;
-  closeCandidateDrawer: () => void;
-
-  notifications: PortalNotification[];
-  markNotificationRead: (id: number) => void;
-  markAllNotificationsRead: () => void;
 
   toasts: Toast[];
   pushToast: (message: string, type?: ToastType) => void;
@@ -228,14 +203,10 @@ export function PortalProvider({
   // Стартовый раздел зависит от роли: у рекрутера «Обзора» нет вовсе.
   const [activePage, setActivePage] = useState<PortalPage>(() => defaultPageForRole(initialUser.role));
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [candidates, setCandidates] = useState<Candidate[]>(() => generateCandidates());
-  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
-  const [notifications, setNotifications] = useState<PortalNotification[]>(INITIAL_NOTIFICATIONS);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [densityCompact, setDensityCompact] = useState(false);
   const [contextAction, setContextAction] = useState<ContextAction | null>(null);
   const toastSeq = useRef(0);
-  const candidateSeq = useRef(0);
 
   const [realCandidates, setRealCandidates] = useState<RealCandidate[]>([]);
   const [realCandidatesLoading, setRealCandidatesLoading] = useState(true);
@@ -319,45 +290,6 @@ export function PortalProvider({
   const dismissToast = useCallback((id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
-
-  const addCandidate = useCallback(
-    (input: NewCandidateInput) => {
-      candidateSeq.current += 1;
-      const now = new Date();
-      const newCandidate: Candidate = {
-        id: `KND-${4000 + candidateSeq.current}`,
-        fio: input.fio,
-        project: input.project,
-        city: input.city,
-        stage: input.stage,
-        recruiter: input.recruiter,
-        manager: pick(staffRng, MANAGERS),
-        coordinator: pick(staffRng, COORDINATORS),
-        responseAt: now,
-        invitedAt: null,
-        interviewAt: null,
-        processedAt: null,
-        firstShiftAt: null,
-        comments: [],
-      };
-      setCandidates((prev) => [newCandidate, ...prev]);
-      pushToast("Кандидат добавлен в реестр");
-    },
-    [pushToast],
-  );
-
-  const addComment = useCallback((candidateId: string, text: string) => {
-    setCandidates((prev) =>
-      prev.map((c) =>
-        c.id === candidateId
-          ? { ...c, comments: [...c.comments, { who: "Дмитрий Кузнецов", at: new Date(), text }] }
-          : c,
-      ),
-    );
-  }, []);
-
-  const openCandidateDrawer = useCallback((id: string) => setSelectedCandidateId(id), []);
-  const closeCandidateDrawer = useCallback(() => setSelectedCandidateId(null), []);
 
   const signOut = useCallback(async () => {
     try {
@@ -951,15 +883,6 @@ export function PortalProvider({
   const openRateDrawer = useCallback((id: string) => setSelectedRateId(id), []);
   const closeRateDrawer = useCallback(() => setSelectedRateId(null), []);
 
-  const markNotificationRead = useCallback((id: number) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-  }, []);
-
-  const markAllNotificationsRead = useCallback(() => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    pushToast("Все уведомления отмечены прочитанными");
-  }, [pushToast]);
-
   const toggleDensity = useCallback(() => setDensityCompact((v) => !v), []);
 
   useEffect(() => {
@@ -973,15 +896,6 @@ export function PortalProvider({
       mobileSidebarOpen,
       openMobileSidebar,
       closeMobileSidebar,
-      candidates,
-      addCandidate,
-      addComment,
-      selectedCandidateId,
-      openCandidateDrawer,
-      closeCandidateDrawer,
-      notifications,
-      markNotificationRead,
-      markAllNotificationsRead,
       toasts,
       pushToast,
       dismissToast,
@@ -1058,15 +972,6 @@ export function PortalProvider({
       mobileSidebarOpen,
       openMobileSidebar,
       closeMobileSidebar,
-      candidates,
-      addCandidate,
-      addComment,
-      selectedCandidateId,
-      openCandidateDrawer,
-      closeCandidateDrawer,
-      notifications,
-      markNotificationRead,
-      markAllNotificationsRead,
       toasts,
       pushToast,
       dismissToast,

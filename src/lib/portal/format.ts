@@ -1,11 +1,3 @@
-export const TODAY = new Date(2026, 6, 20);
-
-export function addDays(date: Date, n: number): Date {
-  const r = new Date(date);
-  r.setDate(r.getDate() + n);
-  return r;
-}
-
 export function fmtDate(d: Date): string {
   return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
 }
@@ -23,20 +15,13 @@ export function fmtMoney(n: number): string {
   return n.toLocaleString("ru-RU") + " ₽";
 }
 
-export const WEEKDAY_SHORT = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
-
-export function relativeTime(minsAgo: number): string {
-  if (minsAgo < 60) return `${minsAgo} мин назад`;
-  if (minsAgo < 60 * 24) return `${Math.floor(minsAgo / 60)} ч назад`;
-  return `${Math.floor(minsAgo / (60 * 24))} дн назад`;
-}
-
 /**
- * Relative time from an ISO timestamp, for table cells ("Обновлено …") —
- * unlike `relativeTime` above (which takes a pre-computed minute count for
- * mock data), this works from a real `updated_at` and special-cases
- * "вчера" for exactly one day ago instead of "1 дн назад". Pair with
- * `fmtDateTime(new Date(iso))` for a full-date tooltip.
+ * Relative time from a real ISO timestamp, for table cells ("Обновлено …").
+ * Special-cases "вчера" for exactly one day ago instead of "1 дн назад".
+ * Pair with `fmtDateTime(new Date(iso))` for a full-date tooltip.
+ *
+ * Рядом раньше жила `relativeTime(minsAgo)`, принимавшая готовое число минут:
+ * она обслуживала только mock-уведомления и удалена вместе с ними (C-7).
  */
 export function formatRelativeUpdatedAt(iso: string): string {
   const then = new Date(iso).getTime();
