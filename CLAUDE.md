@@ -91,12 +91,12 @@
 | `src/app/` | Роуты App Router: `/` (портал), `/login`, `/403`, `api/auth/*`, `layout.tsx`, `icon.svg` |
 | `src/proxy.ts` | Middleware (Next.js 16 переименовал `middleware`→`proxy`): сессия, активность пользователя, права на раздел |
 | `src/components/portal/PortalApp.tsx` | Корень портала: провайдер + оболочка + переключение разделов по `activePage` |
-| `src/components/portal/context/` | `PortalContext.tsx` — единый клиентский стор (mock + real-кандидаты + справочники + `currentUser`/`can`) |
+| `src/components/portal/context/` | `PortalContext.tsx` — единый клиентский стор (кандидаты, потребность, адреса, ставки, справочники, `currentUser`/`can`) |
 | `src/components/portal/layout/` | `Sidebar`, `Topbar`, `MobileTabBar` |
 | `src/components/portal/ui/` | Общие примитивы: `Button`, `Badge`, `Panel`, `StatCard`, `Modal`, `Drawer`, `Combobox`, `Icon`, `PageHead`, `ToastStack`, … |
 | `src/components/portal/sections/` | Разделы портала (обзор, потребность, кандидаты, вакансии, маркетинг, аналитика, уведомления, настройки) |
 | `src/lib/auth/` | Авторизация: `roles` (матрица прав), `session`, `serverSession`, `jwt`, `middleware`, `env` |
-| `src/lib/portal/` | Клиентские данные/утилиты: `constants`, `format`, `candidateOptions`, mock-генераторы, `vacancyData` (генерируемый) |
+| `src/lib/portal/` | Клиентские данные/утилиты: `constants` (навигация), `format`, `candidateOptions`, `demandWindow`, `types`, `vacancyData` (генерируемый) |
 | `src/lib/supabase/` | Data-слой: `client`, `accessToken`, `env`, репозитории, типы |
 | `supabase/migrations/` | SQL-миграции (источник истины для схемы БД) |
 
@@ -139,8 +139,15 @@
 - При пустой выборке процент = `0` (никогда `NaN`, без деления на ноль).
 - Архив влияет на выборку через существующий фильтр `showArchived`.
 
-Старый `sections/CandidateDrawer.tsx` — это mock-дровер, ещё используется
-`CommandPalette`; не путать с `RealCandidateDrawer`.
+Mock-дровера `sections/CandidateDrawer.tsx` больше нет — удалён в C-7 вместе
+с генераторами выдуманных данных. `CommandPalette` (⌘K) ищет по реальному
+реестру и открывает `RealCandidateDrawer`.
+
+Разделы «Обзор», «Аналитика», «Маркетинг» и «Уведомления» показывают
+заглушку `ui/SectionUnderDevelopment.tsx`: их прежнее содержимое было
+выдуманным. Разделы остались в меню и в матрице прав — заглушка честно
+сообщает, что появится и от чего это зависит. **Никаких чисел, процентов,
+дат и прогнозов в заглушке быть не должно.**
 
 ## 6.1. Раздел «Адреса»
 

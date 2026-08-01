@@ -41,10 +41,9 @@ src/
     sections/
       OverviewSection.tsx
       VacanciesSection.tsx
-      MarketingSection.tsx
-      AnalyticsSection.tsx   (+ AnalyticsTabs.tsx)
-      NotificationsSection.tsx
-      CandidateDrawer.tsx    # mock-дровер (используется CommandPalette)
+      MarketingSection.tsx   # заглушка «в разработке»
+      AnalyticsSection.tsx   # заглушка «в разработке»
+      NotificationsSection.tsx  # заглушка «в разработке»
       candidates/            # раздел «Кандидаты» (real-данные)
       demand/                # раздел «Потребность» (real-данные)
       addresses/             # раздел «Адреса» (real-данные)
@@ -52,8 +51,8 @@ src/
       settings/              # раздел «Настройки» (команда, роли, журнал)
   lib/
     auth/                    # roles (матрица прав), session, jwt, middleware
-    portal/                  # constants, format, candidateOptions,
-                             #   mock-генераторы, vacancyData (генерируемый)
+    portal/                  # constants (навигация), format, candidateOptions,
+                             #   demandWindow, types, vacancyData (генерируемый)
     supabase/                # client, accessToken, env, репозитории, типы
 supabase/
   migrations/                # SQL-миграции (источник истины схемы)
@@ -223,24 +222,29 @@ city`). Каждая строка город+проект
 soft-delete, как у `staffing_demand`. Подробности —
 [`../../src/components/portal/sections/rates/README.md`](../../src/components/portal/sections/rates/README.md).
 
-## Mock и real-данные
+## Источники данных
 
-- **Real (Supabase):** кандидаты, справочники списков, потребность, адреса, ставки.
-- **Mock (`lib/portal/generate*.ts`, `constants.ts`):** данные для Обзора,
-  Маркетинга, Аналитики и legacy-слоя кандидатов в контексте
-  (`generateDemand.ts` тоже остаётся — его использует только
-  `AnalyticsTabs`, к разделу «Потребность» отношения больше не имеет).
+- **Real (Supabase):** кандидаты, справочники списков, потребность, адреса,
+  ставки, пользователи и журнал действий.
 - **Статические (`lib/portal/vacancyData.ts`):** описания вакансий,
-  сгенерированы из Excel — файл не редактируется вручную.
+  сгенерированы из Excel — файл не редактируется вручную. Данные настоящие,
+  просто не редактируются в портале.
+- **Никаких.** Обзор, Маркетинг, Аналитика и Уведомления показывают заглушку
+  `ui/SectionUnderDevelopment.tsx`.
 
-Mock- и real-слои сосуществуют намеренно: перевод остальных разделов на
-Supabase — отдельная будущая работа.
+**Mock-слоя в портале больше нет.** До C-7 существовали генераторы
+`generateCandidates.ts`, `generateDemand.ts`, `random.ts` и `notifications.ts`,
+а также словари `PROJECTS`/`RECRUITERS`/`CHANNELS` в `constants.ts` — все
+удалены. Правило на будущее: раздел либо работает на реальных данных, либо
+честно сообщает, что не готов. Промежуточного состояния «выглядит рабочим,
+не будучи им» быть не должно.
 
 ## Зоны технического долга
 
 - Крупный `PortalContext` (см. выше).
-- Часть разделов ещё на mock-данных; в «Настройках» это панели «Интеграции»,
-  «Уведомления» и «Отображение» — переключатели никуда не сохраняются.
+- Четыре раздела не реализованы и показывают заглушку (Обзор, Маркетинг,
+  Аналитика, Уведомления). В «Настройках» осталась панель «Отображение»:
+  переключатель плотности работает, но выбор не переживает перезагрузку.
 - `/login` и `/403` дублируют брендблок (кандидат на общий `AuthShell`).
 - Матрица прав продублирована в SQL и TS (см. `lib/auth/roles.ts`).
 - Режимы «Неделя»/«Месяц» в «Потребности» не реализованы (осознанно
