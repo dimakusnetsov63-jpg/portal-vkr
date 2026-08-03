@@ -186,6 +186,16 @@
 .documentRow a:hover {
   text-decoration: underline;
 }
+.documentUnsafe {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--amber);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .documentRow button {
   flex: none;
   color: var(--text-3);

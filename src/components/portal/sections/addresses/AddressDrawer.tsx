@@ -19,6 +19,7 @@ import type {
   AddressUpdate,
 } from "@/lib/supabase/addresses.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
+import { isSafeDocumentUrl } from "./addressDocumentLinks";
 import { addressDeficit, addressFillRate } from "./addressMetrics";
 import {
   FEATURE_OPTIONS,
@@ -117,8 +118,15 @@ function toNumberOrNull(v: string): number | null {
 }
 
 export function AddressDrawer({ addressId }: { addressId: string | null }) {
-  const { addresses, closeAddressDrawer, saveAddress, archiveAddressRecord, restoreAddressRecord, listOptions } =
-    usePortal();
+  const {
+    addresses,
+    closeAddressDrawer,
+    saveAddress,
+    archiveAddressRecord,
+    restoreAddressRecord,
+    listOptions,
+    pushToast,
+  } = usePortal();
 
   const address = addressId ? addresses.find((a) => a.id === addressId) : undefined;
 
@@ -152,7 +160,15 @@ export function AddressDrawer({ addressId }: { addressId: string | null }) {
 
   function addDocument() {
     if (!address || !docTitle.trim() || !docUrl.trim()) return;
-    const link = { id: crypto.randomUUID(), title: docTitle.trim(), url: docUrl.trim(), type: "link" };
+    const url = docUrl.trim();
+    // H-3: белый список схем на записи — вторая проверка на выводе (см. рендер
+    // ниже) не спасает, если сохранённое значение никогда не показывать
+    // ссылкой, а первая линия защиты — не дать сохранить его вовсе.
+    if (!isSafeDocumentUrl(url)) {
+      pushToast("Ссылка должна начинаться с http:// или https://", "error");
+      return;
+    }
+    const link = { id: crypto.randomUUID(), title: docTitle.trim(), url, type: "link" };
     saveAddress(address.id, { document_links: [...address.document_links, link] });
     setDocTitle("");
     setDocUrl("");
@@ -486,10 +502,21 @@ export function AddressDrawer({ addressId }: { addressId: string | null }) {
                 <div className={styles.documentList}>
                   {address.document_links.map((d) => (
                     <div className={styles.documentRow} key={d.id}>
-                      <a href={d.url} target="_blank" rel="noreferrer">
-                        <Icon name="file" size={14} />
-                        {d.title}
-                      </a>
+                      {isSafeDocumentUrl(d.url) ? (
+                        <a href={d.url} target="_blank" rel="noreferrer">
+                          <Icon name="file" size={14} />
+                          {d.title}
+                        </a>
+                      ) : (
+                        // H-3: значение могло попасть в базу мимо интерфейса
+                        // (до CHECK-ограничения или напрямую через PostgREST) —
+                        // не рендерим как кликабельную ссылку ни при каких
+                        // условиях, показываем текстом с пояснением.
+                        <span className={styles.documentUnsafe} title="Ссылка не начинается с http:// или https:// — показана как текст">
+                          <Icon name="file" size={14} />
+                          {d.title} ({d.url})
+                        </span>
+                      )}
                       <button onClick={() => removeDocument(d.id)} aria-label="Удалить ссылку" title="Удалить ссылку">
                         <Icon name="x" size={14} />
                       </button>

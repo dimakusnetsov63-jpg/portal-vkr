@@ -235,7 +235,7 @@ city + position + свежие сверху).
 | `site_manager_name` / `site_manager_phone` | text | nullable | Свободный текст — сознательно **не** тот же справочник, что `candidates.manager` (это другая роль: руководитель физического объекта, а не рекрутинговый менеджер) |
 | `coordinator_comment` | text | nullable | `check (char_length <= 4000)` |
 | `features` | text[] | **not null** | `default '{}'`; слаги чекбоксов «Особенности объекта», подписи только в `addressOptions.ts` |
-| `document_links` | jsonb | **not null** | `default '[]'`; массив `{id, title, url, type}` — **только внешние ссылки**, в проекте нет Supabase Storage (см. `requirements/addresses.md`) |
+| `document_links` | jsonb | **not null** | `default '[]'`; массив `{id, title, url, type}` — **только внешние ссылки**, в проекте нет Supabase Storage (см. `requirements/addresses.md`). `check (addresses_document_links_valid(document_links))` — форма массива и `url` только `http`/`https` (находка H-3, миграция `20260803120000`) |
 | `archived_at` | timestamptz | nullable | NULL = активен; заполнено = архивирован (soft delete) |
 | `created_at` / `updated_at` | timestamptz | not null | `default now()`, поддерживаются триггером `set_addresses_audit_fields()` |
 | `created_by` / `updated_by` | uuid | nullable | `references portal_users(id) on delete set null` — **первый случай FK из таблицы данных на `portal_users`**; проставляется тем же триггером из `auth.uid()` |
