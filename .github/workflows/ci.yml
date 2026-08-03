@@ -1,0 +1,72 @@
+name: CI
+
+# H-12 (docs/AUDIT-2026-07-31.md). `verify` is the required gate; `dependency-audit`
+# is informational only (continue-on-error) — a new advisory in an existing
+# dependency isn't caused by whatever PR happens to run next, and failing an
+# unrelated PR on it would just be noise. See docs/SECURITY.md for the
+# accepted-risk exception registry that `npm audit` output should be checked
+# against by hand.
+#
+# No secrets are configured or required: tsc/eslint/vitest/next build all
+# succeed with zero environment variables (verified locally by running
+# `npm run build` with .env.local removed entirely) — next.config.ts already
+# falls back when NEXT_PUBLIC_SUPABASE_URL is unset, and the only code that
+# reads SUPABASE_JWT_PRIVATE_JWK runs inside API route handlers at request
+# time, never during the build.
+#
+# pull_request (not pull_request_target): this repo is public, and
+# pull_request_target grants forked-PR workflow runs access to secrets and
+# write permissions — a real supply-chain risk we don't need to take on,
+# especially with no secrets to protect here regardless.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - run: npm ci
+
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  dependency-audit:
+    name: dependency-audit (informational)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - run: npm ci
+
+      # Does not fail the job (continue-on-error above) — findings are
+      # reviewed by hand against docs/SECURITY.md, not auto-suppressed here.
+      - run: npm audit
