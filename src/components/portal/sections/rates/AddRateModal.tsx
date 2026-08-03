@@ -7,6 +7,7 @@ import { Combobox } from "@/components/portal/ui/Combobox";
 import { Modal } from "@/components/portal/ui/Modal";
 import modal from "@/components/portal/ui/Modal.module.css";
 import { activeListOptions } from "@/lib/portal/candidateOptions";
+import { visibleProjectOptions } from "@/lib/auth/projectAccess";
 import type { RateUnit } from "@/lib/supabase/rates.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import { RATE_UNITS, UNIT_LABELS } from "./rateOptions";
@@ -18,7 +19,7 @@ import { RATE_UNITS, UNIT_LABELS } from "./rateOptions";
  * потом в карточке (RateDrawer), а не в этой форме.
  */
 export function AddRateModal({ onClose }: { onClose: () => void }) {
-  const { pushToast, listOptions, addRate } = usePortal();
+  const { pushToast, listOptions, addRate, currentUser } = usePortal();
   const [project, setProject] = useState("");
   const [city, setCity] = useState("");
   const [legalEntity, setLegalEntity] = useState("");
@@ -27,7 +28,11 @@ export function AddRateModal({ onClose }: { onClose: () => void }) {
   const [rateHour, setRateHour] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const projectOptions = activeListOptions(listOptions, "project").map((o) => o.value);
+  const projectOptions = visibleProjectOptions(
+    currentUser.role,
+    currentUser.projects,
+    activeListOptions(listOptions, "project").map((o) => o.value),
+  );
   const cityOptions = activeListOptions(listOptions, "city").map((o) => o.value);
   const legalEntityOptions = activeListOptions(listOptions, "legal_entity").map((o) => o.value);
   const positionOptions = activeListOptions(listOptions, "position").map((o) => o.value);

@@ -8,6 +8,7 @@ import { Combobox } from "@/components/portal/ui/Combobox";
 import { Drawer } from "@/components/portal/ui/Drawer";
 import { Icon } from "@/components/portal/ui/Icon";
 import { activeListOptions } from "@/lib/portal/candidateOptions";
+import { visibleProjectOptions } from "@/lib/auth/projectAccess";
 import { fmtDateTime } from "@/lib/portal/format";
 import type {
   AddressObjectType,
@@ -126,6 +127,7 @@ export function AddressDrawer({ addressId }: { addressId: string | null }) {
     restoreAddressRecord,
     listOptions,
     pushToast,
+    currentUser,
   } = usePortal();
 
   const address = addressId ? addresses.find((a) => a.id === addressId) : undefined;
@@ -135,7 +137,11 @@ export function AddressDrawer({ addressId }: { addressId: string | null }) {
   const [docTitle, setDocTitle] = useState("");
   const [docUrl, setDocUrl] = useState("");
 
-  const projectOptions = activeListOptions(listOptions, "project").map((o) => o.value);
+  const projectOptions = visibleProjectOptions(
+    currentUser.role,
+    currentUser.projects,
+    activeListOptions(listOptions, "project").map((o) => o.value),
+  );
   const cityOptions = activeListOptions(listOptions, "city").map((o) => o.value);
   const positionOptions = activeListOptions(listOptions, "position").map((o) => o.value);
   const coordinatorOptions = activeListOptions(listOptions, "coordinator").map((o) => o.value);

@@ -9,6 +9,7 @@ import { Panel } from "@/components/portal/ui/Panel";
 import { EmptyState, ErrorState, SkeletonCards, SkeletonRows } from "@/components/portal/ui/StateViews";
 import styles from "./RatesSection.module.css";
 import { activeListOptions } from "@/lib/portal/candidateOptions";
+import { visibleProjectOptions } from "@/lib/auth/projectAccess";
 import type { RateSchedule, RateUnit } from "@/lib/supabase/rates.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import { AddRateModal } from "./AddRateModal";
@@ -38,6 +39,7 @@ export function RatesSection() {
     openRateDrawer,
     listOptions,
     setContextAction,
+    currentUser,
   } = usePortal();
 
   const [filters, setFilters] = useState(EMPTY_FILTERS);
@@ -56,7 +58,15 @@ export function RatesSection() {
     setFilters(EMPTY_FILTERS);
   }
 
-  const projectOptions = useMemo(() => activeListOptions(listOptions, "project").map((o) => o.value), [listOptions]);
+  const projectOptions = useMemo(
+    () =>
+      visibleProjectOptions(
+        currentUser.role,
+        currentUser.projects,
+        activeListOptions(listOptions, "project").map((o) => o.value),
+      ),
+    [listOptions, currentUser.role, currentUser.projects],
+  );
   const cityOptions = useMemo(() => activeListOptions(listOptions, "city").map((o) => o.value), [listOptions]);
   const legalEntityOptions = useMemo(
     () => activeListOptions(listOptions, "legal_entity").map((o) => o.value),

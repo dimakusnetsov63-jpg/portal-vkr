@@ -7,6 +7,7 @@ import { Combobox } from "@/components/portal/ui/Combobox";
 import { Icon } from "@/components/portal/ui/Icon";
 import { Modal } from "@/components/portal/ui/Modal";
 import { activeListOptions } from "@/lib/portal/candidateOptions";
+import { visibleProjectOptions } from "@/lib/auth/projectAccess";
 import { enumerateIsoDates, toIsoDate } from "@/lib/portal/demandWindow";
 import { isLargeBulkCount } from "./demandAggregate";
 import {
@@ -44,7 +45,7 @@ export function AddDemandModal({
     plannedCount: number;
   }) => Promise<boolean>;
 }) {
-  const { pushToast, listOptions, updateDemandRowMeta } = usePortal();
+  const { pushToast, listOptions, updateDemandRowMeta, currentUser } = usePortal();
   const [project, setProject] = useState("");
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [cityInput, setCityInput] = useState("");
@@ -59,7 +60,11 @@ export function AddDemandModal({
   const [saving, setSaving] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const projectOptions = activeListOptions(listOptions, "project").map((o) => o.value);
+  const projectOptions = visibleProjectOptions(
+    currentUser.role,
+    currentUser.projects,
+    activeListOptions(listOptions, "project").map((o) => o.value),
+  );
   const cityOptions = activeListOptions(listOptions, "city")
     .map((o) => o.value)
     .filter((c) => !selectedCities.includes(c));

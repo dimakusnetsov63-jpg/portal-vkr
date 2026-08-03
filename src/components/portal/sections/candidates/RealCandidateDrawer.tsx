@@ -14,6 +14,7 @@ import {
   stageColor,
 } from "@/lib/portal/candidateOptions";
 import { avatarColor, initials } from "@/lib/portal/format";
+import { visibleProjectOptions } from "@/lib/auth/projectAccess";
 import type { Candidate, CandidateUpdate } from "@/lib/supabase/candidates.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import styles from "./RealCandidateDrawer.module.css";
@@ -93,6 +94,7 @@ export function RealCandidateDrawer({ candidateId }: { candidateId: string | nul
     archiveRealCandidate,
     restoreRealCandidate,
     listOptions,
+    currentUser,
   } = usePortal();
 
   const candidate = candidateId ? realCandidates.find((c) => c.id === candidateId) : undefined;
@@ -100,7 +102,11 @@ export function RealCandidateDrawer({ candidateId }: { candidateId: string | nul
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const projectOptions = activeListOptions(listOptions, "project").map((o) => o.value);
+  const projectOptions = visibleProjectOptions(
+    currentUser.role,
+    currentUser.projects,
+    activeListOptions(listOptions, "project").map((o) => o.value),
+  );
   const cityOptions = activeListOptions(listOptions, "city").map((o) => o.value);
   const positionOptions = activeListOptions(listOptions, "position").map((o) => o.value);
   const recruiterOptions = activeListOptions(listOptions, "recruiter").map((o) => o.value);

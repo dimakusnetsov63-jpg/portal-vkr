@@ -7,6 +7,7 @@ import { Combobox } from "@/components/portal/ui/Combobox";
 import { Modal } from "@/components/portal/ui/Modal";
 import modal from "@/components/portal/ui/Modal.module.css";
 import { activeListOptions } from "@/lib/portal/candidateOptions";
+import { visibleProjectOptions } from "@/lib/auth/projectAccess";
 import type { AddressInsert, AddressObjectType } from "@/lib/supabase/addresses.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import { OBJECT_TYPE_LABELS, OBJECT_TYPES } from "./addressOptions";
@@ -25,7 +26,7 @@ export function AddAddressModal({
   onClose: () => void;
   onSubmit: (input: AddressInsert) => Promise<boolean>;
 }) {
-  const { pushToast, listOptions } = usePortal();
+  const { pushToast, listOptions, currentUser } = usePortal();
   const [project, setProject] = useState("");
   const [city, setCity] = useState("");
   const [fullAddress, setFullAddress] = useState("");
@@ -35,7 +36,11 @@ export function AddAddressModal({
   const [position, setPosition] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const projectOptions = activeListOptions(listOptions, "project").map((o) => o.value);
+  const projectOptions = visibleProjectOptions(
+    currentUser.role,
+    currentUser.projects,
+    activeListOptions(listOptions, "project").map((o) => o.value),
+  );
   const cityOptions = activeListOptions(listOptions, "city").map((o) => o.value);
   const positionOptions = activeListOptions(listOptions, "position").map((o) => o.value);
 

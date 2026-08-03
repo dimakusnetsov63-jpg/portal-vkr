@@ -12,20 +12,38 @@ RLS включён на **всех одиннадцати** таблицах с�
 
 С июля 2026 политики **не безусловные**. Каждая ссылается на
 `public.portal_can('<раздел>')` — есть ли у текущего пользователя доступ к
-разделу, к которому относится таблица:
+разделу, к которому относится таблица.
+
+С H-6 (3 августа 2026, миграция `20260803140000_project_scoped_rls_policies.sql`)
+на шести таблицах с колонкой `project` (`candidates`, `staffing_demand`,
+`staffing_demand_rows`, `staffing_demand_history`, `addresses`, `rate_cards`)
+и на `rates` (через FK на `rate_cards`) к проверке раздела добавлена
+проверка проекта:
 
 ```sql
 create policy "portal_select_staffing_demand"
   on public.staffing_demand for select to authenticated
-  using (public.portal_can('demand'));
+  using (public.portal_can('demand') and public.portal_has_project(project));
+
+-- rates — своей колонки project нет, только rate_card_id
+create policy "portal_select_rates"
+  on public.rates for select to authenticated
+  using (public.portal_can('rates') and public.portal_has_rate_card_project(rate_card_id));
 ```
 
-`portal_can` читает роль и `is_active` **из `portal_users`**, а не из JWT.
+`portal_can` и `portal_has_project`/`portal_has_rate_card_project` читают
+роль, `is_active` и `projects` **из `portal_users`**, а не из JWT.
 Практические следствия:
 
-- смена роли действует со следующего запроса, перевыпуск токена не нужен;
+- смена роли или списка проектов действует со следующего запроса, перевыпуск
+  токена не нужен;
 - отключение сотрудника закрывает данные сразу, не дожидаясь истечения его
   токена доступа (15 минут).
+
+**Роль `head` — bypass проектной проверки.** `portal_has_project()` для неё
+всегда возвращает `true` независимо от содержимого её собственного
+`projects` — архитектурное решение H-6, не default-поведение самой функции.
+Подробности и обоснование — `docs/ROLLOUT-project-access.md`.
 
 ## Состав политик по таблицам
 
@@ -76,6 +94,8 @@ create policy "portal_select_staffing_demand"
 | Функция | Кому доступна | Назначение |
 |---|---|---|
 | `portal_can(section)` | anon, authenticated | Есть ли у запроса доступ к разделу. Используется в политиках |
+| `portal_has_project(project)` | anon, authenticated | H-6: есть ли доступ к проекту. `head` — всегда `true` (bypass), остальные роли — `project = any(portal_users.projects)` |
+| `portal_has_rate_card_project(rate_card_id)` | anon, authenticated | H-6: то же самое для `rates` — своей колонки `project` нет, ищет её через `rate_cards` |
 | `portal_role_sections(role)` | anon, authenticated | Матрица «роль → разделы». Дубль `src/lib/auth/roles.ts` |
 | `portal_current_user_id()` / `portal_current_session_id()` | anon, authenticated | Claim'ы `sub` / `sid` текущего JWT |
 | `portal_login`, `portal_session_context`, `portal_logout` | anon, authenticated | Вход, проверка сессии, выход |
@@ -105,15 +125,23 @@ create policy "portal_select_staffing_demand"
 
 Осознанный долг, зафиксированный явно:
 
-1. **Нет разграничения по проектам.** `portal_users.projects` заполняется и
-   отображается, но ни одна политика по нему не фильтрует.
+1. ~~Нет разграничения по проектам~~ — **закрыто H-6** (3 августа 2026).
+   Остаток долга: разграничение сейчас на уровне строк (какие проекты видны),
+   не на уровне колонок (см. пункт 2 ниже) — увидев кандидата своего проекта,
+   сотрудник видит все его поля, включая PII.
 2. **Вся PII доступна всем ролям с разделом «Кандидаты»** — то есть всем
-   четырём. ФИО, телефон, telegram, `salary_card`. Для 152-ФЗ это требует
-   внимания.
+   четырём, в рамках их проектов после H-6. ФИО, телефон, telegram,
+   `salary_card`. Для 152-ФЗ это требует внимания — отдельная задача
+   column-level protection, не входит в H-6.
 3. **Матрица прав продублирована** в SQL (`portal_role_sections`) и TS
    (`src/lib/auth/roles.ts`). Рассинхронизацию не поймают ни типы, ни тесты.
 4. **`portal_login` доступен `anon`** — иначе форма входа не работала бы.
    Защита от перебора: 10 неудачных попыток на логин за 15 минут.
+5. **Нет автоматических тестов RLS** (находка H-13, отдельная) — матрица
+   прав, включая теперь и проектную проверку, проверена вручную (`curl`
+   против реального PostgREST под несколькими ролями, см.
+   `docs/ROLLOUT-project-access.md`), но регрессию в будущей миграции
+   поймать некому.
 
 ## Как проверить политики в боевой базе
 

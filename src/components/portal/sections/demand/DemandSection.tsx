@@ -9,6 +9,7 @@ import { PageHead } from "@/components/portal/ui/PageHead";
 import { Panel } from "@/components/portal/ui/Panel";
 import { EmptyState, ErrorState, SkeletonRows } from "@/components/portal/ui/StateViews";
 import { activeListOptions } from "@/lib/portal/candidateOptions";
+import { visibleProjectOptions } from "@/lib/auth/projectAccess";
 import { defaultDemandWindow, getWeekRange, isWeekWindow, shiftWindow } from "@/lib/portal/demandWindow";
 import { AddDemandModal } from "./AddDemandModal";
 import { DemandMatrix } from "./DemandMatrix";
@@ -39,6 +40,7 @@ export function DemandSection() {
     listOptions,
     demandRowMeta,
     setContextAction,
+    currentUser,
   } = usePortal();
 
   const router = useRouter();
@@ -105,7 +107,15 @@ export function DemandSection() {
     router,
   ]);
 
-  const projectOptions = useMemo(() => activeListOptions(listOptions, "project").map((o) => o.value), [listOptions]);
+  const projectOptions = useMemo(
+    () =>
+      visibleProjectOptions(
+        currentUser.role,
+        currentUser.projects,
+        activeListOptions(listOptions, "project").map((o) => o.value),
+      ),
+    [listOptions, currentUser.role, currentUser.projects],
+  );
   const cityOptions = useMemo(() => activeListOptions(listOptions, "city").map((o) => o.value), [listOptions]);
   const positionOptions = useMemo(() => activeListOptions(listOptions, "position").map((o) => o.value), [listOptions]);
 

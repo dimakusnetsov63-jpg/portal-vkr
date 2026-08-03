@@ -7,6 +7,7 @@ import { Combobox } from "@/components/portal/ui/Combobox";
 import { Modal } from "@/components/portal/ui/Modal";
 import modal from "@/components/portal/ui/Modal.module.css";
 import { activeListOptions } from "@/lib/portal/candidateOptions";
+import { visibleProjectOptions } from "@/lib/auth/projectAccess";
 import type { CandidateInsert } from "@/lib/supabase/candidates.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
 
@@ -17,7 +18,7 @@ export function AddCandidateModal({
   onClose: () => void;
   onSubmit: (input: CandidateInsert) => Promise<boolean>;
 }) {
-  const { pushToast, listOptions } = usePortal();
+  const { pushToast, listOptions, currentUser } = usePortal();
   const [fullName, setFullName] = useState("");
   const [project, setProject] = useState("");
   const [city, setCity] = useState("");
@@ -25,7 +26,11 @@ export function AddCandidateModal({
   const [recruiter, setRecruiter] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const projectOptions = activeListOptions(listOptions, "project").map((o) => o.value);
+  const projectOptions = visibleProjectOptions(
+    currentUser.role,
+    currentUser.projects,
+    activeListOptions(listOptions, "project").map((o) => o.value),
+  );
   const cityOptions = activeListOptions(listOptions, "city").map((o) => o.value);
   const positionOptions = activeListOptions(listOptions, "position").map((o) => o.value);
   const recruiterOptions = activeListOptions(listOptions, "recruiter").map((o) => o.value);

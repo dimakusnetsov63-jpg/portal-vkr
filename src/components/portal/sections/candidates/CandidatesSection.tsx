@@ -9,6 +9,7 @@ import { Panel } from "@/components/portal/ui/Panel";
 import { StatCard } from "@/components/portal/ui/StatCard";
 import { EmptyState, ErrorState, SkeletonCards, SkeletonRows } from "@/components/portal/ui/StateViews";
 import { activeListOptions, CANDIDATE_STAGES } from "@/lib/portal/candidateOptions";
+import { visibleProjectOptions } from "@/lib/auth/projectAccess";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import { AddCandidateModal } from "./AddCandidateModal";
 import { CandidatesTable } from "./CandidatesTable";
@@ -30,6 +31,7 @@ export function CandidatesSection() {
     listOptions,
     pushToast,
     setContextAction,
+    currentUser,
   } = usePortal();
 
   const [search, setSearch] = useState("");
@@ -55,8 +57,13 @@ export function CandidatesSection() {
   }
 
   const projectOptions = useMemo(
-    () => activeListOptions(listOptions, "project").map((o) => o.value),
-    [listOptions],
+    () =>
+      visibleProjectOptions(
+        currentUser.role,
+        currentUser.projects,
+        activeListOptions(listOptions, "project").map((o) => o.value),
+      ),
+    [listOptions, currentUser.role, currentUser.projects],
   );
   const positionOptions = useMemo(
     () => activeListOptions(listOptions, "position").map((o) => o.value),

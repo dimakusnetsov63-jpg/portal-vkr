@@ -9,6 +9,7 @@ import { Panel } from "@/components/portal/ui/Panel";
 import { EmptyState, ErrorState, SkeletonCards, SkeletonRows } from "@/components/portal/ui/StateViews";
 import styles from "./AddressesSection.module.css";
 import { activeListOptions } from "@/lib/portal/candidateOptions";
+import { visibleProjectOptions } from "@/lib/auth/projectAccess";
 import type { AddressObjectType, AddressStatus } from "@/lib/supabase/addresses.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import { AddAddressModal } from "./AddAddressModal";
@@ -41,6 +42,7 @@ export function AddressesSection() {
     openAddressDrawer,
     listOptions,
     setContextAction,
+    currentUser,
   } = usePortal();
 
   const [filters, setFilters] = useState(EMPTY_FILTERS);
@@ -62,7 +64,15 @@ export function AddressesSection() {
     setFilters(EMPTY_FILTERS);
   }
 
-  const projectOptions = useMemo(() => activeListOptions(listOptions, "project").map((o) => o.value), [listOptions]);
+  const projectOptions = useMemo(
+    () =>
+      visibleProjectOptions(
+        currentUser.role,
+        currentUser.projects,
+        activeListOptions(listOptions, "project").map((o) => o.value),
+      ),
+    [listOptions, currentUser.role, currentUser.projects],
+  );
   const cityOptions = useMemo(() => activeListOptions(listOptions, "city").map((o) => o.value), [listOptions]);
   const positionOptions = useMemo(() => activeListOptions(listOptions, "position").map((o) => o.value), [listOptions]);
   const coordinatorOptions = useMemo(
