@@ -8,15 +8,11 @@ import { PageHead } from "@/components/portal/ui/PageHead";
 import { Panel } from "@/components/portal/ui/Panel";
 import { StatCard } from "@/components/portal/ui/StatCard";
 import { EmptyState, ErrorState, SkeletonCards, SkeletonRows } from "@/components/portal/ui/StateViews";
-import {
-  activeListOptions,
-  CANDIDATE_STAGES,
-  medicalBookLabel,
-} from "@/lib/portal/candidateOptions";
-import { fmtDateTime } from "@/lib/portal/format";
+import { activeListOptions, CANDIDATE_STAGES } from "@/lib/portal/candidateOptions";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import { AddCandidateModal } from "./AddCandidateModal";
 import { CandidatesTable } from "./CandidatesTable";
+import { buildCandidatesCsv } from "./candidatesCsv";
 import { filterCandidates } from "./candidateFilters";
 import { calculateCandidateMetrics } from "./candidateMetrics";
 import styles from "./CandidatesSection.module.css";
@@ -82,45 +78,8 @@ export function CandidatesSection() {
   const stats = useMemo(() => calculateCandidateMetrics(filtered), [filtered]);
 
   function exportCsv() {
-    const header = [
-      "ФИО",
-      "External ID",
-      "Проект",
-      "Город",
-      "Должность",
-      "Стадия",
-      "Рекрутер",
-      "Менеджер",
-      "Координатор",
-      "Телефон",
-      "Telegram",
-      "MAX",
-      "Медкнижка",
-      "1-я смена",
-      "Архивирован",
-    ];
-    const lines = [header.join(";")].concat(
-      filtered.map((c) =>
-        [
-          c.full_name,
-          c.external_id ?? "",
-          c.project,
-          c.city ?? "",
-          c.position ?? "",
-          c.stage ?? "",
-          c.recruiter ?? "",
-          c.manager ?? "",
-          c.coordinator ?? "",
-          c.phone ?? "",
-          c.telegram_tag ?? "",
-          c.max_tag ?? "",
-          medicalBookLabel(c.has_medical_book),
-          c.first_shift_at ? (fmtDateTime(new Date(c.first_shift_at)) ?? "") : "",
-          c.archived_at ? "да" : "нет",
-        ].join(";"),
-      ),
-    );
-    const blob = new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const csv = buildCandidatesCsv(filtered);
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
