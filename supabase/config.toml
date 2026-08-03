@@ -153,7 +153,16 @@ max_indexes = 5
 # [storage.vector.buckets.documents-openai]
 
 [auth]
-enabled = true
+# H-16 (docs/AUDIT-2026-07-31.md): портал не использует Supabase Auth вообще
+# (ADR-004, docs/architecture/decisions/ADR-004-portal-auth.md) — своя
+# авторизация через portal_users/portal_sessions. Включённый Supabase Auth
+# был расхождением между декларируемой конфигурацией и фактической моделью
+# безопасности: открытая публичная регистрация (enable_signup = true) без
+# подтверждения email (enable_confirmations = false), доступная из
+# интернета. Модель устойчива и без этой находки (portal_can() отсекает
+# любой sub, которого нет в portal_users), но открытый эндпоинт регистрации
+# сам по себе не нужен и не должен существовать.
+enabled = false
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
 site_url = "http://127.0.0.1:3000"
