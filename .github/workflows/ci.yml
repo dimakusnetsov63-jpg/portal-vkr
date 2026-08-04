@@ -125,6 +125,21 @@ jobs:
       - name: Export local Supabase connection details
         run: npx supabase status -o env | node scripts/rls-env-from-supabase-status.mjs
 
+      # portal_users/portal_sessions/portal_audit_log are deliberately fully
+      # closed — no grants at all, to any role, not even service_role
+      # (TASK-004/ADR-004: access only through SECURITY DEFINER portal_*
+      # functions). Third real failure confirmed this the hard way:
+      # `permission denied for table portal_users` even under service_role.
+      # Fixtures here insert/clean up test users by going straight at the
+      # table rather than through portal_admin_create_user (which itself
+      # requires an already-existing head caller — a chicken-and-egg problem
+      # for the very first fixture), so this grant is scoped to exactly
+      # what src/testing/rls/client.ts needs, on this ephemeral database
+      # only. candidates/rate_cards/rates need no equivalent grant — only
+      # the three portal_* tables were ever locked down this way.
+      - name: Grant service_role access to portal_users for fixtures only
+        run: npx supabase db query --local "grant select, insert, delete on public.portal_users to service_role;"
+
       - run: npm run test:rls
 
       - if: always()
