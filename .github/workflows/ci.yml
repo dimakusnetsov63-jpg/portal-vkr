@@ -89,6 +89,27 @@ jobs:
 
       - run: npm ci
 
+      # supabase/config.toml has [auth] enabled = false (H-16 — the portal
+      # never uses Supabase Auth, and that setting is correct for the real
+      # project). But locally this also stops the CLI from generating a
+      # JWT secret and the anon/service_role tokens derived from it — the
+      # second CI attempt confirmed `supabase status -o env` prints only
+      # URLs with auth disabled, no keys, no JWT_SECRET at all, and the
+      # supabase_auth container doesn't even start.
+      #
+      # This flips auth on only inside this job's disposable checkout,
+      # purely so the local stack generates those tokens for the RLS
+      # harness to sign test JWTs with — nothing here is committed, pushed,
+      # or reaches the production project or its config.toml.
+      # Scoped to the [auth] block only (through its first subsection,
+      # [auth.rate_limit]) — config.toml has 13 other `enabled = false`
+      # lines (db.pooler, storage.analytics, auth.external.apple,
+      # auth.third_party.*, auth.oauth_server, ...) that must stay
+      # untouched. Verified locally against the real file before use: only
+      # [auth]'s own `enabled` flips, nothing else.
+      - name: Temporarily enable auth for this ephemeral checkout only
+        run: sed -i '/^\[auth\]$/,/^\[auth\./ s/^enabled = false$/enabled = true/' supabase/config.toml
+
       # Applies every migration under supabase/migrations/ to a fresh,
       # disposable local Postgres — never touches the production project.
       - run: npx supabase start
