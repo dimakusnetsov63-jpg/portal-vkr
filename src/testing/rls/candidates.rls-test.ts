@@ -4,17 +4,23 @@ import {
   cleanupTestFixtures,
   createTestPortalUser,
   insertTestRow,
+  readRowAsServiceRole,
   testMarker,
   type TestPortalUser,
 } from "./client";
 
 /**
  * H-6: candidates.project — прямая колонка, проверяется через
- * portal_has_project(project). Четыре сценария из ТЗ H-13:
- * 1. роль видит только разрешённые проекты;
- * 2. роль не видит чужой проект вообще;
- * 3. роль не может изменить запись чужого проекта;
- * 4. head видит оба проекта сразу.
+ * portal_has_project(project).
+ *
+ * Важное различие, которое здесь проверяется двумя отдельными тестами, а не
+ * одним: RLS защищает запись двумя механизмами, и выглядят они по-разному.
+ * `USING` решает, какие строки пользователь **видит** — чужая строка просто
+ * невидима, поэтому `UPDATE` по ней возвращает обычный `200` и ноль
+ * изменённых строк, а не отказ. `WITH CHECK` решает, какие значения можно
+ * **записать** — вот он и даёт `403`/`42501`. Первая версия этого файла
+ * смешивала их (ждала 403 от сценария, который упирается в `USING`) и
+ * падала, хотя защита работала.
  */
 describe("RLS: candidates — разграничение по проектам (H-6)", () => {
   const marker = testMarker();
@@ -23,6 +29,7 @@ describe("RLS: candidates — разграничение по проектам (
 
   let recruiterA: TestPortalUser;
   let head: TestPortalUser;
+  let candidateA: { id: string; project: string };
   let candidateB: { id: string; project: string };
 
   beforeAll(async () => {
@@ -32,10 +39,7 @@ describe("RLS: candidates — разграничение по проектам (
     // на результат, важен сам факт bypass.
     head = await createTestPortalUser("head", [`${marker}-unused`], marker);
 
-    // candidateA не используется напрямую в проверках ниже — она нужна
-    // только как данные проекта A, чтобы тесту "видит только свой проект"
-    // было что найти.
-    await insertTestRow("candidates", { full_name: "Кандидат A", project: projectA });
+    candidateA = await insertTestRow("candidates", { full_name: "Кандидат A", project: projectA });
     candidateB = await insertTestRow("candidates", { full_name: "Кандидат B", project: projectB });
   });
 
@@ -56,10 +60,38 @@ describe("RLS: candidates — разграничение по проектам (
     expect(rows).toHaveLength(0);
   });
 
-  it("роль не может изменить запись чужого проекта — 403 и код 42501", async () => {
+  it("UPDATE чужой записи не меняет её (USING — строка невидима, ноль затронутых строк)", async () => {
     const response = await asUserFetch(recruiterA.id, `/candidates?id=eq.${candidateB.id}`, {
       method: "PATCH",
       body: JSON.stringify({ full_name: "hacked" }),
+    });
+    // Не 403: `USING` не отказывает, а скрывает — PostgREST честно
+    // отвечает «обновлено ноль строк». Проверять только код ответа здесь
+    // недостаточно, поэтому ниже смотрим саму запись в обход RLS.
+    expect(response.status).toBe(200);
+    expect(await response.json()).toHaveLength(0);
+
+    const stored = await readRowAsServiceRole<{ full_name: string }>("candidates", candidateB.id);
+    expect(stored?.full_name).toBe("Кандидат B");
+  });
+
+  it("перенос своей записи в чужой проект отклоняется — 403 и код 42501 (WITH CHECK)", async () => {
+    const response = await asUserFetch(recruiterA.id, `/candidates?id=eq.${candidateA.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ project: projectB }),
+    });
+    expect(response.status).toBe(403);
+    const body = (await response.json()) as { code: string };
+    expect(body.code).toBe("42501");
+
+    const stored = await readRowAsServiceRole<{ project: string }>("candidates", candidateA.id);
+    expect(stored?.project).toBe(projectA);
+  });
+
+  it("INSERT в чужой проект отклоняется — 403 и код 42501 (WITH CHECK)", async () => {
+    const response = await asUserFetch(recruiterA.id, "/candidates", {
+      method: "POST",
+      body: JSON.stringify({ full_name: "Попытка", project: projectB }),
     });
     expect(response.status).toBe(403);
     const body = (await response.json()) as { code: string };

@@ -99,6 +99,22 @@ export async function insertTestRow<T>(table: string, row: Record<string, unknow
 }
 
 /**
+ * Читает строку в обход RLS — нужна, чтобы проверить, что запись
+ * действительно **не изменилась** после отклонённой попытки записи. Без
+ * этого тест «UPDATE чужой строки не сработал» опирался бы только на код
+ * ответа, а `USING`-отказ в PostgREST выглядит как обычный успех с нулём
+ * затронутых строк (см. `candidates.rls-test.ts`).
+ */
+export async function readRowAsServiceRole<T>(table: string, id: string): Promise<T | undefined> {
+  const response = await serviceRoleFetch(`/${table}?id=eq.${id}`);
+  if (!response.ok) {
+    throw new Error(`Не удалось прочитать ${table}/${id}: ${response.status} ${await response.text()}`);
+  }
+  const [row] = (await response.json()) as T[];
+  return row;
+}
+
+/**
  * Удаляет все тестовые фикстуры с этим маркером — вызывать в `afterAll`
  * каждого RLS-теста. `rate_cards` удаляется последним и каскадом уносит
  * свои `rates` (`on delete cascade`, см. `schema.md`) — отдельно чистить
