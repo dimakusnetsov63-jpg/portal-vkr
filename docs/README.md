@@ -99,6 +99,8 @@
 | [`SECURITY.md`](SECURITY.md) | Проверка зависимостей, реестр принятых исключений по уязвимостям |
 | [`ROLLOUT-login-rate-limit.md`](ROLLOUT-login-rate-limit.md) | Пошаговый выкат защиты входа (C-3/C-4): три фазы, точки отката, чек-лист, ложноположительные проверки |
 | [`ROLLOUT-jwt-signing-keys.md`](ROLLOUT-jwt-signing-keys.md) | Переход с HS256 на ES256 (C-5): Dashboard/Vercel до деплоя кода, откат, Definition of Done |
+| [`ROLLOUT-project-access.md`](ROLLOUT-project-access.md) | Разграничение доступа по проектам (H-6): фазы A→D, read-only аудит покрытия, backup политик, проверка через PostgREST |
+| [`ROLLOUT-rls-tests.md`](ROLLOUT-rls-tests.md) | Автотесты RLS-политик (H-13): архитектура (эфемерный Postgres в CI), почему не боевой проект, минимальный охват |
 | [`AUDIT-2026-07.md`](AUDIT-2026-07.md) | Технический аудит, июль 2026 |
 | [`AUDIT-2026-07-31.md`](AUDIT-2026-07-31.md) | Технический аудит перед production-релизом, 31 июля 2026 |
 | [`ROADMAP-1.0.md`](ROADMAP-1.0.md) | План доведения до версии 1.0 |
