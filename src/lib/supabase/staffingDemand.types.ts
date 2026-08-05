@@ -8,3 +8,5 @@ export type StaffingDemandInsert = Database["public"]["Tables"]["staffing_demand
 
 /** Payload accepted by UPDATE on public.staffing_demand. */
 export type StaffingDemandUpdate = Database["public"]["Tables"]["staffing_demand"]["Update"];
+
+export type StaffingDemandSource = "manual" | "excel";

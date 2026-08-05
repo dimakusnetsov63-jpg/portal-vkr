@@ -13,6 +13,7 @@ import { visibleProjectOptions } from "@/lib/auth/projectAccess";
 import type { AddressObjectType, AddressStatus } from "@/lib/supabase/addresses.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import { AddAddressModal } from "./AddAddressModal";
+import { ImportDemandModal } from "./ImportDemandModal";
 import { AddressesDashboard } from "./AddressesDashboard";
 import { AddressesTable } from "./AddressesTable";
 import { OBJECT_TYPE_LABELS, OBJECT_TYPES, PRIORITY_LEVELS, STATUS_LABELS, ADDRESS_STATUSES } from "./addressOptions";
@@ -43,6 +44,7 @@ export function AddressesSection() {
     listOptions,
     setContextAction,
     currentUser,
+    can,
   } = usePortal();
 
   const [filters, setFilters] = useState(EMPTY_FILTERS);
@@ -50,6 +52,11 @@ export function AddressesSection() {
   // перехода между страницами (см. requirements/addresses.md).
   const [showArchived, setShowArchived] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  // "Загрузить потребность" — доступно только head/coordinator (см.
+  // requirements/addresses.md, раздел «Импорт потребности»), в отличие от
+  // остального раздела, доступного всем четырём ролям.
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const canImport = can("settings");
 
   useEffect(() => {
     setContextAction({ label: "Добавить адрес", onClick: () => setModalOpen(true) });
@@ -252,6 +259,12 @@ export function AddressesSection() {
             Сбросить
           </Button>
           <div className={primitives.spacer} />
+          {canImport && (
+            <Button size="sm" onClick={() => setImportModalOpen(true)}>
+              <Icon name="download" size={14} />
+              Загрузить потребность
+            </Button>
+          )}
           <Button variant="primary" size="sm" onClick={() => setModalOpen(true)}>
             <Icon name="plus" size={14} />
             Добавить адрес
@@ -274,6 +287,7 @@ export function AddressesSection() {
       </Panel>
 
       {modalOpen && <AddAddressModal onClose={() => setModalOpen(false)} onSubmit={addAddress} />}
+      {importModalOpen && canImport && <ImportDemandModal onClose={() => setImportModalOpen(false)} />}
     </>
   );
 }

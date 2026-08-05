@@ -18,6 +18,7 @@
 | `AddressesDashboard.tsx` | 8 `StatCard`: Всего/Активных/Архивных/Общая потребность/Закрыто вакансий/Незакрытая потребность/Критичных/Средняя укомплектованность |
 | `AddressesTable.tsx` | Таблица: sticky-колонка «Адрес», переключатель «Активен» и кнопка «Дублировать» в строке |
 | `AddAddressModal.tsx` | Модалка создания: обязательные проект/город/адрес + быстрые метро/район/тип/специализация; остальное — потом в карточке |
+| `ImportDemandModal.tsx` | Загрузка потребности из Excel: проект+файл → предпросмотр/dry-run → отчёт. Видна только при `can('settings')` (head/coordinator). Сама модалка не знает, какой парсер используется — это решает `importDemand.ts` по `project_import_configs` |
 | `AddressDrawer.tsx` | Карточка адреса (Drawer, не страница): служебная информация, секции Основное/Потребность и статус/Графики и оплата/Контакты/Комментарий и особенности/Документы-ссылки, архив/восстановление |
 | `addressFilters.ts` | Чистая `filterAddresses(rows, filters)` — поиск сразу по нескольким полям |
 | `addressMetrics.ts` | Чистая `addressDeficit`, `addressFillRate`, `calculateAddressMetrics` — ничего не хранится в БД |
@@ -101,3 +102,31 @@ CRUD выполняет `lib/supabase/addressesRepo.ts` (обычный `createC
 кратко: нет полной истории по полям (только снимок в строке), документы —
 только ссылки, нет подтверждения перед архивированием, нет серверной
 пагинации.
+
+## Импорт потребности из Excel
+
+Модуль импорта — `src/lib/imports/` (отдельно от раздела, чистый TS без
+React/JSX): `types.ts` (единый формат `DemandImportRow`), `excel/readWorkbook.ts`
++ `excel/cellValue.ts` (exceljs), `parsers/` (`DemandParser` — интерфейс,
+`genericColumnParser.ts` — универсальный парсер по колоночному маппингу,
+`parser_lavka.ts` — **первый полноценный, специализированный парсер**
+(проект «Лавка», реальная выгрузка тикетов из Yandex Tracker — город/адрес
+из «Задачи», должность из «Теги», потребность по не-закрытым тикетам, дата
+из «Обновлено»), `parser_bk.ts`/`parser_gazprom.ts`/`parser_kuper.ts` —
+тонкие обёртки над generic-парсером до получения их реальных образцов
+файлов, `parserRegistry.ts` — реестр по `parser_key`, не по проекту),
+`mapping/` (`normalizeCity`/`normalizePosition`), `validateRow.ts`,
+`importDemand.ts` (оркестратор: parse → validate → агрегация дублей по
+ключу → dry-run/diff → batch-write → история) и `revertImport.ts`.
+Подробности архитектуры и известные ограничения (БК/Газпром/Купер пока на
+generic-парсере, `.xls` не читается, откат не полный undo, у «Лавки» дата
+потребности — заменитель из-за структуры источника) —
+[`docs/requirements/addresses.md`](../../../../../docs/requirements/addresses.md#импорт-потребности-из-excel).
+
+UI: кнопка «Загрузить потребность» в тулбаре (`AddressesSection.tsx`,
+`can('settings')`), модалка `ImportDemandModal.tsx`, история и отмена
+последнего импорта — панель `ImportHistoryPanel.tsx` в разделе «Настройки»
+(видна только руководителю). После реального (не dry-run) импорта модалка
+вызывает `usePortal().refreshDemand()` — новые строки видны в разделе
+«Потребность» без перезагрузки страницы; все успехи/ошибки — через
+`pushToast`, как везде в портале.

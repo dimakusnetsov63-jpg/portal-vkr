@@ -403,6 +403,39 @@ export type Database = {
         }
         Relationships: []
       }
+      project_import_configs: {
+        Row: {
+          column_mapping: Json
+          created_at: string
+          enabled: boolean
+          id: string
+          parser_key: string
+          project: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          column_mapping: Json
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          parser_key: string
+          project: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          column_mapping?: Json
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          parser_key?: string
+          project?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       rate_cards: {
         Row: {
           bonuses: string | null
@@ -577,36 +610,53 @@ export type Database = {
       }
       staffing_demand: {
         Row: {
+          address: string | null
           city: string
           created_at: string
           demand_date: string
           id: string
+          import_id: string | null
           planned_count: number
           position: string
           project: string
+          source: string
           updated_at: string
         }
         Insert: {
+          address?: string | null
           city: string
           created_at?: string
           demand_date: string
           id?: string
+          import_id?: string | null
           planned_count: number
           position: string
           project: string
+          source?: string
           updated_at?: string
         }
         Update: {
+          address?: string | null
           city?: string
           created_at?: string
           demand_date?: string
           id?: string
+          import_id?: string | null
           planned_count?: number
           position?: string
           project?: string
+          source?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "staffing_demand_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "staffing_demand_imports"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       staffing_demand_history: {
         Row: {
@@ -661,6 +711,80 @@ export type Database = {
           staffing_demand_id?: string | null
         }
         Relationships: []
+      }
+      staffing_demand_imports: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          created_by_login: string | null
+          dry_run: boolean
+          duration_ms: number
+          error_log: Json
+          error_rows: number
+          file_name: string
+          id: string
+          imported_rows: number
+          mode: string
+          new_rows: number
+          parser_key: string
+          parser_version: number
+          project: string
+          status: string
+          total_rows: number
+          updated_rows: number
+          warnings: Json
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          created_by_login?: string | null
+          dry_run?: boolean
+          duration_ms?: number
+          error_log?: Json
+          error_rows?: number
+          file_name: string
+          id?: string
+          imported_rows?: number
+          mode: string
+          new_rows?: number
+          parser_key: string
+          parser_version: number
+          project: string
+          status: string
+          total_rows?: number
+          updated_rows?: number
+          warnings?: Json
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          created_by_login?: string | null
+          dry_run?: boolean
+          duration_ms?: number
+          error_log?: Json
+          error_rows?: number
+          file_name?: string
+          id?: string
+          imported_rows?: number
+          mode?: string
+          new_rows?: number
+          parser_key?: string
+          parser_version?: number
+          project?: string
+          status?: string
+          total_rows?: number
+          updated_rows?: number
+          warnings?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staffing_demand_imports_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       staffing_demand_rows: {
         Row: {

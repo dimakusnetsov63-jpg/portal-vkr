@@ -10,12 +10,14 @@
 
 ## Таблицы
 
-Подтверждены шестнадцать таблиц в схеме `public`: `candidates`,
+Подтверждены восемнадцать таблиц в схеме `public`: `candidates`,
 `candidate_list_options`, `staffing_demand`, `staffing_demand_rows`,
 `staffing_demand_history`, `addresses`, `rate_cards`, `rates`, пять таблиц
 раздела «Описание вакансии» (`vacancy_projects`, `vacancy_sections`,
 `vacancy_fields`, `vacancy_attachments`, `vacancy_history` — TASK-010, **не
-применены к боевой БД**, см. `migrations.md`) и три таблицы встроенной
+применены к боевой БД**, см. `migrations.md`), две таблицы импорта
+потребности из Excel (`project_import_configs`, `staffing_demand_imports` —
+**не применены к боевой БД**, см. `migrations.md`) и три таблицы встроенной
 авторизации — `portal_users`, `portal_sessions`, `portal_audit_log`.
 
 `addresses` (миграция `20260729130000_create_addresses.sql` + две последующие),
@@ -107,13 +109,20 @@ upsert.
 | `position` | text | **not null** | Свободный текст, подсказки — `candidate_list_options` (`list_type = position`), тот же справочник, что и у `candidates.position` |
 | `demand_date` | date | **not null** | |
 | `planned_count` | integer | **not null** | `check (planned_count >= 0)`; отсутствие строки = «не задано» |
+| `address` | text | nullable | С `20260805110000_add_demand_import_support.sql`. Заполняется импортом из Excel (`src/lib/imports/`); `NULL` = потребность не привязана к конкретному адресу — весь ручной ввод и вся матрица «Потребность» до этой миграции именно такие. `NULL` ≠ `''` (пустая строка означала бы «адрес указан, но пуст») |
+| `source` | text | **not null** | `default 'manual'`; `check (source in ('manual', 'excel'))` — откуда взялась строка |
+| `import_id` | uuid | nullable | FK → `staffing_demand_imports.id` (`on delete set null`). Заполнено только для строк, созданных/обновлённых импортом — используется для отмены последнего импорта |
 | `created_at` | timestamptz | not null | `default now()` |
 | `updated_at` | timestamptz | not null | `default now()`, обновляется триггером |
 
-**Ограничение:** `unique (project, city, position, demand_date)` (обычный,
-не partial — см. примечание ниже; расширен полем `position`, до этого был
-`unique (project, city, demand_date)`). **Индексы:** по `demand_date`,
-`project`, `city`. Отдельного индекса по `position` нет — сам уникальный
+**Ограничение:** `unique (project, city, position, demand_date, address)`
+(обычный, не partial — см. примечание ниже; расширен полем `address` в
+`20260805110000_add_demand_import_support.sql`, до этого был
+`unique (project, city, position, demand_date)`; Postgres не считает `NULL`
+конфликтующим с `NULL` в unique-индексе, поэтому ручные строки — все с
+`address is null` — остались взаимно уникальными по прежнему ключу без
+миграции данных). **Индексы:** по `demand_date`, `project`, `city`,
+`import_id`. Отдельного индекса по `position`/`address` нет — сам уникальный
 констрейнт уже покрывает срезы `(project)`, `(project, city)` и
 `(project, city, position)`, дублирующий индекс был бы избыточен.
 
@@ -156,6 +165,63 @@ upsert.
 
 **Триггер:** `trg_staffing_demand_rows_set_updated_at` — переиспользует
 тот же `set_candidates_updated_at()`.
+
+### `public.project_import_configs`
+
+Какой парсер и какой маппинг колонок Excel использовать для проекта при
+импорте потребности (`src/lib/imports/parsers/`). Смена формата файла
+проекта — новая строка/новый `parser_key` здесь, без изменения кода.
+Добавлена в `20260805110000_add_demand_import_support.sql`.
+
+| Поле | Тип | Null | Примечание |
+|------|-----|------|-----------|
+| `id` | uuid | not null | PK, `gen_random_uuid()` |
+| `project` | text | **not null** | Тот же свободный список, что `staffing_demand.project` |
+| `parser_key` | text | **not null** | Ключ реализации `DemandParser` в `parserRegistry.ts` — не совпадает с `project` (проект может сменить парсер, оставшись тем же проектом) |
+| `column_mapping` | jsonb | **not null** | Произвольный словарь "поле → заголовок колонки Excel". Форма зависит от парсера: для `genericColumnParser` — `{"city", "address", "position", "demand", "date"}`; для `parser_lavka.ts` — `{"task", "position", "demand", "date", "status"}` (см. комментарий в файле парсера) |
+| `enabled` | boolean | not null | `default true` |
+| `version` | integer | not null | `default 1` — записывается в историю импорта (`staffing_demand_imports.parser_version`) |
+| `created_at` / `updated_at` | timestamptz | not null | `updated_at` обновляется триггером |
+
+**Ограничение:** `unique (project, parser_key)`. Для проекта «Лавка»
+реализован специализированный парсер (`lavka_v1`). Остальные проекты
+(БК/Газпром/Купер) временно используют generic-парсер с одинаковым
+маппингом колонок. После получения образцов Excel для каждого проекта будут
+реализованы собственные `parser_*.ts` без изменения архитектуры импорта —
+см. `docs/requirements/addresses.md`.
+
+### `public.staffing_demand_imports`
+
+Журнал загрузок потребности из Excel: кто, когда, каким парсером, сколько
+строк обработано/импортировано/с ошибками, полный `error_log`/`warnings`.
+Добавлена в `20260805110000_add_demand_import_support.sql`.
+
+| Поле | Тип | Null | Примечание |
+|------|-----|------|-----------|
+| `id` | uuid | not null | PK, `gen_random_uuid()` |
+| `created_at` | timestamptz | not null | `default now()` |
+| `created_by` | uuid | nullable | FK → `portal_users.id` (`on delete set null`) |
+| `created_by_login` | text | nullable | Снимок логина на момент импорта — переживает переименование/удаление учётки, как `portal_audit_log.actor_login` |
+| `project` | text | **not null** | |
+| `parser_key` / `parser_version` | text / integer | **not null** | Какой парсер и какой его версии использовался |
+| `file_name` | text | **not null** | |
+| `mode` | text | **not null** | `check (mode in ('replace', 'add'))` |
+| `dry_run` | boolean | not null | `default false` — «Проверить» без записи в базу |
+| `total_rows` / `imported_rows` / `error_rows` / `new_rows` / `updated_rows` | integer | not null | `default 0` |
+| `status` | text | **not null** | `check (status in ('success', 'partial', 'failed', 'reverted'))` |
+| `duration_ms` | integer | not null | `default 0` |
+| `error_log` | jsonb | not null | `default '[]'`; массив `{rowNumber, reason}` |
+| `warnings` | jsonb | not null | `default '[]'`; массив строк |
+
+**Индексы:** по `created_at desc`, по `(project, created_at desc)`. Доступ
+(`SELECT`/`INSERT`/`UPDATE`) — только head/coordinator (`portal_can('addresses')
+and portal_can('settings')`), как у записи «Описания вакансии».
+
+**Откат импорта:** удаляет из `staffing_demand` строки с этим `import_id` и
+проставляет `status = 'reverted'` (`src/lib/imports/revertImport.ts`).
+Безопасен без потери данных только для `mode = 'replace'` или импортов, не
+обновивших ни одной существующей строки (`updated_rows = 0`) — см.
+известные ограничения в `docs/requirements/addresses.md`.
 
 **Почему `status` через `CHECK`, а не enum:** список статусов проще
 расширить (добавить значение) без миграции типа `ALTER TYPE ... ADD

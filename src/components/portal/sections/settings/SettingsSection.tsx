@@ -6,6 +6,7 @@ import { Panel, PanelBody, PanelHead } from "@/components/portal/ui/Panel";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import { AuditLogPanel } from "./AuditLogPanel";
 import { CandidateListsPanel } from "./CandidateListsPanel";
+import { ImportHistoryPanel } from "./ImportHistoryPanel";
 import { TeamPanel } from "./TeamPanel";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import styles from "./SettingsSection.module.css";
@@ -92,6 +93,8 @@ export function SettingsSection() {
           </Panel>
 
           <CandidateListsPanel />
+
+          {manageUsers && <ImportHistoryPanel />}
 
           {manageUsers && <AuditLogPanel />}
         </div>
