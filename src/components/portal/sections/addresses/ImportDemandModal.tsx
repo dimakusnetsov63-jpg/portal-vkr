@@ -55,7 +55,7 @@ export function ImportDemandModal({ onClose }: { onClose: () => void }) {
         await refreshDemand();
       }
     } catch (e) {
-      pushToast(e instanceof Error ? e.message : "Не удалось обработать файл", "error");
+      pushToast(toErrorMessage(e), "error");
     } finally {
       setBusy(null);
     }
@@ -183,4 +183,19 @@ function Stat({ label, value }: { label: string; value: string | number }) {
       <strong>{value}</strong>
     </div>
   );
+}
+
+/**
+ * Supabase-js throws a plain `{message, code, details}` object, not an
+ * `Error` instance — a bare `e instanceof Error` check silently swallowed
+ * the real reason (missing table, RLS denial, etc.) behind a generic
+ * fallback. This also covers the real `Error`s importDemand.ts throws
+ * itself (unknown parser, no config for the project, wrong file format).
+ */
+function toErrorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (e && typeof e === "object" && "message" in e && typeof (e as { message: unknown }).message === "string") {
+    return (e as { message: string }).message;
+  }
+  return "Не удалось обработать файл";
 }

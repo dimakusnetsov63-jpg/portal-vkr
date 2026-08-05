@@ -6,7 +6,7 @@ import { getImportConfigForProject } from "../supabase/projectImportConfigsRepo"
 import { createImportRecord } from "../supabase/staffingDemandImportsRepo";
 import {
   bulkUpsertStaffingDemandFromImport,
-  getStaffingDemandByKeys,
+  getStaffingDemandForProjectDates,
 } from "../supabase/staffingDemandRepo";
 
 /** Everything importDemand() needs from the caller — the UI supplies the file/mode/dryRun choices, and the already-loaded candidate_list_options dictionaries and current-user identity, so this module never talks to those directly. */
@@ -117,10 +117,12 @@ export async function importDemand(input: ImportDemandInput): Promise<ImportRepo
 
 /**
  * For mode "Заменить" every valid row is written as-is (planned_count = row.demand).
- * For mode "Добавить" the existing planned_count for the same key is read in
- * one batched query (getStaffingDemandByKeys — not one query per row, which
- * would make a 10k-row import impractically slow) and the new value is
- * existing + demand.
+ * For mode "Добавить" the existing planned_count for the same key is needed,
+ * and the new value is existing + demand. Existing rows are fetched with one
+ * query filtered only by `project` + the (few, low-cardinality) dates in the
+ * file — see getStaffingDemandForProjectDates's doc comment for why a
+ * per-row OR-of-five-fields filter doesn't work with real data — then
+ * matched against each row's full key (city/position/address) in memory.
  */
 async function diffAgainstExisting(
   project: string,
@@ -133,14 +135,7 @@ async function diffAgainstExisting(
 }> {
   if (rows.length === 0) return { newRows: 0, updatedRows: 0, writes: [] };
 
-  const keys = rows.map((row) => ({
-    project,
-    city: row.city,
-    position: row.position,
-    demand_date: row.date,
-    address: row.address,
-  }));
-  const existing = await getStaffingDemandByKeys(keys);
+  const existing = await getStaffingDemandForProjectDates(project, rows.map((row) => row.date));
   const existingByKey = new Map(existing.map((row) => [rowKey(row.project, row.city, row.position, row.demand_date, row.address), row]));
 
   let newRows = 0;

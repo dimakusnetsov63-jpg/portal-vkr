@@ -70,32 +70,30 @@ export async function bulkUpsertStaffingDemand(
   return data;
 }
 
-/** Reads existing rows for a set of (project, city, position, demand_date, address) keys in one batched query — used by the "Добавить" import mode to compute new planned_count = existing + demand without a per-row round-trip. Chunked at 500 keys per request to stay under PostgREST's URL/filter limits for 10k-row imports. */
-export async function getStaffingDemandByKeys(
-  keys: { project: string; city: string; position: string; demand_date: string; address: string | null }[],
-): Promise<StaffingDemandRow[]> {
-  if (keys.length === 0) return [];
+/**
+ * Reads every existing row for one project on a set of dates — used by the
+ * "Добавить" import mode to compute new planned_count = existing + demand
+ * without a per-row round-trip. Filters only by `project` + `demand_date in
+ * (...)` (both short, low-cardinality values — a handful of unique dates per
+ * import) rather than building one `or(and(project=..,city=..,position=..,
+ * demand_date=..,address=..))` clause per row: with real data (e.g. ~160
+ * distinct addresses for one Lavka import) that approach produced a URL tens
+ * of thousands of characters long and PostgREST rejected it with a plain
+ * `400`. Matching on the full key (city/position/address) happens in
+ * memory in importDemand.ts once the caller has all rows for the relevant
+ * dates.
+ */
+export async function getStaffingDemandForProjectDates(project: string, dates: string[]): Promise<StaffingDemandRow[]> {
+  if (dates.length === 0) return [];
   const supabase = createClient();
-  const CHUNK_SIZE = 500;
-  const results: StaffingDemandRow[] = [];
-  for (let i = 0; i < keys.length; i += CHUNK_SIZE) {
-    const chunk = keys.slice(i, i + CHUNK_SIZE);
-    const orFilter = chunk
-      .map(
-        (k) =>
-          `and(project.eq.${escapeOrValue(k.project)},city.eq.${escapeOrValue(k.city)},position.eq.${escapeOrValue(k.position)},demand_date.eq.${k.demand_date},${k.address === null ? "address.is.null" : `address.eq.${escapeOrValue(k.address)}`})`,
-      )
-      .join(",");
-    const { data, error } = await supabase.from("staffing_demand").select("*").or(orFilter);
-    if (error) throw error;
-    results.push(...data);
-  }
-  return results;
-}
-
-/** Escapes a value for use inside a PostgREST `.or()` filter string — commas and parentheses are the filter grammar's own delimiters. */
-function escapeOrValue(value: string): string {
-  return value.replace(/[,()]/g, "");
+  const uniqueDates = [...new Set(dates)];
+  const { data, error } = await supabase
+    .from("staffing_demand")
+    .select("*")
+    .eq("project", project)
+    .in("demand_date", uniqueDates);
+  if (error) throw error;
+  return data;
 }
 
 /** Bulk upsert for an Excel import: same key as bulkUpsertStaffingDemand, but with address/source/import_id set from the import. */
