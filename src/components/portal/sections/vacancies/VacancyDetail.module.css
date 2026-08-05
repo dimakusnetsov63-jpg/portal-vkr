@@ -1,0 +1,392 @@
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--border);
+}
+.headMain {
+  min-width: 0;
+  flex: 1;
+}
+.title {
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-tight);
+  margin-bottom: var(--sp-2);
+}
+.titleInput {
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-s);
+  padding: var(--sp-1) var(--sp-2);
+  margin-bottom: var(--sp-2);
+  width: 100%;
+  max-width: 480px;
+}
+.headMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.categorySelect {
+  height: var(--control-h-sm);
+}
+.updatedMeta {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+.headActions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.conflictBanner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-m);
+  background: var(--amber-soft);
+  color: var(--amber);
+  font-size: var(--fs-sm);
+}
+.conflictBanner span {
+  flex: 1;
+}
+
+.inPageSearch {
+  width: 100%;
+  max-width: 420px;
+}
+
+.body {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: var(--sp-5);
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .body {
+    grid-template-columns: 1fr;
+  }
+}
+
+.anchorNav {
+  position: sticky;
+  top: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.anchorItem {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-s);
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.anchorItem:hover {
+  background: var(--surface-hover);
+  color: var(--text-1);
+}
+
+.addSectionRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px dashed var(--border);
+}
+.addSectionSelect {
+  height: var(--control-h-sm);
+  font-size: var(--fs-xs);
+}
+.addSectionCustom {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  background: none;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-s);
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-2xs);
+  color: var(--text-2);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.archivedSections {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+.archivedSections > button {
+  background: none;
+  border: none;
+  color: var(--text-2);
+  font-weight: var(--fw-semibold);
+}
+.archivedSections ul {
+  margin-top: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.archivedSections li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-1) 0;
+}
+
+/* Значение поля -------------------------------------------------------- */
+.plainText {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  white-space: pre-wrap;
+  line-height: var(--lh-loose);
+}
+.richText p {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  white-space: pre-wrap;
+  line-height: var(--lh-loose);
+  margin-bottom: var(--sp-2);
+}
+.richText ul {
+  margin: 0 0 var(--sp-2);
+  padding-left: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.richText li {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  line-height: var(--lh-base);
+}
+.linkPill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--radius-pill);
+}
+
+.plainText mark,
+.fieldLabel mark {
+  background: var(--amber-soft);
+  color: var(--text-1);
+  border-radius: 3px;
+}
+
+/* Поле — чтение/редактирование ------------------------------------------ */
+.fieldRow {
+  padding: var(--sp-2) 0;
+  border-top: 1px dashed var(--border);
+}
+.fieldRow:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+.fieldLabel {
+  display: block;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-1);
+  margin-bottom: var(--sp-1);
+}
+
+.fieldEditRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+}
+.fieldLabelInput {
+  flex: 1;
+  font-weight: var(--fw-semibold);
+}
+.fieldTypeSelect {
+  width: 180px;
+  flex: none;
+}
+.fieldRowCtl {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: none;
+}
+.markdownToolbar {
+  display: flex;
+  gap: var(--sp-1);
+}
+.markdownToolbar button {
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  font-size: var(--fs-xs);
+}
+.fieldPreview {
+  border-top: 1px dashed var(--border);
+  padding-top: var(--sp-2);
+}
+.fieldPreviewLabel {
+  display: block;
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--text-3);
+  margin-bottom: var(--sp-1);
+}
+.addFieldButton {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  align-self: flex-start;
+  background: none;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-s);
+  padding: var(--sp-1) var(--sp-3);
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+  margin-top: var(--sp-2);
+}
+
+.sectionCtl {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.sectionTitleInput {
+  flex: 1;
+  font-weight: var(--fw-bold);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 2px var(--sp-2);
+}
+
+/* Системный раздел «Общая информация» — без сворачивания. */
+.systemSection {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.systemSectionHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+}
+.systemSectionIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-xs);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.systemSectionTitle {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--text-1);
+}
+.systemSectionBody {
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+}
+
+/* Вложения --------------------------------------------------------------- */
+.attachments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.attachmentList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.attachmentList li {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+.attachmentList a,
+.attachmentList span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  color: var(--accent);
+}
+.attachmentType {
+  font-size: var(--fs-2xs);
+  color: var(--text-3);
+  margin-left: auto;
+}
+.attachmentAddRow {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+}
+.attachmentAddRow input {
+  flex: 1;
+}
+
+/* История ----------------------------------------------------------------- */
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.historyList li {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px dashed var(--border);
+}
+.historyWhen {
+  display: block;
+  font-size: var(--fs-2xs);
+  color: var(--text-3);
+}

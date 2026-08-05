@@ -55,6 +55,14 @@ import {
 } from "@/lib/supabase/addressesRepo";
 import type { AddressInsert, AddressRow, AddressUpdate } from "@/lib/supabase/addresses.types";
 import {
+  archiveVacancyProject,
+  createVacancyProject,
+  duplicateVacancyProject,
+  listVacancyProjects,
+  restoreVacancyProject,
+} from "@/lib/supabase/vacancyProjectsRepo";
+import type { VacancyProjectListRow } from "@/lib/supabase/vacancyProjects.types";
+import {
   createRate,
   deleteRate,
   deleteRateCard,
@@ -162,6 +170,19 @@ interface PortalContextValue {
   openAddressDrawer: (id: string) => void;
   closeAddressDrawer: () => void;
 
+  vacancyProjects: VacancyProjectListRow[];
+  vacancyProjectsLoading: boolean;
+  vacancyProjectsError: string | null;
+  refreshVacancyProjects: () => Promise<void>;
+  addVacancyProject: (input: { title: string; categoryOptionId: string | null }) => Promise<boolean>;
+  archiveVacancyProjectRecord: (id: string) => Promise<void>;
+  restoreVacancyProjectRecord: (id: string) => Promise<void>;
+  duplicateVacancyProjectRecord: (id: string) => Promise<void>;
+
+  selectedVacancyProjectId: string | null;
+  openVacancyProjectDrawer: (id: string) => void;
+  closeVacancyProjectDrawer: () => void;
+
   rateCards: RateCardRow[];
   rates: RateRow[];
   ratesLoading: boolean;
@@ -231,6 +252,11 @@ export function PortalProvider({
   const [addressesLoading, setAddressesLoading] = useState(true);
   const [addressesError, setAddressesError] = useState<string | null>(null);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+
+  const [vacancyProjects, setVacancyProjects] = useState<VacancyProjectListRow[]>([]);
+  const [vacancyProjectsLoading, setVacancyProjectsLoading] = useState(true);
+  const [vacancyProjectsError, setVacancyProjectsError] = useState<string | null>(null);
+  const [selectedVacancyProjectId, setSelectedVacancyProjectId] = useState<string | null>(null);
 
   const [rateCards, setRateCards] = useState<RateCardRow[]>([]);
   const [rates, setRates] = useState<RateRow[]>([]);
@@ -775,6 +801,86 @@ export function PortalProvider({
     [addresses, pushToast, openAddressDrawer],
   );
 
+  const refreshVacancyProjects = useCallback(async () => {
+    setVacancyProjectsLoading(true);
+    setVacancyProjectsError(null);
+    try {
+      setVacancyProjects(await listVacancyProjects());
+    } catch (e) {
+      setVacancyProjectsError(e instanceof Error ? e.message : "Не удалось загрузить вакансии");
+    } finally {
+      setVacancyProjectsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data load on mount
+    refreshVacancyProjects();
+  }, [refreshVacancyProjects]);
+
+  const openVacancyProjectDrawer = useCallback((id: string) => setSelectedVacancyProjectId(id), []);
+  const closeVacancyProjectDrawer = useCallback(() => setSelectedVacancyProjectId(null), []);
+
+  const addVacancyProject = useCallback(
+    async (input: { title: string; categoryOptionId: string | null }) => {
+      try {
+        const created = await createVacancyProject(input);
+        await refreshVacancyProjects();
+        pushToast("Вакансия добавлена");
+        openVacancyProjectDrawer(created.id);
+        return true;
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось добавить вакансию", "error");
+        return false;
+      }
+    },
+    [pushToast, refreshVacancyProjects, openVacancyProjectDrawer],
+  );
+
+  // archived_at патчится точечно (не полная перезагрузка списка), чтобы не
+  // терять уже подтянутый category_option этой строки — обычный
+  // archiveVacancyProject/restoreVacancyProject возвращает голую строку
+  // vacancy_projects без embedded-джойна.
+  const archiveVacancyProjectRecord = useCallback(
+    async (id: string) => {
+      try {
+        const updated = await archiveVacancyProject(id);
+        setVacancyProjects((prev) => prev.map((v) => (v.id === id ? { ...v, archived_at: updated.archived_at } : v)));
+        pushToast("Вакансия перемещена в архив");
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось архивировать вакансию", "error");
+      }
+    },
+    [pushToast],
+  );
+
+  const restoreVacancyProjectRecord = useCallback(
+    async (id: string) => {
+      try {
+        const updated = await restoreVacancyProject(id);
+        setVacancyProjects((prev) => prev.map((v) => (v.id === id ? { ...v, archived_at: updated.archived_at } : v)));
+        pushToast("Вакансия восстановлена из архива");
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось восстановить вакансию", "error");
+      }
+    },
+    [pushToast],
+  );
+
+  const duplicateVacancyProjectRecord = useCallback(
+    async (id: string) => {
+      try {
+        const newId = await duplicateVacancyProject(id);
+        await refreshVacancyProjects();
+        pushToast("Вакансия продублирована");
+        openVacancyProjectDrawer(newId);
+      } catch (e) {
+        pushToast(e instanceof Error ? e.message : "Не удалось продублировать вакансию", "error");
+      }
+    },
+    [pushToast, refreshVacancyProjects, openVacancyProjectDrawer],
+  );
+
   const refreshRates = useCallback(async () => {
     setRatesLoading(true);
     setRatesError(null);
@@ -952,6 +1058,17 @@ export function PortalProvider({
       selectedAddressId,
       openAddressDrawer,
       closeAddressDrawer,
+      vacancyProjects,
+      vacancyProjectsLoading,
+      vacancyProjectsError,
+      refreshVacancyProjects,
+      addVacancyProject,
+      archiveVacancyProjectRecord,
+      restoreVacancyProjectRecord,
+      duplicateVacancyProjectRecord,
+      selectedVacancyProjectId,
+      openVacancyProjectDrawer,
+      closeVacancyProjectDrawer,
       rateCards,
       rates,
       ratesLoading,
@@ -1027,6 +1144,17 @@ export function PortalProvider({
       selectedAddressId,
       openAddressDrawer,
       closeAddressDrawer,
+      vacancyProjects,
+      vacancyProjectsLoading,
+      vacancyProjectsError,
+      refreshVacancyProjects,
+      addVacancyProject,
+      archiveVacancyProjectRecord,
+      restoreVacancyProjectRecord,
+      duplicateVacancyProjectRecord,
+      selectedVacancyProjectId,
+      openVacancyProjectDrawer,
+      closeVacancyProjectDrawer,
       rateCards,
       rates,
       ratesLoading,

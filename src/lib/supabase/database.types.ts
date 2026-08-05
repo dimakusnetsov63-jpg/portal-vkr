@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -11,31 +11,6 @@ export type Database = {
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
-  }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
   }
   public: {
     Tables: {
@@ -323,6 +298,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      portal_login_attempts: {
+        Row: {
+          created_at: string
+          id: number
+          ip_hash: string | null
+          login_hash: string
+          succeeded: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          ip_hash?: string | null
+          login_hash: string
+          succeeded: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          ip_hash?: string | null
+          login_hash?: string
+          succeeded?: boolean
+        }
+        Relationships: []
       }
       portal_sessions: {
         Row: {
@@ -696,11 +695,266 @@ export type Database = {
         }
         Relationships: []
       }
+      vacancy_attachments: {
+        Row: {
+          created_at: string
+          id: string
+          section_id: string | null
+          sort_order: number
+          title: string
+          type: string
+          url: string
+          vacancy_project_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          section_id?: string | null
+          sort_order?: number
+          title: string
+          type?: string
+          url: string
+          vacancy_project_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          section_id?: string | null
+          sort_order?: number
+          title?: string
+          type?: string
+          url?: string
+          vacancy_project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vacancy_attachments_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "vacancy_sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vacancy_attachments_vacancy_project_id_fkey"
+            columns: ["vacancy_project_id"]
+            isOneToOne: false
+            referencedRelation: "vacancy_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vacancy_fields: {
+        Row: {
+          created_at: string
+          field_type: string
+          id: string
+          label: string
+          section_id: string
+          sort_order: number
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          field_type?: string
+          id?: string
+          label?: string
+          section_id: string
+          sort_order?: number
+          updated_at?: string
+          value?: string
+        }
+        Update: {
+          created_at?: string
+          field_type?: string
+          id?: string
+          label?: string
+          section_id?: string
+          sort_order?: number
+          updated_at?: string
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vacancy_fields_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "vacancy_sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vacancy_history: {
+        Row: {
+          action: string
+          changed_at: string
+          changed_by: string | null
+          changed_by_login: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          new_data: Json | null
+          old_data: Json | null
+          vacancy_project_id: string
+        }
+        Insert: {
+          action: string
+          changed_at?: string
+          changed_by?: string | null
+          changed_by_login?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          vacancy_project_id: string
+        }
+        Update: {
+          action?: string
+          changed_at?: string
+          changed_by?: string | null
+          changed_by_login?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          vacancy_project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vacancy_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vacancy_history_vacancy_project_id_fkey"
+            columns: ["vacancy_project_id"]
+            isOneToOne: false
+            referencedRelation: "vacancy_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vacancy_projects: {
+        Row: {
+          archived_at: string | null
+          category_option_id: string | null
+          created_at: string
+          created_by: string | null
+          created_by_login: string | null
+          id: string
+          title: string
+          updated_at: string
+          updated_by: string | null
+          updated_by_login: string | null
+          version: number
+        }
+        Insert: {
+          archived_at?: string | null
+          category_option_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_login?: string | null
+          id?: string
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_login?: string | null
+          version?: number
+        }
+        Update: {
+          archived_at?: string | null
+          category_option_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_login?: string | null
+          id?: string
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_login?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vacancy_projects_category_option_id_fkey"
+            columns: ["category_option_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_list_options"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vacancy_projects_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vacancy_projects_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vacancy_sections: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          icon: string | null
+          id: string
+          is_system: boolean
+          sort_order: number
+          title: string
+          updated_at: string
+          vacancy_project_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_system?: boolean
+          sort_order?: number
+          title: string
+          updated_at?: string
+          vacancy_project_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_system?: boolean
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          vacancy_project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vacancy_sections_vacancy_project_id_fkey"
+            columns: ["vacancy_project_id"]
+            isOneToOne: false
+            referencedRelation: "vacancy_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      addresses_document_links_valid: {
+        Args: { p_links: Json }
+        Returns: boolean
+      }
       portal_admin_create_user: {
         Args: {
           p_full_name: string
@@ -769,12 +1023,30 @@ export type Database = {
       portal_can: { Args: { p_section: string }; Returns: boolean }
       portal_current_session_id: { Args: never; Returns: string }
       portal_current_user_id: { Args: never; Returns: string }
+      portal_duplicate_vacancy_project: {
+        Args: { p_project_id: string }
+        Returns: string
+      }
+      portal_has_project: { Args: { p_project: string }; Returns: boolean }
+      portal_has_rate_card_project: {
+        Args: { p_rate_card_id: string }
+        Returns: boolean
+      }
       portal_jwt_claim: { Args: { p_claim: string }; Returns: string }
       portal_login: {
-        Args: { p_login: string; p_password: string; p_user_agent?: string }
+        Args: {
+          p_ip?: string
+          p_login: string
+          p_password: string
+          p_user_agent?: string
+        }
         Returns: Json
       }
       portal_logout: { Args: { p_token: string }; Returns: undefined }
+      portal_purge_login_attempts: {
+        Args: { p_keep?: string }
+        Returns: number
+      }
       portal_require_admin: {
         Args: never
         Returns: {
@@ -800,11 +1072,20 @@ export type Database = {
         Args: { p_role: Database["public"]["Enums"]["portal_user_role"] }
         Returns: string[]
       }
+      portal_save_vacancy_project_tree: {
+        Args: {
+          p_expected_version: number
+          p_payload: Json
+          p_project_id: string
+        }
+        Returns: Json
+      }
       portal_session_context: { Args: { p_token: string }; Returns: Json }
       portal_user_json: {
         Args: { p_user: Database["public"]["Tables"]["portal_users"]["Row"] }
         Returns: Json
       }
+      search_vacancy_projects: { Args: { p_query: string }; Returns: string[] }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
     }
@@ -817,6 +1098,7 @@ export type Database = {
         | "position"
         | "project"
         | "legal_entity"
+        | "vacancy_category"
       candidate_project:
         | "Самокат"
         | "Купер"
@@ -972,9 +1254,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       candidate_list_type: [
@@ -985,6 +1264,7 @@ export const Constants = {
         "position",
         "project",
         "legal_entity",
+        "vacancy_category",
       ],
       candidate_project: [
         "Самокат",

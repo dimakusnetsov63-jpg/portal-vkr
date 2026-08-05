@@ -19,6 +19,7 @@ export const LIST_TYPE_LABELS: Record<CandidateListType, string> = {
   position: "Должности",
   project: "Проекты",
   legal_entity: "Юр. лица (Ставки)",
+  vacancy_category: "Категории вакансий",
 };
 
 const STAGE_COLORS: Record<CandidateStage, BadgeColor> = {

@@ -10,7 +10,7 @@ import { OverviewSection } from "@/components/portal/sections/OverviewSection";
 import { DemandSection } from "@/components/portal/sections/demand";
 import { AddressesSection, AddressDrawer } from "@/components/portal/sections/addresses";
 import { CandidatesSection, RealCandidateDrawer } from "@/components/portal/sections/candidates";
-import { VacanciesSection } from "@/components/portal/sections/VacanciesSection";
+import { VacanciesSection } from "@/components/portal/sections/vacancies";
 import { RatesSection, RateDrawer } from "@/components/portal/sections/rates";
 import { MarketingSection } from "@/components/portal/sections/MarketingSection";
 import { AnalyticsSection } from "@/components/portal/sections/AnalyticsSection";

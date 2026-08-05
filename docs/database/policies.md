@@ -6,7 +6,10 @@
 
 ## Действующая модель
 
-RLS включён на **всех одиннадцати** таблицах схемы `public`. Политики созданы
+RLS включён на **всех шестнадцати** таблицах схемы `public` (одиннадцать +
+пять таблиц TASK-010 «Описание вакансии»: `vacancy_projects`/
+`vacancy_sections`/`vacancy_fields`/`vacancy_attachments`/`vacancy_history`).
+Политики созданы
 только для роли `authenticated`; для `anon` политик нет ни на одной таблице —
 неавторизованный доступ запрещён по умолчанию.
 
@@ -57,6 +60,11 @@ create policy "portal_select_rates"
 | `addresses` | `addresses` | ✅ | ✅ | ✅ | ❌ |
 | `rate_cards` | `rates` | ✅ | ✅ | ✅ | **✅** |
 | `rates` | `rates` | ✅ | ✅ | ✅ | **✅** |
+| `vacancy_projects` | `vacancies` (чтение) / `vacancies` + `settings` (запись) | ✅ | ✅ | ✅ | ❌ |
+| `vacancy_sections` | `vacancies` (чтение) / `vacancies` + `settings` (запись) | ✅ | ✅ | ✅ | **✅** |
+| `vacancy_fields` | `vacancies` (чтение) / `vacancies` + `settings` (запись) | ✅ | ✅ | ✅ | **✅** |
+| `vacancy_attachments` | `vacancies` (чтение) / `vacancies` + `settings` (запись) | ✅ | ✅ | ✅ | **✅** |
+| `vacancy_history` | `vacancies` | ✅ | ❌ | ❌ | ❌ |
 | `portal_users` | — | ❌ | ❌ | ❌ | ❌ |
 | `portal_sessions` | — | ❌ | ❌ | ❌ | ❌ |
 | `portal_audit_log` | — | ❌ | ❌ | ❌ | ❌ |
@@ -84,6 +92,20 @@ create policy "portal_select_rates"
 - **`staffing_demand_history` только на чтение** — записи создаются
   исключительно триггерами `log_staffing_demand_change` и
   `log_staffing_demand_rows_change` (`SECURITY DEFINER`).
+- **Пять таблиц раздела «Описание вакансии» — единственный случай, где
+  запись строже чтения на уровне одного раздела.** Читают все, у кого есть
+  `vacancies` (все 4 роли — раздел виден всем, как «Адреса»/«Ставки»), но
+  `insert`/`update`/`delete` дополнительно требуют `portal_can('settings')` —
+  тот же приём, что уже применяет `candidate_list_options` (settings есть
+  только у head/coordinator в `roles.ts`), а не отдельная функция проверки
+  роли. `vacancy_projects` без delete (soft-delete через `archived_at`, как
+  `addresses`); у трёх дочерних таблиц delete есть — это настоящее удаление
+  строки поля/раздела/вложения (не самой вакансии), их история переживает
+  удаление в `vacancy_history`. Основной путь записи для UI — RPC
+  `portal_save_vacancy_project_tree`/`portal_duplicate_vacancy_project`
+  (`SECURITY DEFINER`, проверяют то же самое условие сами, независимо от
+  политик таблиц); прямые политики — вторая линия защиты и путь для точечных
+  операций вроде архивации всей вакансии.
 - **Три таблицы `portal_*` закрыты полностью** — ни одной политики, гранты
   отозваны. Работа с ними идёт только через `SECURITY DEFINER` функции,
   которые сами проверяют право вызывающего. Поэтому `password_hash` не может
@@ -97,6 +119,9 @@ create policy "portal_select_rates"
 | `portal_has_project(project)` | anon, authenticated | H-6: есть ли доступ к проекту. `head` — всегда `true` (bypass), остальные роли — `project = any(portal_users.projects)` |
 | `portal_has_rate_card_project(rate_card_id)` | anon, authenticated | H-6: то же самое для `rates` — своей колонки `project` нет, ищет её через `rate_cards` |
 | `portal_role_sections(role)` | anon, authenticated | Матрица «роль → разделы». Дубль `src/lib/auth/roles.ts` |
+| `portal_save_vacancy_project_tree(project_id, expected_version, payload)` | authenticated | TASK-010: атомарное сохранение дерева вакансии (проект+разделы+поля+вложения), проверяет `vacancies`+`settings` и `version` (оптимистическая блокировка) сама |
+| `portal_duplicate_vacancy_project(project_id)` | authenticated | TASK-010: копирует вакансию целиком под новым id, та же проверка доступа |
+| `search_vacancy_projects(query)` | authenticated | TASK-010: substring-поиск id вакансий по названию/разделам/полям; пусто, если нет `vacancies` |
 | `portal_current_user_id()` / `portal_current_session_id()` | anon, authenticated | Claim'ы `sub` / `sid` текущего JWT |
 | `portal_login`, `portal_session_context`, `portal_logout` | anon, authenticated | Вход, проверка сессии, выход |
 | `portal_admin_*` | authenticated | Управление пользователями и журнал. Внутри — `portal_require_admin()` |

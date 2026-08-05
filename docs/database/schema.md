@@ -10,11 +10,13 @@
 
 ## Таблицы
 
-Подтверждены одиннадцать таблиц в схеме `public`: `candidates`,
+Подтверждены шестнадцать таблиц в схеме `public`: `candidates`,
 `candidate_list_options`, `staffing_demand`, `staffing_demand_rows`,
-`staffing_demand_history`, `addresses`, `rate_cards`, `rates` и три таблицы
-встроенной авторизации — `portal_users`, `portal_sessions`,
-`portal_audit_log`.
+`staffing_demand_history`, `addresses`, `rate_cards`, `rates`, пять таблиц
+раздела «Описание вакансии» (`vacancy_projects`, `vacancy_sections`,
+`vacancy_fields`, `vacancy_attachments`, `vacancy_history` — TASK-010, **не
+применены к боевой БД**, см. `migrations.md`) и три таблицы встроенной
+авторизации — `portal_users`, `portal_sessions`, `portal_audit_log`.
 
 `addresses` (миграция `20260729130000_create_addresses.sql` + две последующие),
 `rate_cards`/`rates` (миграции `20260731100000`…`20260731100300`, см.
@@ -338,6 +340,100 @@ cascade`), а не естественный ключ без FK, как у `staff
 **Удаляется физически** (не soft-delete) — как `staffing_demand`, у
 «Ставок» нет исторической ценности в устаревшем тарифе.
 
+### `public.vacancy_projects`, `vacancy_sections`, `vacancy_fields`, `vacancy_attachments`, `vacancy_history`
+
+**TASK-010, не применены к боевой БД** — написаны, не выкатывались, см.
+`migrations.md`. Корень раздела «Описание вакансии» вместе с четырьмя
+дочерними таблицами — полная замена статического `src/lib/portal/vacancyData.ts`
+(удалён) реальными, редактируемыми данными.
+
+`public.vacancy_projects`:
+
+| Поле | Тип | Null | Примечание |
+|------|-----|------|-----------|
+| `id` | uuid | not null | PK. Используется как ключ выбора вместо `slug` — отдельного слага нет, он был нужен только старому статическому файлу |
+| `title` | text | **not null** | Название вакансии |
+| `category_option_id` | uuid | nullable | FK → `candidate_list_options(id)`, `on delete set null`. **Настоящий FK**, в отличие от `project`/`city`/`position` в остальных разделах (свободный текст с подсказкой) — справочники никогда не удаляются физически, только деактивируются, поэтому FK безопасен |
+| `version` | integer | not null | `default 1`. Оптимистическая блокировка — см. `portal_save_vacancy_project_tree` |
+| `archived_at` | timestamptz | nullable | NULL = активна; заполнено = архивирована (soft delete, как `addresses`) |
+| `created_at`/`updated_at` | timestamptz | not null | `default now()`, триггер `set_vacancy_projects_audit_fields()` |
+| `created_by`/`updated_by`(`_login`) | uuid/text | nullable | Снимок «кто/когда», как у `addresses`/`rate_cards` |
+
+Профиль/регион/период/должность в Битрикс/ссылка на описание и т.п. — **не
+колонки**: обычные поля внутри системного раздела «Общая информация»
+(`vacancy_sections.is_system = true`, создаётся один раз при создании
+вакансии с полями-затравками из `vacancyOptions.ts`). Один механизм
+редактирования и для системных, и для произвольных полей.
+
+`public.vacancy_sections` — разделы вакансии, полностью произвольные (без
+фиксированного набора/`template`/enum):
+
+| Поле | Тип | Null | Примечание |
+|------|-----|------|-----------|
+| `id` | uuid | not null | PK |
+| `vacancy_project_id` | uuid | **not null** | FK → `vacancy_projects(id)`, `on delete cascade` |
+| `title` | text | **not null** | Название раздела — свободно редактируется, даже у системного |
+| `icon` | text | nullable | `IconName` по выбору автора раздела — косметика, ни на что не влияет |
+| `is_system` | boolean | not null | `default false`. `true` только у автосозданной «Общая информация» — единственный функциональный флаг: такой раздел нельзя удалить/увести с первого места (проверяется в `portal_save_vacancy_project_tree`, не CHECK-ограничением) |
+| `sort_order` | integer | not null | `default 0`, ручной порядок (↑/↓ в редакторе — drag-and-drop в проекте нет) |
+| `archived_at` | timestamptz | nullable | Архив **одного раздела**, независимо от архива всей вакансии |
+| `created_at`/`updated_at` | timestamptz | not null | `default now()`, триггер `set_candidates_updated_at()` (переиспользован) |
+
+`public.vacancy_fields` — пары «подпись → значение» внутри раздела:
+
+| Поле | Тип | Null | Примечание |
+|------|-----|------|-----------|
+| `id` | uuid | not null | PK |
+| `section_id` | uuid | **not null** | FK → `vacancy_sections(id)`, `on delete cascade` |
+| `label`/`value` | text | not null | `default ''` у обоих |
+| `field_type` | text | not null | `default 'text'`; `check in ('text','textarea','rich_text','link','number','date','checkbox','select')` — набор с заделом на будущее, редакторы построены для всех, кроме `select` (нужен отдельный источник вариантов) |
+| `sort_order` | integer | not null | `default 0`, ручной порядок |
+| `created_at`/`updated_at` | timestamptz | not null | `default now()`, триггер `set_candidates_updated_at()` |
+
+`public.vacancy_attachments` — внешние ссылки (PDF/Google Docs/видео/ссылка;
+Supabase Storage в проекте нет):
+
+| Поле | Тип | Null | Примечание |
+|------|-----|------|-----------|
+| `id` | uuid | not null | PK |
+| `vacancy_project_id` | uuid | **not null** | FK → `vacancy_projects(id)`, `on delete cascade` |
+| `section_id` | uuid | nullable | FK → `vacancy_sections(id)`, `on delete set null` — вложение можно привязать к разделу (показывается в его карточке) или оставить общим (`null`, общий блок «Вложения»); при удалении раздела вложение **не удаляется**, откатывается к общим |
+| `title` | text | not null | |
+| `url` | text | not null | `check (url ~ '^https?://')` |
+| `type` | text | not null | `default 'link'`; `check in ('pdf','google_doc','video','link')` |
+| `sort_order` | integer | not null | `default 0` |
+| `created_at` | timestamptz | not null | `default now()` |
+
+`public.vacancy_history` — аудит на уровне поля/раздела/вложения/проекта,
+пишется только `SECURITY DEFINER`-триггерами (`log_vacancy_*_change`),
+хранит `to_jsonb(old)`/`to_jsonb(new)` целиком (проще и надёжнее
+построчного диффа на четырёх разных по форме таблицах-источниках), не
+построчный diff-viewer — только «кто/когда/что» на карточку «История»:
+
+| Поле | Тип | Null | Примечание |
+|------|-----|------|-----------|
+| `id` | uuid | not null | PK |
+| `vacancy_project_id` | uuid | **not null** | FK → `vacancy_projects(id)`, `on delete cascade` — в отличие от `staffing_demand_history`, здесь безопасно: вакансия никогда не удаляется физически, только архивируется |
+| `entity_type` | text | not null | `check in ('project','section','field','attachment')` |
+| `entity_id` | uuid | not null | Без FK — переживает удаление строки-источника |
+| `action` | text | not null | `check in ('insert','update','delete')` |
+| `old_data`/`new_data` | jsonb | nullable | Снимок всей строки |
+| `changed_by`(`_login`) | uuid/text | nullable | Как у `addresses`/`rate_cards` |
+| `changed_at` | timestamptz | not null | `default now()` |
+
+**Атомарность записи через RPC, не последовательные запросы.** В отличие от
+`rate_cards`/`rates` (клиент делает несколько отдельных вызовов подряд),
+сохранение всего дерева вакансии идёт через одну `SECURITY DEFINER`-функцию
+`public.portal_save_vacancy_project_tree(project_id, expected_version,
+payload)` — одна транзакция на insert/update/delete всех
+разделов/полей/вложений сразу, с проверкой `version` (оптимистическая
+блокировка: конфликт, если кто-то другой уже сохранил вакансию раньше) и
+прав (`portal_can('vacancies') and portal_can('settings')`) внутри самой
+функции. `public.portal_duplicate_vacancy_project(project_id)` копирует
+дерево целиком тем же способом. `public.search_vacancy_projects(query)` —
+substring-поиск id вакансий по названию проекта/раздела/подписи или
+значения поля (без ранжирования по релевантности).
+
 ### `public.portal_users`
 
 Учётные записи портала. Создаются только через интерфейс («Настройки →
@@ -422,7 +518,7 @@ cascade`), а не естественный ключ без FK, как у `staff
 | Enum | Значения |
 |------|----------|
 | `candidate_stage` | Прибыл на проект, Отработал 1 смену, Отработал 10 смен, Завершил вахту (4) |
-| `candidate_list_type` | recruiter, manager, coordinator, city, position, project, legal_entity (7) |
+| `candidate_list_type` | recruiter, manager, coordinator, city, position, project, legal_entity, vacancy_category (8) |
 | `staffing_demand_history_action` | insert, update, delete (3) |
 | `portal_user_role` | head, coordinator, manager, recruiter (4) |
 | `portal_audit_action` | user_created, user_updated, user_role_changed, user_password_changed, user_activated, user_deactivated, login_success, login_failed, logout (9) |
@@ -460,6 +556,11 @@ cascade`), а не естественный ключ без FK, как у `staff
 - **Ставки (`rate_cards`/`rates`) удаляются физически** — как
   `staffing_demand`, без исторической ценности в устаревшем тарифе.
   Удаление `rate_cards` каскадом удаляет и все `rates` этого блока.
+- **Вакансия (`vacancy_projects`) не удаляется физически** — soft-delete
+  через `archived_at`, как `addresses`. Раздел/поле/вложение внутри неё
+  (`vacancy_sections`/`vacancy_fields`/`vacancy_attachments`) удаляются
+  физически (реальный `DELETE` через `portal_save_vacancy_project_tree`),
+  их история переживает удаление в `vacancy_history`.
 - **Метаданные строки (`staffing_demand_rows`) не удаляются вовсе** —
   только `UPDATE` статуса/комментария, delete-политики нет.
 - **История (`staffing_demand_history`) только пишется** — `insert`
@@ -504,6 +605,18 @@ cascade`), а не естественный ключ без FK, как у `staff
   чтение по естественному ключу), `updateRateCard`, `deleteRateCard`,
   `createRate`, `updateRate`, `deleteRate`. Единственный репозиторий, где
   есть настоящая функция удаления (не soft-delete-обёртка).
+- [`vacancyProjectsRepo.ts`](../../src/lib/supabase/vacancyProjectsRepo.ts)
+  (TASK-010, не применена миграция — см. `migrations.md`): `listVacancyProjects`,
+  `getVacancyProjectTree`, `createVacancyProject` (проект + системный раздел
+  «Общая информация» с полями-затравками), `archiveVacancyProject`/
+  `restoreVacancyProject` (прямой `update`, без RPC — дерево не трогает),
+  `saveVacancyProjectTree`/`duplicateVacancyProject`/`searchVacancyProjects`
+  — вызывают `portal_save_vacancy_project_tree`/`portal_duplicate_vacancy_project`/
+  `search_vacancy_projects` через `supabase.rpc(...)`, а не последовательные
+  REST-запросы (см. описание таблиц выше).
+- [`vacancyHistoryRepo.ts`](../../src/lib/supabase/vacancyHistoryRepo.ts):
+  `listVacancyProjectHistory(projectId)` — только чтение, лениво при
+  открытии панели «История».
 
 Типы: [`candidates.types.ts`](../../src/lib/supabase/candidates.types.ts),
 [`candidateListOptions.types.ts`](../../src/lib/supabase/candidateListOptions.types.ts),
@@ -534,6 +647,13 @@ cascade`), а не естественный ключ без FK, как у `staff
 `createAddressesClient()` удалены — `addressesRepo.ts` использует общий
 `createClient()`.
 
+[`vacancyProjects.types.ts`](../../src/lib/supabase/vacancyProjects.types.ts) —
+выведен из `Database`, как остальные (кроме `field_type`/`type` — text+CHECK,
+сужены до литеральных union на уровне приложения). **Миграции TASK-010 не
+применены и `database.types.ts` не регенерирован** — до этого момента типы
+в файле не проверяются компилятором (см. комментарий в начале файла); это
+ожидаемо, не баг, зафиксировано в `docs/tasks/TASK-010-vacancy-projects.md`.
+
 ## Переменные окружения
 
 В `.env.local` (в репозиторий не коммитятся, покрыто `.gitignore` через `.env*`):
@@ -563,5 +683,9 @@ cascade`), а не естественный ключ без FK, как у `staff
 ## Генерируемые файлы
 
 - `src/lib/supabase/database.types.ts` — из `supabase gen types typescript`.
-- `src/lib/portal/vacancyData.ts` — из Excel «Описание вакансий» (не БД, но
-  тоже генерируемый и не редактируется вручную).
+
+`src/lib/portal/vacancyData.ts` (был здесь как генерируемый из Excel файл)
+**удалён вместе со старым статическим разделом «Описание вакансии»** —
+TASK-010 перевёл раздел на реальные данные Supabase. Excel теперь только
+разовый источник переноса (`scripts/import-vacancy-data.mjs`), не
+постоянный генератор.

@@ -77,6 +77,15 @@ npx supabase db query --linked "select conname, pg_get_constraintdef(oid) from p
 | `20260803130000_project_access_functions.sql` | H-6, фаза A. Функции `portal_has_project(text)` и `portal_has_rate_card_project(uuid)` — аддитивные, никем не вызываются, поведение не меняется. `head` — bypass (см. определение функции), остальные роли — проверка `project = any(portal_users.projects)` |
 | `20260803140000_project_scoped_rls_policies.sql` | H-6, фаза C. Переписаны 22 политики на 7 таблицах (`candidates`, `staffing_demand`, `staffing_demand_rows`, `staffing_demand_history`, `addresses`, `rate_cards`, `rates`) — к существующей проверке `portal_can(<раздел>)` добавлено `and portal_has_project(project)` (для `rates` — `portal_has_rate_card_project(rate_card_id)`, у неё нет своей колонки `project`). Read-only аудит фазы B и точные определения политик до миграции — `docs/ROLLOUT-project-access.md` |
 | `20260803150000_fix_set_user_active_audit_cast.sql` | Не связано с H-6, найдено при его тестировании. `create or replace` на `portal_admin_set_user_active()` — добавлен явный `::portal_audit_action` на `CASE`-выражение в `INSERT` в `portal_audit_log`; без каста функция падала с `42804` на **любом** вызове (и включение, и отключение доступа), с момента создания. Переключатель «Активен» в «Команда и роли» был полностью нерабочим — обнаружено впервые только сейчас, потому что раньше в проекте не было второй учётной записи, чтобы его переключить |
+| `20260805100000_create_vacancy_projects.sql` | TASK-010. Корень раздела «Описание вакансии» — таблица `vacancy_projects` (без `slug`: селектор — `id`), `category_option_id` — настоящий FK на `candidate_list_options` (не свободный текст, как `project`/`city`/`position` в остальных разделах), `version` для оптимистической блокировки, триггер `set_vacancy_projects_audit_fields()`, trigram-индекс по `title` |
+| `20260805100100_create_vacancy_sections.sql` | Таблица `vacancy_sections` — полностью произвольные разделы (без `template`/enum), `is_system` — единственный функциональный флаг (раздел «Общая информация») |
+| `20260805100200_create_vacancy_fields.sql` | Таблица `vacancy_fields` — пары `label`/`value`, `field_type` text+CHECK на 8 значений (`text`/`textarea`/`rich_text`/`link`/`number`/`date`/`checkbox`/`select` — `select` зарезервирован, редактор не построен) |
+| `20260805100300_create_vacancy_attachments.sql` | Таблица `vacancy_attachments` — внешние ссылки, обязательная привязка к вакансии, необязательная — к разделу (`on delete set null`, вложение переживает удаление раздела) |
+| `20260805100400_create_vacancy_history.sql` | Таблица `vacancy_history` (только `select` для `authenticated`) + 4 `SECURITY DEFINER`-триггера, пишущие `to_jsonb(old)`/`to_jsonb(new)` при любом изменении проекта/раздела/поля/вложения |
+| `20260805100500_vacancy_projects_rls_policies.sql` | RLS для всех пяти таблиц — `select` на `portal_can('vacancies')` (все 4 роли), `insert`/`update`/`delete` — `... and portal_can('settings')` (только head/coordinator, тот же приём, что у `candidate_list_options`) |
+| `20260805100600_vacancy_projects_rpc.sql` | `SECURITY DEFINER`-функции `portal_save_vacancy_project_tree` (атомарное сохранение дерева с проверкой `version`), `portal_duplicate_vacancy_project`, `search_vacancy_projects` (substring-поиск по всем вакансиям) + trigram-индексы на `vacancy_fields.label`/`value`, `vacancy_sections.title`. Правлена после первой попытки применения: `search_vacancy_projects` падала с `42P10` (`ORDER BY vp.title` при `SELECT DISTINCT vp.id` — title не входил в список distinct); исправлено через подзапрос. Все три функции — `create or replace`, не `create`, чтобы повторный запуск после частичного сбоя был безопасен |
+| `20260805100700_add_vacancy_category_list_type.sql` | Значение `vacancy_category` в enum `candidate_list_type` (отдельно — та же причина, что у `20260725100000`) |
+| `20260805100800_seed_vacancy_categories.sql` | Засев 7 категорий (те же, что были захардкожены в старом `vacancyData.ts`) в `candidate_list_options` |
 
 ## Миграция `20260728120000_portal_auth.sql`: что учесть при применении
 
@@ -152,6 +161,19 @@ npx supabase db query --linked "select conname, pg_get_constraintdef(oid) from p
 HTTPS до Management API), а вручную через SQL Editor Supabase, с ручной
 регистрацией версий в `supabase_migrations.schema_migrations` — файлы
 миграций от этого не отличаются от применённых штатным способом.
+
+**`20260805100000`…`20260805100800` (TASK-010, «Описание вакансии») ещё не
+применены** — написаны в этой задаче, но не выкатывались против боевой БД и
+не регенерировали `database.types.ts`; `src/lib/supabase/vacancyProjects.types.ts`
+и репозитории раздела выведены из `Database` так, как будто миграция уже
+применена (см. комментарий в начале файла типов) — до применения `npm run
+typecheck`/`npm run build` показывают ошибки конкретно в файлах раздела
+`vacancies`, это ожидаемо. Порядок применения: сначала `20260805100000`…
+`20260805100600` (таблицы, триггеры, RLS, RPC), затем — обязательно
+отдельно — `20260805100700` (`ALTER TYPE ... ADD VALUE`, Postgres не
+позволяет использовать новое значение в той же транзакции), затем
+`20260805100800` (засев категорий). После применения — регенерация типов и
+проверка под всеми четырьмя ролями по чек-листу.
 
 `20260801100000_login_rate_limit.sql` **применена к боевой БД** (read-only
 проверка раздела 1.2 подтверждена через SQL Editor).

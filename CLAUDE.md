@@ -96,7 +96,7 @@
 | `src/components/portal/ui/` | Общие примитивы: `Button`, `Badge`, `Panel`, `StatCard`, `Modal`, `Drawer`, `Combobox`, `Icon`, `PageHead`, `ToastStack`, … |
 | `src/components/portal/sections/` | Разделы портала (обзор, потребность, кандидаты, вакансии, маркетинг, аналитика, уведомления, настройки) |
 | `src/lib/auth/` | Авторизация: `roles` (матрица прав), `session`, `serverSession`, `jwt`, `middleware`, `env` |
-| `src/lib/portal/` | Клиентские данные/утилиты: `constants` (навигация), `format`, `candidateOptions`, `demandWindow`, `types`, `vacancyData` (генерируемый) |
+| `src/lib/portal/` | Клиентские данные/утилиты: `constants` (навигация), `format`, `candidateOptions`, `demandWindow`, `types` |
 | `src/lib/supabase/` | Data-слой: `client`, `accessToken`, `env`, репозитории, типы |
 | `supabase/migrations/` | SQL-миграции (источник истины для схемы БД) |
 
@@ -202,6 +202,33 @@ Mock-дровера `sections/CandidateDrawer.tsx` больше нет — уд�
 «Руководитель». Список пользователей грузится в `TeamPanel`, а не в
 `PortalContext` — он нужен одной панели и одной роли.
 
+## 6.4. Раздел «Описание вакансии»
+
+`src/components/portal/sections/vacancies/`: `VacanciesSection.tsx`
+(оркестратор — список+поиск+фильтр по категории), `VacancyDetail.tsx`
+(якорное меню + `Accordion`-разделы, черновик/RPC-сохранение, история),
+`VacancySectionCard.tsx`, `VacancyFieldEditor.tsx`, `FieldValueView.tsx`,
+`VacancyAttachmentsList.tsx`, `VacancyHistoryPanel.tsx`,
+`AddVacancyProjectModal.tsx`, `vacancyTreeDraft.ts`/`renderFieldValue.ts`/
+`vacancyMarkdown.ts` (чистые, с тестами), `vacancyOptions.ts`. Детали —
+[`vacancies/README.md`](src/components/portal/sections/vacancies/README.md),
+бизнес-правила — [`docs/requirements/vacancies.md`](docs/requirements/vacancies.md).
+
+TASK-010: реальные данные Supabase (`vacancy_projects`/`vacancy_sections`/
+`vacancy_fields`/`vacancy_attachments`/`vacancy_history`, миграции
+`20260805*`, **не применены к боевой БД**, см.
+`docs/database/migrations.md`) вместо статического `vacancyData.ts`
+(удалён). Структура вакансии не фиксирована: разделы и поля — полностью
+произвольные, кроме системного раздела «Общая информация» (не удаляется, не
+архивируется). Раздел доступен всем четырём ролям, но **редактируют только
+head и coordinator** (`portal_can('settings')` как гейт записи) — в
+отличие от «Адресов»/«Ставок», где все четыре роли и читают, и пишут.
+Сохранение дерева — одна атомарная RPC-функция с проверкой версии
+(оптимистическая блокировка), не последовательные запросы. `rich_text` —
+облегчённое подмножество Markdown, не WYSIWYG. Excel — только разовый
+источник переноса (`scripts/import-vacancy-data.mjs`), не постоянный
+генератор.
+
 ## 7. Supabase
 
 - **Клиенты:** `src/lib/supabase/client.ts` — `createClient()` (данные) и
@@ -243,7 +270,6 @@ Supabase Auth не используется — портал ведёт поль
   `ActiveSection` **и в обе матрицы прав**.
 - **Генерируемые файлы (не редактировать вручную):**
   `src/lib/supabase/database.types.ts` (`supabase gen types typescript`),
-  `src/lib/portal/vacancyData.ts` (из Excel «Описание вакансий»),
   `next-env.d.ts`.
 - Изменение схемы = новая миграция **+** регенерация `database.types.ts`.
 
