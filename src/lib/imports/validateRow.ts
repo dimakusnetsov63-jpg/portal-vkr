@@ -1,8 +1,15 @@
 import { normalizeCity } from "./mapping/normalizeCity";
 import { normalizePosition } from "./mapping/normalizePosition";
+import { EMPTY_CONDITIONS, type ImportedConditions } from "./mapping/normalizeConditions";
 import type { DemandImportRow, RowError } from "./types";
 
-/** Raw cell values extracted by a parser for one Excel row, before validation/normalization — everything is still text. */
+/**
+ * Raw cell values extracted by a parser for one Excel row, before
+ * validation/normalization — everything is still text. `conditions` is the
+ * exception: those fields have no cross-row validation to do (an unreadable
+ * schedule just means "not set", never a rejected row), so a parser
+ * normalizes them itself and passes the result through.
+ */
 export type RawImportRow = {
   rowNumber: number;
   project: string;
@@ -11,6 +18,7 @@ export type RawImportRow = {
   date: string;
   demand: string;
   address: string;
+  conditions?: ImportedConditions;
 };
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -73,5 +81,5 @@ export function validateRow(
 
   const address = raw.address.trim() || null;
 
-  return { row: { project, city, position, date, demand, address } };
+  return { row: { project, city, position, date, demand, address, conditions: raw.conditions ?? EMPTY_CONDITIONS } };
 }

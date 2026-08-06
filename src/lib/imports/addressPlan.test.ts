@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { aggregateByObject, planAddressWrites, type ImportedObject } from "./addressPlan";
+import { EMPTY_CONDITIONS, type ImportedConditions } from "./mapping/normalizeConditions";
 import type { DemandImportRow } from "./types";
 import type { AddressRow } from "../supabase/addresses.types";
 
@@ -11,8 +12,13 @@ function makeRow(overrides: Partial<DemandImportRow> = {}): DemandImportRow {
     date: "2026-07-31",
     demand: 1,
     address: "МСК Снежная 20",
+    conditions: EMPTY_CONDITIONS,
     ...overrides,
   };
+}
+
+function conditions(overrides: Partial<ImportedConditions> = {}): ImportedConditions {
+  return { ...EMPTY_CONDITIONS, ...overrides };
 }
 
 function makeCard(overrides: Partial<AddressRow> = {}): AddressRow {
@@ -106,6 +112,7 @@ describe("planAddressWrites", () => {
     position: "Кладовщик",
     address: "МСК Снежная 20",
     required: 3,
+    conditions: EMPTY_CONDITIONS,
   };
 
   it("creates a card when nothing matches", () => {
@@ -125,12 +132,12 @@ describe("planAddressWrites", () => {
   it("replace mode overwrites the matched card's required_count", () => {
     const plan = planAddressWrites([object], [makeCard({ required_count: 10 })], "replace");
     expect(plan.creates).toEqual([]);
-    expect(plan.updates).toEqual([{ id: "card-1", required_count: 3 }]);
+    expect(plan.updates).toEqual([{ id: "card-1", patch: { required_count: 3 } }]);
   });
 
   it("add mode sums onto the matched card's required_count", () => {
     const plan = planAddressWrites([object], [makeCard({ required_count: 10 })], "add");
-    expect(plan.updates).toEqual([{ id: "card-1", required_count: 13 }]);
+    expect(plan.updates).toEqual([{ id: "card-1", patch: { required_count: 13 } }]);
   });
 
   it("matches an existing card case-insensitively instead of duplicating it", () => {
@@ -162,5 +169,86 @@ describe("planAddressWrites", () => {
     expect(created).not.toHaveProperty("priority");
     expect(created).not.toHaveProperty("object_type");
     expect(created).not.toHaveProperty("staffed_count");
+  });
+});
+
+describe("planAddressWrites — условия работы", () => {
+  const withConditions: ImportedObject = {
+    project: "Яндекс Лавка",
+    city: "Москва",
+    position: "Кладовщик",
+    address: "МСК Снежная 20",
+    required: 3,
+    conditions: conditions({
+      metro: "Владыкино",
+      scheduleType: "5/2",
+      shiftType: "night",
+      features: ["unloading"],
+    }),
+  };
+
+  it("fills conditions on a newly created card", () => {
+    const [created] = planAddressWrites([withConditions], [], "replace").creates;
+    expect(created).toMatchObject({
+      metro: "Владыкино",
+      schedule_type: "5/2",
+      shift_type: "night",
+      features: ["unloading"],
+    });
+  });
+
+  it("omits conditions the file did not provide instead of writing nulls", () => {
+    const [created] = planAddressWrites([{ ...withConditions, conditions: EMPTY_CONDITIONS }], [], "replace").creates;
+    expect(created).not.toHaveProperty("metro");
+    expect(created).not.toHaveProperty("schedule_type");
+    expect(created).not.toHaveProperty("shift_type");
+    expect(created).not.toHaveProperty("features");
+  });
+
+  it("fills only the empty fields of an existing card", () => {
+    const card = makeCard({ metro: null, schedule_type: "2/2", shift_type: null });
+    const [update] = planAddressWrites([withConditions], [card], "replace").updates;
+    expect(update!.patch.metro).toBe("Владыкино");
+    expect(update!.patch.shift_type).toBe("night");
+    // График уже заполнен руками — импорт его не трогает.
+    expect(update!.patch).not.toHaveProperty("schedule_type");
+  });
+
+  it("never overwrites conditions a coordinator already filled in", () => {
+    const card = makeCard({ metro: "Уточнённая станция", schedule_type: "2/2", shift_type: "day" });
+    const [update] = planAddressWrites([withConditions], [card], "replace").updates;
+    expect(update!.patch).toEqual({ required_count: 3, features: ["unloading"] });
+  });
+
+  it("appends imported features without dropping manually ticked ones", () => {
+    const card = makeCard({ features: ["free_meals"] });
+    const [update] = planAddressWrites([withConditions], [card], "replace").updates;
+    expect(update!.patch.features).toEqual(["free_meals", "unloading"]);
+  });
+
+  it("does not re-add a feature the card already has", () => {
+    const card = makeCard({ features: ["unloading"] });
+    const [update] = planAddressWrites([withConditions], [card], "replace").updates;
+    expect(update!.patch).not.toHaveProperty("features");
+  });
+});
+
+describe("aggregateByObject — условия работы", () => {
+  it("takes the first non-empty value across tickets of the same object", () => {
+    const [object] = aggregateByObject([
+      makeRow({ conditions: conditions({ metro: null, scheduleType: "5/2" }) }),
+      makeRow({ conditions: conditions({ metro: "Владыкино", scheduleType: "2/2" }) }),
+    ]);
+    expect(object!.conditions.metro).toBe("Владыкино");
+    // Первый тикет уже задал график — второй его не переопределяет.
+    expect(object!.conditions.scheduleType).toBe("5/2");
+  });
+
+  it("unions features across tickets of the same object", () => {
+    const [object] = aggregateByObject([
+      makeRow({ conditions: conditions({ features: ["unloading"] }) }),
+      makeRow({ conditions: conditions({ features: ["unloading", "free_meals"] }) }),
+    ]);
+    expect(object!.conditions.features).toEqual(["unloading", "free_meals"]);
   });
 });

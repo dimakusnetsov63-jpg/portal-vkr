@@ -1,3 +1,7 @@
+import type { ImportedConditions } from "./mapping/normalizeConditions";
+
+export type { ImportedConditions };
+
 /** Единый внутренний формат строки потребности — выход любого парсера, независимо от структуры исходного Excel. */
 export type DemandImportRow = {
   project: string;
@@ -6,6 +10,8 @@ export type DemandImportRow = {
   date: string;
   demand: number;
   address: string | null;
+  /** Условия работы на объекте (метро, график, смена, особенности), если файл проекта их содержит. У «плоских» выгрузок остаются пустыми. */
+  conditions: ImportedConditions;
 };
 
 /** One row's rejection, surfaced to the user in the preview/report — never thrown as an exception. */

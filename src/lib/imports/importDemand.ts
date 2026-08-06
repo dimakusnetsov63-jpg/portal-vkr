@@ -6,7 +6,7 @@ import { getImportConfigForProject } from "../supabase/projectImportConfigsRepo"
 import { createImportRecord } from "../supabase/staffingDemandImportsRepo";
 import {
   bulkInsertAddressesFromImport,
-  bulkUpdateAddressRequiredCounts,
+  bulkUpdateAddressesFromImport,
   listActiveAddressesForProject,
 } from "../supabase/addressesRepo";
 import { aggregateByObject, planAddressWrites } from "./addressPlan";
@@ -133,7 +133,7 @@ export async function importDemand(input: ImportDemandInput): Promise<ImportRepo
   });
 
   await bulkInsertAddressesFromImport(plan.creates, record.id);
-  await bulkUpdateAddressRequiredCounts(plan.updates);
+  await bulkUpdateAddressesFromImport(plan.updates);
 
   return { ...report, importId: record.id };
 }

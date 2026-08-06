@@ -1,19 +1,21 @@
 import type { DemandImportRow, ImportMode } from "./types";
-import type { AddressInsert, AddressRow } from "../supabase/addresses.types";
+import { EMPTY_CONDITIONS, type ImportedConditions } from "./mapping/normalizeConditions";
+import type { AddressInsert, AddressRow, AddressUpdate } from "../supabase/addresses.types";
 
-/** One staffing object as the import understands it: a place + a role, plus how many people it needs. */
+/** One staffing object as the import understands it: a place + a role, plus how many people it needs and the working conditions the file described. */
 export type ImportedObject = {
   project: string;
   city: string;
   position: string;
   address: string;
   required: number;
+  conditions: ImportedConditions;
 };
 
-/** What an import intends to write: cards to create, and new required_count values for cards it matched. */
+/** What an import intends to write: cards to create, and patches for cards it matched. */
 export type AddressWritePlan = {
   creates: AddressInsert[];
-  updates: { id: string; required_count: number }[];
+  updates: { id: string; patch: AddressUpdate }[];
 };
 
 /**
@@ -34,17 +36,38 @@ export function aggregateByObject(rows: DemandImportRow[]): ImportedObject[] {
     if (!row.address) continue;
     const key = objectKey(row.project, row.city, row.position, row.address);
     const existing = byKey.get(key);
-    if (existing) existing.required += row.demand;
-    else
+    if (existing) {
+      existing.required += row.demand;
+      existing.conditions = mergeConditions(existing.conditions, row.conditions);
+    } else {
       byKey.set(key, {
         project: row.project,
         city: row.city,
         position: row.position,
         address: row.address,
         required: row.demand,
+        conditions: row.conditions ?? EMPTY_CONDITIONS,
       });
+    }
   }
   return [...byKey.values()];
+}
+
+/**
+ * Условия нескольких тикетов одного объекта. Тикеты на один адрес обычно
+ * описывают его одинаково, но заполнены неравномерно: у одного указано
+ * метро, у другого график. Побеждает первое непустое значение — так объект
+ * собирает максимум того, что известно, и ни один тикет не «стирает»
+ * данные соседнего. Особенности объединяются множеством.
+ */
+function mergeConditions(base: ImportedConditions, next: ImportedConditions | undefined): ImportedConditions {
+  if (!next) return base;
+  return {
+    metro: base.metro ?? next.metro,
+    scheduleType: base.scheduleType ?? next.scheduleType,
+    shiftType: base.shiftType ?? next.shiftType,
+    features: [...new Set([...base.features, ...next.features])],
+  };
 }
 
 /** Match key for "is this file row the same staffing object as that card?". Case-insensitive so «МСК Снежная 20» and «МСК снежная 20» don't become two cards. */
@@ -73,28 +96,58 @@ export function planAddressWrites(
   }
 
   const creates: AddressInsert[] = [];
-  const updates: { id: string; required_count: number }[] = [];
+  const updates: { id: string; patch: AddressUpdate }[] = [];
 
   for (const object of objects) {
     const card = cardByKey.get(objectKey(object.project, object.city, object.position, object.address));
     if (card) {
       updates.push({
         id: card.id,
-        required_count: mode === "add" ? card.required_count + object.required : object.required,
+        patch: {
+          required_count: mode === "add" ? card.required_count + object.required : object.required,
+          ...conditionsPatchFor(card, object.conditions),
+        },
       });
     } else {
-      // Остальные поля карточки (метро, район, тип объекта, статус,
-      // приоритет, укомплектованность) в выгрузке отсутствуют — остаются
-      // дефолтными, координатор дозаполняет их вручную в карточке адреса.
+      // Район, тип объекта, статус, приоритет, укомплектованность в выгрузке
+      // отсутствуют — остаются дефолтными, координатор дозаполняет их
+      // вручную в карточке адреса.
       creates.push({
         project: object.project,
         city: object.city,
         position: object.position,
         full_address: object.address,
         required_count: object.required,
+        ...(object.conditions.metro ? { metro: object.conditions.metro } : {}),
+        ...(object.conditions.scheduleType ? { schedule_type: object.conditions.scheduleType } : {}),
+        ...(object.conditions.shiftType ? { shift_type: object.conditions.shiftType } : {}),
+        ...(object.conditions.features.length > 0 ? { features: object.conditions.features } : {}),
       });
     }
   }
 
   return { creates, updates };
+}
+
+/**
+ * Условия для **уже существующей** карточки: импорт заполняет только пустые
+ * поля и никогда не перезаписывает то, что заполнено. Иначе очередная
+ * загрузка затирала бы правки координатора — он мог уточнить метро или
+ * поменять график, а выгрузка тикетов этого не знает. `required_count` под
+ * это правило не подпадает: он и есть то число, ради которого делается
+ * импорт (см. режимы «Заменить»/«Добавить»).
+ *
+ * Особенности (`features`) не заменяются, а дополняются: чекбоксы,
+ * проставленные руками, остаются.
+ */
+function conditionsPatchFor(card: AddressRow, conditions: ImportedConditions): AddressUpdate {
+  const patch: AddressUpdate = {};
+  if (!card.metro && conditions.metro) patch.metro = conditions.metro;
+  if (!card.schedule_type && conditions.scheduleType) patch.schedule_type = conditions.scheduleType;
+  if (!card.shift_type && conditions.shiftType) patch.shift_type = conditions.shiftType;
+
+  const missingFeatures = conditions.features.filter((slug) => !card.features.includes(slug));
+  if (missingFeatures.length > 0) patch.features = [...card.features, ...missingFeatures];
+
+  return patch;
 }

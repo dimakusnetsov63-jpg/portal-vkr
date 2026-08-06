@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { validateRow, type RawImportRow } from "./validateRow";
+import { EMPTY_CONDITIONS } from "./mapping/normalizeConditions";
 
 const KNOWN_CITIES = ["Москва", "Санкт-Петербург"];
 const KNOWN_POSITIONS = ["Курьер", "Кладовщик"];
@@ -21,8 +22,22 @@ describe("validateRow", () => {
   it("accepts a well-formed row and normalizes it", () => {
     const result = validateRow(makeRaw(), KNOWN_CITIES, KNOWN_POSITIONS);
     expect(result).toEqual({
-      row: { project: "Лавка", city: "Москва", position: "Курьер", date: "2026-08-05", demand: 10, address: "ул. Ленина, 1" },
+      row: {
+        project: "Лавка",
+        city: "Москва",
+        position: "Курьер",
+        date: "2026-08-05",
+        demand: 10,
+        address: "ул. Ленина, 1",
+        conditions: EMPTY_CONDITIONS,
+      },
     });
+  });
+
+  it("passes the parser's already-normalized conditions through untouched", () => {
+    const conditions = { metro: "Владыкино", scheduleType: "5/2" as const, shiftType: "night" as const, features: ["unloading"] };
+    const result = validateRow(makeRaw({ conditions }), KNOWN_CITIES, KNOWN_POSITIONS);
+    expect("row" in result && result.row.conditions).toEqual(conditions);
   });
 
   it("accepts ru-RU date format ДД.ММ.ГГГГ", () => {

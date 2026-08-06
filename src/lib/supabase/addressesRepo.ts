@@ -78,12 +78,10 @@ export async function bulkInsertAddressesFromImport(rows: AddressInsert[], impor
   return data.map(asAddressRow);
 }
 
-/** Writes the new required_count onto cards the import matched to existing rows. One request per card — an import touches at most a few hundred, and there is no bulk-update-by-id in PostgREST that would not also need every NOT NULL column restated. */
-export async function bulkUpdateAddressRequiredCounts(
-  updates: { id: string; required_count: number }[],
-): Promise<void> {
-  for (const { id, required_count } of updates) {
-    await updateAddress(id, { required_count });
+/** Applies the import's patches (required_count, plus any working conditions the card was still missing) to cards it matched. One request per card — an import touches at most a few hundred, and there is no bulk-update-by-id in PostgREST that would not also need every NOT NULL column restated. */
+export async function bulkUpdateAddressesFromImport(updates: { id: string; patch: AddressUpdate }[]): Promise<void> {
+  for (const { id, patch } of updates) {
+    await updateAddress(id, patch);
   }
 }
 

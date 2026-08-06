@@ -112,4 +112,8 @@ export const FEATURE_OPTIONS: readonly { slug: string; label: string }[] = [
   { slug: "weekly_payouts", label: "Еженедельные выплаты" },
   { slug: "accommodation", label: "Проживание" },
   { slug: "commute_compensation", label: "Компенсация проезда" },
+  // Заполняется импортом из колонки «Разгрузка» выгрузки «Яндекс Лавки»
+  // (см. src/lib/imports/mapping/normalizeConditions.ts); подписи живут
+  // здесь, поэтому новый чекбокс не требует миграции.
+  { slug: "unloading", label: "Разгрузка" },
 ];

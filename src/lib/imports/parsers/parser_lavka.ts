@@ -2,6 +2,7 @@ import type ExcelJS from "exceljs";
 import { cellDate, cellText } from "../excel/cellValue";
 import type { RawImportRow } from "../validateRow";
 import type { RowError } from "../types";
+import { isYes, normalizeMetro, normalizeScheduleType, normalizeShiftType } from "../mapping/normalizeConditions";
 import type { DemandParser } from "./DemandParser";
 
 /**
@@ -37,8 +38,19 @@ import type { DemandParser } from "./DemandParser";
  * «Задачи» — там она склеена со словом «Вакансия» тем же текстом без
  * чёткого разделителя от адреса при некоторых форматах площадки.
  *
+ * Помимо потребности выгрузка несёт **условия работы на объекте**, которые
+ * ложатся на существующие поля карточки адреса: «Метро» → `metro`,
+ * «График» → `schedule_type`, «Ночной формат работы» → `shift_type`,
+ * «Разгрузка» → чекбокс в `features`. Эти колонки необязательные: если их
+ * нет, карточка создастся с пустыми полями, а не отклонится. Приведение
+ * значений к тому, что допускает схема, — в `mapping/normalizeConditions.ts`
+ * (в реальном файле один и тот же график записан 29 способами).
+ *
  * project_import_configs.column_mapping для parser_key='lavka_v1':
- * {"task": "Задача", "position": "Теги", "demand": "Количество вакансий", "date": "Обновлено", "status": "Статус"}.
+ * {"task": "Задача", "position": "Теги", "demand": "Количество вакансий",
+ *  "date": "Обновлено", "status": "Статус", "metro": "Метро",
+ *  "schedule": "График", "nightShift": "Ночной формат работы",
+ *  "unloading": "Разгрузка"}.
  */
 
 // Не заякорено на "последний токен = только код заявки" — реальные строки
@@ -47,6 +59,12 @@ import type { DemandParser } from "./DemandParser";
 // последнее одно слово.
 const TASK_PATTERN = /^(.+?)\s*\|.*?площадки:\s*(.+)\s*\|[^|]*$/u;
 const REQUIRED_FIELDS = ["task", "position", "demand", "date", "status"] as const;
+/**
+ * Колонки «условий работы». Необязательные: если проект пришлёт выгрузку без
+ * них, импорт по-прежнему создаст карточки — просто с пустыми полями, а не
+ * упадёт на проверке формата.
+ */
+const OPTIONAL_FIELDS = ["metro", "schedule", "nightShift", "unloading"] as const;
 const CLOSED_STATUS = "Закрыт";
 
 /** `DemandParser` for project «Лавка» — see the module doc comment above for the full extraction logic and its assumptions. */
@@ -66,8 +84,10 @@ export const parserLavkaV1: DemandParser = {
 
     const headers = headerIndex(sheet.getRow(1));
     const columnIndex: Record<string, number> = {};
-    for (const field of REQUIRED_FIELDS) {
-      const colNumber = headers.get(config[field]);
+    for (const field of [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS]) {
+      const configured = config[field];
+      if (!configured) continue;
+      const colNumber = headers.get(configured);
       if (colNumber !== undefined) columnIndex[field] = colNumber;
     }
 
@@ -101,6 +121,8 @@ export const parserLavkaV1: DemandParser = {
       const trimmedAddress = address.trim();
 
       const demandText = cellText(row.getCell(columnIndex.demand).value);
+      const optional = (field: (typeof OPTIONAL_FIELDS)[number]) =>
+        columnIndex[field] === undefined ? "" : cellText(row.getCell(columnIndex[field]).value);
 
       rows.push({
         rowNumber,
@@ -111,6 +133,12 @@ export const parserLavkaV1: DemandParser = {
         date: cellDate(row.getCell(columnIndex.date).value),
         // "Количество вакансий" в реальном файле не заполняется — один тикет = одна открытая позиция.
         demand: demandText || "1",
+        conditions: {
+          metro: normalizeMetro(optional("metro")),
+          scheduleType: normalizeScheduleType(optional("schedule")),
+          shiftType: normalizeShiftType(optional("nightShift")),
+          features: isYes(optional("unloading")) ? ["unloading"] : [],
+        },
       });
     }
 

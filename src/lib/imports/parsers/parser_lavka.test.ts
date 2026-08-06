@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
 import { parserLavkaV1 } from "./parser_lavka";
+import { EMPTY_CONDITIONS } from "../mapping/normalizeConditions";
 
 const CONFIG = {
   task: "Задача",
@@ -8,16 +9,63 @@ const CONFIG = {
   demand: "Количество вакансий",
   date: "Обновлено",
   status: "Статус",
+  metro: "Метро",
+  schedule: "График",
+  nightShift: "Ночной формат работы",
+  unloading: "Разгрузка",
 };
 
-const HEADERS = ["Приоритет", "Задача", "Статус", "Теги", "Обновлено", "Количество вакансий"];
+/** Конфиг без колонок условий — таким он был до миграции 20260807100100. */
+const CONFIG_WITHOUT_CONDITIONS = {
+  task: "Задача",
+  position: "Теги",
+  demand: "Количество вакансий",
+  date: "Обновлено",
+  status: "Статус",
+};
 
-function makeWorkbook(rows: { task: string; status: string; position: string; date: Date; demand?: string }[]): ExcelJS.Workbook {
+const HEADERS = [
+  "Приоритет",
+  "Задача",
+  "Статус",
+  "Теги",
+  "Обновлено",
+  "Количество вакансий",
+  "Метро",
+  "График",
+  "Ночной формат работы",
+  "Разгрузка",
+];
+
+type SheetRow = {
+  task: string;
+  status: string;
+  position: string;
+  date: Date;
+  demand?: string;
+  metro?: string;
+  schedule?: string;
+  nightShift?: string;
+  unloading?: string;
+};
+
+function makeWorkbook(rows: SheetRow[]): ExcelJS.Workbook {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Sheet0");
   sheet.addRow(HEADERS);
   for (const row of rows) {
-    sheet.addRow(["Средний", row.task, row.status, row.position, row.date, row.demand ?? null]);
+    sheet.addRow([
+      "Средний",
+      row.task,
+      row.status,
+      row.position,
+      row.date,
+      row.demand ?? null,
+      row.metro ?? null,
+      row.schedule ?? null,
+      row.nightShift ?? null,
+      row.unloading ?? null,
+    ]);
   }
   return workbook;
 }
@@ -54,6 +102,7 @@ describe("parserLavkaV1", () => {
         position: "Кладовщик",
         date: "2026-07-31",
         demand: "1",
+        conditions: EMPTY_CONDITIONS,
       },
     ]);
   });
@@ -139,5 +188,50 @@ describe("parserLavkaV1", () => {
     const { rows, errors } = parserLavkaV1.extractRows(workbook, CONFIG, "Лавка");
     expect(rows).toEqual([]);
     expect(errors).toEqual([]);
+  });
+});
+
+describe("parserLavkaV1 — условия работы", () => {
+  const baseRow: SheetRow = {
+    task: "Москва | Вакансия Кладовщик для площадки: МСК Снежная, 20 | 123",
+    status: "Открыт",
+    position: "Кладовщик",
+    date: new Date("2026-07-31T00:00:00Z"),
+  };
+
+  it("reads metro, schedule, night flag and unloading into the row's conditions", () => {
+    const workbook = makeWorkbook([
+      { ...baseRow, metro: "Владыкино", schedule: "5\\2", nightShift: "Да", unloading: "Да" },
+    ]);
+    const { rows } = parserLavkaV1.extractRows(workbook, CONFIG, "Лавка");
+    expect(rows[0]!.conditions).toEqual({
+      metro: "Владыкино",
+      scheduleType: "5/2",
+      shiftType: "night",
+      features: ["unloading"],
+    });
+  });
+
+  it("leaves out the unloading feature when the column says Нет", () => {
+    const workbook = makeWorkbook([{ ...baseRow, unloading: "Нет", nightShift: "Нет" }]);
+    const { rows } = parserLavkaV1.extractRows(workbook, CONFIG, "Лавка");
+    expect(rows[0]!.conditions!.features).toEqual([]);
+    expect(rows[0]!.conditions!.shiftType).toBe("day");
+  });
+
+  it("still parses when the condition columns are absent from the config", () => {
+    const workbook = makeWorkbook([{ ...baseRow, metro: "Владыкино", schedule: "5/2" }]);
+    const { rows, errors } = parserLavkaV1.extractRows(workbook, CONFIG_WITHOUT_CONDITIONS, "Лавка");
+    expect(errors).toEqual([]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.conditions).toEqual(EMPTY_CONDITIONS);
+  });
+
+  it("canParse does not require the optional condition columns", () => {
+    const workbook = new ExcelJS.Workbook();
+    workbook
+      .addWorksheet("Sheet0")
+      .addRow(["Задача", "Статус", "Теги", "Обновлено", "Количество вакансий"]);
+    expect(parserLavkaV1.canParse(workbook, CONFIG)).toBe(true);
   });
 });
