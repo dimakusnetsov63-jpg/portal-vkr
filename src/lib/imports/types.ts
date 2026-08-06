@@ -41,8 +41,14 @@ export type ParseResult = {
  */
 export type ColumnMapping = Record<string, string>;
 
-/** "replace" перезаписывает planned_count значением из файла; "add" складывает его с уже существующим значением ячейки. */
-export type ImportMode = "replace" | "add";
+/**
+ * `replace` — «Требуется» карточки перезаписывается числом из файла;
+ * `add` — число из файла прибавляется к текущему;
+ * `sync` — как `replace`, плюс карточки проекта, которых в файле нет,
+ * обнуляются (выгрузка показывает только открытые позиции, поэтому
+ * закрытый объект из неё просто исчезает — см. requirements/addresses.md).
+ */
+export type ImportMode = "replace" | "add" | "sync";
 
 /** Итог одного вызова importDemand() — что показать в UI (предпросмотр/dry-run или финальный отчёт после реальной записи). */
 export type ImportReport = {
@@ -57,6 +63,8 @@ export type ImportReport = {
   errorRows: number;
   newRows: number;
   updatedRows: number;
+  /** Сколько карточек обнулено как отсутствующие в файле — всегда 0 вне режима `sync`. */
+  zeroedRows: number;
   durationMs: number;
   errors: RowError[];
   warnings: string[];

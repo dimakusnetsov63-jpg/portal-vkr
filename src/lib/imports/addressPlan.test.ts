@@ -233,6 +233,79 @@ describe("planAddressWrites — условия работы", () => {
   });
 });
 
+describe("planAddressWrites — режим «Синхронизировать»", () => {
+  const object: ImportedObject = {
+    project: "Яндекс Лавка",
+    city: "Москва",
+    position: "Кладовщик",
+    address: "МСК Снежная 20",
+    required: 3,
+    conditions: EMPTY_CONDITIONS,
+  };
+
+  /** Карточка, созданная импортом, — именно такие sync и обнуляет. */
+  const importedCard = (overrides: Partial<AddressRow> = {}) =>
+    makeCard({ source: "excel", import_id: "import-0", required_count: 10, ...overrides });
+
+  it("zeroes an imported card the file no longer mentions", () => {
+    const stale = importedCard({ id: "stale", full_address: "МСК Егерская 1" });
+    const plan = planAddressWrites([object], [stale], "sync");
+    expect(plan.zeroes).toEqual([{ id: "stale", patch: { required_count: 0 } }]);
+    // Объект из файла при этом обрабатывается как обычно.
+    expect(plan.creates).toHaveLength(1);
+  });
+
+  it("does not zero the card the file did mention", () => {
+    const matching = importedCard({ id: "matching" });
+    const plan = planAddressWrites([object], [matching], "sync");
+    expect(plan.zeroes).toEqual([]);
+    expect(plan.updates).toEqual([{ id: "matching", patch: { required_count: 3 } }]);
+  });
+
+  it("zeroes nothing in replace or add mode", () => {
+    const stale = [importedCard({ id: "stale", full_address: "МСК Егерская 1" })];
+    expect(planAddressWrites([object], stale, "replace").zeroes).toEqual([]);
+    expect(planAddressWrites([object], stale, "add").zeroes).toEqual([]);
+  });
+
+  it("leaves manually created cards alone and counts them instead", () => {
+    const manual = makeCard({ id: "manual", full_address: "МСК Егерская 1", source: "manual", required_count: 7 });
+    const plan = planAddressWrites([object], [manual], "sync");
+    expect(plan.zeroes).toEqual([]);
+    expect(plan.skippedManual).toBe(1);
+  });
+
+  it("skips cards already at zero so the counter reflects real changes", () => {
+    const already = importedCard({ id: "already", full_address: "МСК Егерская 1", required_count: 0 });
+    const plan = planAddressWrites([object], [already], "sync");
+    expect(plan.zeroes).toEqual([]);
+    expect(plan.skippedManual).toBe(0);
+  });
+
+  it("ignores cards without a position — they never take part in matching", () => {
+    const noPosition = importedCard({ id: "no-position", full_address: "МСК Егерская 1", position: null });
+    const plan = planAddressWrites([object], [noPosition], "sync");
+    expect(plan.zeroes).toEqual([]);
+  });
+
+  it("zeroes every imported card of the project when the file yields no objects at all", () => {
+    const cards = [
+      importedCard({ id: "a", full_address: "МСК А 1" }),
+      importedCard({ id: "b", full_address: "МСК Б 2" }),
+    ];
+    const plan = planAddressWrites([], cards, "sync");
+    expect(plan.zeroes.map((z) => z.id)).toEqual(["a", "b"]);
+  });
+
+  it("keeps a different position at the same address as a separate object", () => {
+    // Файл принёс «Кладовщик» на этот адрес; карточка «Сборщик» на нём же
+    // в файле не упомянута и должна обнулиться.
+    const otherPosition = importedCard({ id: "picker", position: "Сборщик" });
+    const plan = planAddressWrites([object], [otherPosition], "sync");
+    expect(plan.zeroes).toEqual([{ id: "picker", patch: { required_count: 0 } }]);
+  });
+});
+
 describe("aggregateByObject — условия работы", () => {
   it("takes the first non-empty value across tickets of the same object", () => {
     const [object] = aggregateByObject([

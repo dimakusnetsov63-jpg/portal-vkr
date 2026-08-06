@@ -12,10 +12,13 @@ export type ImportedObject = {
   conditions: ImportedConditions;
 };
 
-/** What an import intends to write: cards to create, and patches for cards it matched. */
+/** What an import intends to write: cards to create, patches for cards it matched, and — in `sync` mode — cards to zero out because the file no longer mentions them. */
 export type AddressWritePlan = {
   creates: AddressInsert[];
   updates: { id: string; patch: AddressUpdate }[];
+  zeroes: { id: string; patch: AddressUpdate }[];
+  /** Заведённые вручную карточки, которых нет в файле: `sync` их не трогает, но о них стоит сказать пользователю. */
+  skippedManual: number;
 };
 
 /**
@@ -76,11 +79,15 @@ export function objectKey(project: string, city: string, position: string, addre
 }
 
 /**
- * Splits aggregated objects into cards to create and cards to update.
+ * Splits aggregated objects into cards to create, cards to update and — in
+ * `sync` mode — cards to zero out.
+ *
  * "Заменить" sets required_count to the file's number; "Добавить" adds it to
- * whatever the card already had. Cards are matched in memory rather than via
- * a DB unique constraint — public.addresses has none, because it may already
- * contain manually-created duplicates (see the 20260807100000 migration).
+ * whatever the card already had; "Синхронизировать" behaves like "Заменить"
+ * and additionally zeroes every card of the project the file did not
+ * mention. Cards are matched in memory rather than via a DB unique
+ * constraint — public.addresses has none, because it may already contain
+ * manually-created duplicates (see the 20260807100000 migration).
  */
 export function planAddressWrites(
   objects: ImportedObject[],
@@ -97,10 +104,12 @@ export function planAddressWrites(
 
   const creates: AddressInsert[] = [];
   const updates: { id: string; patch: AddressUpdate }[] = [];
+  const matchedCardIds = new Set<string>();
 
   for (const object of objects) {
     const card = cardByKey.get(objectKey(object.project, object.city, object.position, object.address));
     if (card) {
+      matchedCardIds.add(card.id);
       updates.push({
         id: card.id,
         patch: {
@@ -126,7 +135,49 @@ export function planAddressWrites(
     }
   }
 
-  return { creates, updates };
+  const { zeroes, skippedManual } = planZeroes(existingCards, matchedCardIds, mode);
+  return { creates, updates, zeroes, skippedManual };
+}
+
+/**
+ * Карточки проекта, которых в файле не оказалось. Выгрузка тикетов
+ * показывает только открытые позиции: когда объект укомплектовали, он из
+ * неё просто исчезает — и без этого шага карточка навсегда сохраняет старое
+ * «Требуется».
+ *
+ * Обнуляется `required_count`, а не архивируется и не удаляется карточка:
+ * объект физически существует и, скорее всего, вернётся в следующей
+ * выгрузке вместе со всем, что координатор заполнил руками.
+ *
+ * Не трогаются:
+ * - карточки, заведённые вручную (`source !== 'excel'`) — файл им не
+ *   источник истины, молча обнулять чужую работу нельзя; они считаются
+ *   отдельно и показываются пользователю;
+ * - карточки без специализации — они в принципе не участвуют в
+ *   сопоставлении, значит «отсутствием в файле» это не является;
+ * - карточки, у которых `required_count` и так 0 — обнулять нечего, и
+ *   лишний запрос только раздул бы счётчик в отчёте.
+ */
+function planZeroes(
+  existingCards: AddressRow[],
+  matchedCardIds: Set<string>,
+  mode: ImportMode,
+): { zeroes: { id: string; patch: AddressUpdate }[]; skippedManual: number } {
+  if (mode !== "sync") return { zeroes: [], skippedManual: 0 };
+
+  const zeroes: { id: string; patch: AddressUpdate }[] = [];
+  let skippedManual = 0;
+
+  for (const card of existingCards) {
+    if (matchedCardIds.has(card.id) || !card.position || card.required_count === 0) continue;
+    if (card.source !== "excel") {
+      skippedManual++;
+      continue;
+    }
+    zeroes.push({ id: card.id, patch: { required_count: 0 } });
+  }
+
+  return { zeroes, skippedManual };
 }
 
 /**

@@ -17,8 +17,8 @@ export async function revertImport(importRecord: StaffingDemandImportRow): Promi
   await markImportReverted(importRecord.id);
 }
 
-/** An import can be losslessly undone only if it created cards without touching any existing one (updated_rows === 0) — updating a card overwrites its previous required_count, and no "before" snapshot is kept. */
+/** An import can be losslessly undone only if it created cards without touching any existing one — both updating and zeroing overwrite a card's previous required_count, and no "before" snapshot is kept. */
 export function canRevertImport(importRecord: StaffingDemandImportRow): boolean {
   if (importRecord.status === "reverted" || importRecord.dry_run) return false;
-  return importRecord.updated_rows === 0;
+  return importRecord.updated_rows === 0 && importRecord.zeroed_rows === 0;
 }

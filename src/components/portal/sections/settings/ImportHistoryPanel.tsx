@@ -12,7 +12,11 @@ import styles from "./SettingsSection.module.css";
 
 const HISTORY_LIMIT = 50;
 
-const MODE_LABELS: Record<string, string> = { replace: "Заменить", add: "Добавить" };
+const MODE_LABELS: Record<string, string> = {
+  replace: "Заменить",
+  add: "Добавить",
+  sync: "Синхронизировать",
+};
 const STATUS_LABELS: Record<string, string> = {
   success: "Успешно",
   partial: "С ошибками",
@@ -88,7 +92,8 @@ export function ImportHistoryPanel() {
                 @{entry.created_by_login ?? "—"} загрузил «{entry.file_name}» ({entry.project}, режим{" "}
                 {MODE_LABELS[entry.mode] ?? entry.mode}
                 {entry.dry_run ? ", проверка" : ""}): {entry.imported_rows}/{entry.total_rows} строк,{" "}
-                {entry.error_rows} ошибок, {entry.new_rows} новых, {entry.updated_rows} обновлено —{" "}
+                {entry.error_rows} ошибок, {entry.new_rows} новых, {entry.updated_rows} обновлено
+                {entry.zeroed_rows > 0 ? `, ${entry.zeroed_rows} обнулено` : ""} —{" "}
                 {STATUS_LABELS[entry.status] ?? entry.status}
               </span>
               <span className={styles.auditTime}>

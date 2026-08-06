@@ -12,6 +12,13 @@ import { importDemand } from "@/lib/imports/importDemand";
 import type { ImportMode } from "@/lib/imports/types";
 import type { ImportReport } from "@/lib/imports/types";
 
+const MODE_HINTS: Record<ImportMode, string> = {
+  replace: "«Требуется» у совпавших объектов будет перезаписано числом из файла. Объекты, которых в файле нет, останутся как есть.",
+  add: "Число из файла прибавится к текущему «Требуется» совпавших объектов. Объекты, которых в файле нет, останутся как есть.",
+  sync:
+    "Как «Заменить», но дополнительно обнулит «Требуется» у объектов проекта, которых в файле нет — выгрузка показывает только открытые позиции, поэтому укомплектованный объект из неё исчезает. Карточки, заведённые вручную, не затрагиваются. Файл должен покрывать проект целиком: если он только по одному городу, объекты остальных городов обнулятся.",
+};
+
 /**
  * 3-шаговая загрузка потребности из Excel: выбор проекта+файла → предпросмотр
  * (с обязательной проверкой "Проверить" перед реальным импортом) → финальный
@@ -106,8 +113,16 @@ export function ImportDemandModal({ onClose }: { onClose: () => void }) {
               >
                 Добавить
               </button>
+              <button
+                className={`${primitives.pillTabButton} ${mode === "sync" ? primitives.pillTabButtonActive : ""}`}
+                onClick={() => setMode("sync")}
+              >
+                Синхронизировать
+              </button>
             </div>
           </div>
+
+          <p className={modal.modalNote}>{MODE_HINTS[mode]}</p>
 
           <p className={modal.modalNote}>
             Формат каждого проекта определяется в Настройках. Нажмите «Проверить» — данные будут разобраны и
@@ -140,6 +155,7 @@ function ImportReportView({ report, onBack, onClose }: { report: ImportReport; o
         <Stat label="Ошибок" value={report.errorRows} />
         <Stat label="Новых адресов" value={report.newRows} />
         <Stat label="Обновлено адресов" value={report.updatedRows} />
+        {report.mode === "sync" && <Stat label="Обнулено адресов" value={report.zeroedRows} />}
         <Stat label="Время" value={`${(report.durationMs / 1000).toFixed(1)} с`} />
       </div>
 

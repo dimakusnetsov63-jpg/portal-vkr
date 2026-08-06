@@ -19,6 +19,7 @@ function makeImport(overrides: Partial<StaffingDemandImportRow> = {}): StaffingD
     error_rows: 0,
     new_rows: 10,
     updated_rows: 0,
+    zeroed_rows: 0,
     status: "success",
     duration_ms: 100,
     error_log: [],
@@ -36,6 +37,14 @@ describe("canRevertImport", () => {
   it("blocks revert once the import overwrote an existing card's required_count", () => {
     expect(canRevertImport(makeImport({ mode: "replace", updated_rows: 5 }))).toBe(false);
     expect(canRevertImport(makeImport({ mode: "add", updated_rows: 3 }))).toBe(false);
+  });
+
+  it("blocks revert for a sync import that zeroed cards — their previous value is not kept", () => {
+    expect(canRevertImport(makeImport({ mode: "sync", updated_rows: 0, zeroed_rows: 4 }))).toBe(false);
+  });
+
+  it("allows revert for a sync import that happened to zero nothing", () => {
+    expect(canRevertImport(makeImport({ mode: "sync", updated_rows: 0, zeroed_rows: 0 }))).toBe(true);
   });
 
   it("blocks revert for an already-reverted import", () => {

@@ -89,6 +89,7 @@ npx supabase db query --linked "select conname, pg_get_constraintdef(oid) from p
 | `20260805110000_add_demand_import_support.sql` | Импорт потребности из Excel (раздел «Адреса»). `staffing_demand`: `+address text NULL`, `+source text NOT NULL DEFAULT 'manual'`, `+import_id uuid` (FK на новую таблицу); unique-констрейнт расширен полем `address`. Новые таблицы `project_import_configs` (парсер+маппинг колонок на проект, засеяны 4 временных generic-конфига) и `staffing_demand_imports` (история с `error_log`/`warnings` в jsonb). RLS — `portal_can('addresses') and portal_can('settings')`, тот же приём, что у записи в раздел «Описание вакансии». **Колонки, добавленные тут в `staffing_demand`, импорт больше не использует** — см. `20260807100000` |
 | `20260807100000_addresses_import_source.sql` | Импорт пишет в «Адреса», а не в «Потребность»: `addresses` `+source text NOT NULL DEFAULT 'manual'` (`check in ('manual','excel')`), `+import_id uuid` (FK на `staffing_demand_imports`), индекс по `import_id`. Уникального индекса по (project, city, full_address, position) намеренно нет — в таблице уже могут быть ручные дубликаты, сопоставление делается в приложении (`addressPlan.ts`) |
 | `20260807100100_lavka_conditions_mapping.sql` | Только данные, без DDL: в `column_mapping` конфига `lavka_v1` добавлены колонки условий («Метро», «График», «Ночной формат работы», «Разгрузка»), `version` → 2. `parser_key` не меняется — структура файла та же, парсер просто начал читать столбцы, которые в нём и так были. jsonb-конкатенация (`||`) — идемпотентно и не затирает ручные правки конфига |
+| `20260807100200_import_sync_mode.sql` | Режим «Синхронизировать»: CHECK на `staffing_demand_imports.mode` расширен до `('replace','add','sync')`, `+zeroed_rows integer NOT NULL DEFAULT 0`. Нужен, потому что выгрузка тикетов показывает только открытые позиции — закрытый объект из неё исчезает, и без обнуления карточка навсегда сохраняет старое `required_count` |
 
 ## Миграция `20260728120000_portal_auth.sql`: что учесть при применении
 
@@ -182,9 +183,10 @@ typecheck`/`npm run build` показывают ошибки конкретно 
 подтверждено ручным прогоном импорта через интерфейс (создались записи в
 `project_import_configs`/`staffing_demand_imports`).
 
-**`20260807100000_addresses_import_source.sql` и
-`20260807100100_lavka_conditions_mapping.sql` ещё не применены** (вторая
-только правит данные в `project_import_configs` и типов не касается) —
+**`20260807100000_addresses_import_source.sql`,
+`20260807100100_lavka_conditions_mapping.sql` и
+`20260807100200_import_sync_mode.sql` ещё не применены** (вторая только
+правит данные в `project_import_configs` и типов не касается) —
 написана после того, как выяснилось, что импорт должен наполнять раздел
 «Адреса», а не матрицу «Потребность». Как и с TASK-010, типы и репозитории
 выведены из `Database` так, как будто миграция уже применена — вручную

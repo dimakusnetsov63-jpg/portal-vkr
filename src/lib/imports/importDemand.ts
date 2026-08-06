@@ -89,8 +89,17 @@ export async function importDemand(input: ImportDemandInput): Promise<ImportRepo
     );
   }
 
-  const existingCards = input.dryRun && objects.length === 0 ? [] : await listActiveAddressesForProject(input.project);
+  // В режиме «Синхронизировать» карточки нужны всегда — даже если из файла
+  // не пришло ни одного объекта, ведь именно тогда обнулять придётся всё.
+  const needsExistingCards = objects.length > 0 || input.mode === "sync";
+  const existingCards = needsExistingCards ? await listActiveAddressesForProject(input.project) : [];
   const plan = planAddressWrites(objects, existingCards, input.mode);
+
+  if (plan.skippedManual > 0) {
+    warnings.push(
+      `${plan.skippedManual} карточек(и) проекта не обнулены: они заведены вручную, а не импортом — файл для них не источник истины. При необходимости поправьте «Требуется» в карточке адреса`,
+    );
+  }
 
   const report: ImportReport = {
     fileName: input.file.name,
@@ -104,6 +113,7 @@ export async function importDemand(input: ImportDemandInput): Promise<ImportRepo
     errorRows: errors.length,
     newRows: plan.creates.length,
     updatedRows: plan.updates.length,
+    zeroedRows: plan.zeroes.length,
     durationMs: Date.now() - startedAt,
     errors,
     warnings,
@@ -126,6 +136,7 @@ export async function importDemand(input: ImportDemandInput): Promise<ImportRepo
     error_rows: report.errorRows,
     new_rows: report.newRows,
     updated_rows: report.updatedRows,
+    zeroed_rows: report.zeroedRows,
     status: errors.length === 0 ? "success" : rows.length === 0 ? "failed" : "partial",
     duration_ms: report.durationMs,
     error_log: errors,
@@ -133,7 +144,7 @@ export async function importDemand(input: ImportDemandInput): Promise<ImportRepo
   });
 
   await bulkInsertAddressesFromImport(plan.creates, record.id);
-  await bulkUpdateAddressesFromImport(plan.updates);
+  await bulkUpdateAddressesFromImport([...plan.updates, ...plan.zeroes]);
 
   return { ...report, importId: record.id };
 }

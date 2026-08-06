@@ -746,6 +746,7 @@ export type Database = {
           total_rows: number
           updated_rows: number
           warnings: Json
+          zeroed_rows: number
         }
         Insert: {
           created_at?: string
@@ -767,6 +768,7 @@ export type Database = {
           total_rows?: number
           updated_rows?: number
           warnings?: Json
+          zeroed_rows?: number
         }
         Update: {
           created_at?: string
@@ -788,6 +790,7 @@ export type Database = {
           total_rows?: number
           updated_rows?: number
           warnings?: Json
+          zeroed_rows?: number
         }
         Relationships: [
           {

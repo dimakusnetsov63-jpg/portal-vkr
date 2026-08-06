@@ -205,9 +205,10 @@ upsert.
 | `project` | text | **not null** | |
 | `parser_key` / `parser_version` | text / integer | **not null** | Какой парсер и какой его версии использовался |
 | `file_name` | text | **not null** | |
-| `mode` | text | **not null** | `check (mode in ('replace', 'add'))` |
+| `mode` | text | **not null** | `check (mode in ('replace', 'add', 'sync'))` — `sync` добавлен миграцией `20260807100200` |
 | `dry_run` | boolean | not null | `default false` — «Проверить» без записи в базу |
 | `total_rows` / `imported_rows` / `error_rows` / `new_rows` / `updated_rows` | integer | not null | `default 0` |
+| `zeroed_rows` | integer | not null | `default 0` — сколько карточек обнулено как отсутствующие в файле; ненулевое только для `mode = 'sync'` |
 | `status` | text | **not null** | `check (status in ('success', 'partial', 'failed', 'reverted'))` |
 | `duration_ms` | integer | not null | `default 0` |
 | `error_log` | jsonb | not null | `default '[]'`; массив `{rowNumber, reason}` |
@@ -217,11 +218,12 @@ upsert.
 (`SELECT`/`INSERT`/`UPDATE`) — только head/coordinator (`portal_can('addresses')
 and portal_can('settings')`), как у записи «Описания вакансии».
 
-**Откат импорта:** удаляет из `staffing_demand` строки с этим `import_id` и
+**Откат импорта:** удаляет из `addresses` карточки с этим `import_id` и
 проставляет `status = 'reverted'` (`src/lib/imports/revertImport.ts`).
-Безопасен без потери данных только для `mode = 'replace'` или импортов, не
-обновивших ни одной существующей строки (`updated_rows = 0`) — см.
-известные ограничения в `docs/requirements/addresses.md`.
+Безопасен без потери данных только для импортов, не менявших существующие
+карточки (`updated_rows = 0` и `zeroed_rows = 0`) — прежнее значение
+`required_count` нигде не хранится. См. известные ограничения в
+`docs/requirements/addresses.md`.
 
 **Почему `status` через `CHECK`, а не enum:** список статусов проще
 расширить (добавить значение) без миграции типа `ALTER TYPE ... ADD
