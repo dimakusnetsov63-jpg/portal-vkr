@@ -5,9 +5,11 @@ import type { DemandImportRow, ImportMode, ImportReport } from "./types";
 import { getImportConfigForProject } from "../supabase/projectImportConfigsRepo";
 import { createImportRecord } from "../supabase/staffingDemandImportsRepo";
 import {
-  bulkUpsertStaffingDemandFromImport,
-  getStaffingDemandForProjectDates,
-} from "../supabase/staffingDemandRepo";
+  bulkInsertAddressesFromImport,
+  bulkUpdateAddressRequiredCounts,
+  listActiveAddressesForProject,
+} from "../supabase/addressesRepo";
+import { aggregateByObject, planAddressWrites } from "./addressPlan";
 
 /** Everything importDemand() needs from the caller — the UI supplies the file/mode/dryRun choices, and the already-loaded candidate_list_options dictionaries and current-user identity, so this module never talks to those directly. */
 export type ImportDemandInput = {
@@ -29,8 +31,18 @@ function yieldToUi(): Promise<void> {
 
 /**
  * Orchestrates one Excel import end to end: read workbook → run the
- * project's registered parser → validate every row → (dry-run: stop here) →
- * diff against existing rows for "Добавить" → batch-write → record history.
+ * project's registered parser → validate every row → aggregate into one
+ * entry per staffing object → (dry-run: stop here) → match against existing
+ * address cards → create/update them → record history.
+ *
+ * The result of an import is rows in **public.addresses** («Адреса»), not in
+ * public.staffing_demand: one card per (project, city, full_address,
+ * position), with `required_count` = how many people that object needs. For
+ * ticket-shaped sources like «Яндекс Лавка» one open ticket = one required
+ * person, so several tickets on the same object/position are summed. The
+ * ticket's own date is deliberately not part of the key — an address card
+ * has no date dimension (see docs/requirements/addresses.md).
+ *
  * Never throws for row-level problems — those surface as `report.errors`;
  * it only throws for structural failures (unreadable file, no parser
  * configured, DB error) that abort the whole import.
@@ -53,20 +65,32 @@ export async function importDemand(input: ImportDemandInput): Promise<ImportRepo
     const chunk = extracted.rows.slice(i, i + CHUNK_SIZE);
     for (const raw of chunk) {
       const result = validateRow(raw, input.knownCities, input.knownPositions);
-      if ("error" in result) errors.push(result.error);
-      else rows.push(result.row);
+      if ("error" in result) {
+        errors.push(result.error);
+        continue;
+      }
+      // Карточка адреса не может существовать без адреса (full_address NOT
+      // NULL) — в отличие от строки матрицы «Потребность», где адрес был
+      // необязателен.
+      if (!result.row.address) {
+        errors.push({ rowNumber: raw.rowNumber, reason: "Не указан адрес — карточку объекта создать не из чего" });
+        continue;
+      }
+      rows.push(result.row);
     }
     if (i + CHUNK_SIZE < extracted.rows.length) await yieldToUi();
   }
 
   const warnings: string[] = [];
-  const aggregated = aggregateDuplicateKeys(rows);
-  if (aggregated.length < rows.length) {
+  const objects = aggregateByObject(rows);
+  if (objects.length < rows.length) {
     warnings.push(
-      `${rows.length - aggregated.length} строк(и) объединены: несколько строк файла указывали одну и ту же ячейку (проект+город+должность+дата+адрес) — потребность из них сложена. Так устроены, например, выгрузки тикетов, где один тикет = одна вакантная позиция (см. parser_lavka.ts)`,
+      `${rows.length} строк(и) файла сведены в ${objects.length} объект(ов): строки с одинаковым проектом, городом, адресом и должностью объединены, их потребность сложена (один открытый тикет = один требуемый человек)`,
     );
   }
-  const { newRows, updatedRows, writes } = await diffAgainstExisting(input.project, aggregated, input.mode);
+
+  const existingCards = input.dryRun && objects.length === 0 ? [] : await listActiveAddressesForProject(input.project);
+  const plan = planAddressWrites(objects, existingCards, input.mode);
 
   const report: ImportReport = {
     fileName: input.file.name,
@@ -78,8 +102,8 @@ export async function importDemand(input: ImportDemandInput): Promise<ImportRepo
     totalRows: extracted.rows.length,
     importedRows: rows.length,
     errorRows: errors.length,
-    newRows,
-    updatedRows,
+    newRows: plan.creates.length,
+    updatedRows: plan.updates.length,
     durationMs: Date.now() - startedAt,
     errors,
     warnings,
@@ -108,76 +132,8 @@ export async function importDemand(input: ImportDemandInput): Promise<ImportRepo
     warnings,
   });
 
-  if (writes.length > 0) {
-    await bulkUpsertStaffingDemandFromImport(writes.map((w) => ({ ...w, import_id: record.id })));
-  }
+  await bulkInsertAddressesFromImport(plan.creates, record.id);
+  await bulkUpdateAddressRequiredCounts(plan.updates);
 
   return { ...report, importId: record.id };
-}
-
-/**
- * For mode "Заменить" every valid row is written as-is (planned_count = row.demand).
- * For mode "Добавить" the existing planned_count for the same key is needed,
- * and the new value is existing + demand. Existing rows are fetched with one
- * query filtered only by `project` + the (few, low-cardinality) dates in the
- * file — see getStaffingDemandForProjectDates's doc comment for why a
- * per-row OR-of-five-fields filter doesn't work with real data — then
- * matched against each row's full key (city/position/address) in memory.
- */
-async function diffAgainstExisting(
-  project: string,
-  rows: DemandImportRow[],
-  mode: ImportMode,
-): Promise<{
-  newRows: number;
-  updatedRows: number;
-  writes: { project: string; city: string; position: string; demand_date: string; address: string | null; planned_count: number }[];
-}> {
-  if (rows.length === 0) return { newRows: 0, updatedRows: 0, writes: [] };
-
-  const existing = await getStaffingDemandForProjectDates(project, rows.map((row) => row.date));
-  const existingByKey = new Map(existing.map((row) => [rowKey(row.project, row.city, row.position, row.demand_date, row.address), row]));
-
-  let newRows = 0;
-  let updatedRows = 0;
-  const writes = rows.map((row) => {
-    const key = rowKey(project, row.city, row.position, row.date, row.address);
-    const existingRow = existingByKey.get(key);
-    if (existingRow) updatedRows++;
-    else newRows++;
-    const plannedCount = mode === "add" && existingRow ? existingRow.planned_count + row.demand : row.demand;
-    return {
-      project,
-      city: row.city,
-      position: row.position,
-      demand_date: row.date,
-      address: row.address,
-      planned_count: plannedCount,
-    };
-  });
-
-  return { newRows, updatedRows, writes };
-}
-
-function rowKey(project: string, city: string, position: string, date: string, address: string | null): string {
-  return `${project} ${city} ${position} ${date} ${address ?? ""}`;
-}
-
-/**
- * Sums `demand` for rows sharing the same (city, position, date, address)
- * key. Required before writing: a single Supabase `.upsert()` call cannot
- * touch the same conflict key twice (Postgres error 21000, "ON CONFLICT DO
- * UPDATE command cannot affect row a second time") — a real scenario for
- * sources like parser_lavka.ts, where several open tickets can land on the
- * same address/position/day.
- */
-function aggregateDuplicateKeys(rows: DemandImportRow[]): DemandImportRow[] {
-  const byKey = new Map<string, DemandImportRow>();
-  for (const row of rows) {
-    const key = rowKey(row.project, row.city, row.position, row.date, row.address);
-    const existing = byKey.get(key);
-    if (existing) existing.demand += row.demand;
-    else byKey.set(key, { ...row });
-  }
-  return [...byKey.values()];
 }

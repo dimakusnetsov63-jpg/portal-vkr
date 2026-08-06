@@ -86,7 +86,8 @@ npx supabase db query --linked "select conname, pg_get_constraintdef(oid) from p
 | `20260805100600_vacancy_projects_rpc.sql` | `SECURITY DEFINER`-функции `portal_save_vacancy_project_tree` (атомарное сохранение дерева с проверкой `version`), `portal_duplicate_vacancy_project`, `search_vacancy_projects` (substring-поиск по всем вакансиям) + trigram-индексы на `vacancy_fields.label`/`value`, `vacancy_sections.title`. Правлена после первой попытки применения: `search_vacancy_projects` падала с `42P10` (`ORDER BY vp.title` при `SELECT DISTINCT vp.id` — title не входил в список distinct); исправлено через подзапрос. Все три функции — `create or replace`, не `create`, чтобы повторный запуск после частичного сбоя был безопасен |
 | `20260805100700_add_vacancy_category_list_type.sql` | Значение `vacancy_category` в enum `candidate_list_type` (отдельно — та же причина, что у `20260725100000`) |
 | `20260805100800_seed_vacancy_categories.sql` | Засев 7 категорий (те же, что были захардкожены в старом `vacancyData.ts`) в `candidate_list_options` |
-| `20260805110000_add_demand_import_support.sql` | Импорт потребности из Excel (раздел «Адреса»). `staffing_demand`: `+address text NULL`, `+source text NOT NULL DEFAULT 'manual'`, `+import_id uuid` (FK на новую таблицу); unique-констрейнт расширен полем `address`. Новые таблицы `project_import_configs` (парсер+маппинг колонок на проект, засеяны 4 временных generic-конфига) и `staffing_demand_imports` (история с `error_log`/`warnings` в jsonb). RLS — `portal_can('addresses') and portal_can('settings')`, тот же приём, что у записи в раздел «Описание вакансии» |
+| `20260805110000_add_demand_import_support.sql` | Импорт потребности из Excel (раздел «Адреса»). `staffing_demand`: `+address text NULL`, `+source text NOT NULL DEFAULT 'manual'`, `+import_id uuid` (FK на новую таблицу); unique-констрейнт расширен полем `address`. Новые таблицы `project_import_configs` (парсер+маппинг колонок на проект, засеяны 4 временных generic-конфига) и `staffing_demand_imports` (история с `error_log`/`warnings` в jsonb). RLS — `portal_can('addresses') and portal_can('settings')`, тот же приём, что у записи в раздел «Описание вакансии». **Колонки, добавленные тут в `staffing_demand`, импорт больше не использует** — см. `20260807100000` |
+| `20260807100000_addresses_import_source.sql` | Импорт пишет в «Адреса», а не в «Потребность»: `addresses` `+source text NOT NULL DEFAULT 'manual'` (`check in ('manual','excel')`), `+import_id uuid` (FK на `staffing_demand_imports`), индекс по `import_id`. Уникального индекса по (project, city, full_address, position) намеренно нет — в таблице уже могут быть ручные дубликаты, сопоставление делается в приложении (`addressPlan.ts`) |
 
 ## Миграция `20260728120000_portal_auth.sql`: что учесть при применении
 
@@ -176,18 +177,24 @@ typecheck`/`npm run build` показывают ошибки конкретно 
 `20260805100800` (засев категорий). После применения — регенерация типов и
 проверка под всеми четырьмя ролями по чек-листу.
 
-**`20260805110000_add_demand_import_support.sql` ещё не применена** —
-написана в этой задаче (импорт потребности из Excel), но не выкатывалась
-против боевой БД и не регенерировала `database.types.ts`. Как и с TASK-010,
-типы (`staffingDemand.types.ts`, `projectImportConfigs.types.ts`,
-`staffingDemandImports.types.ts`) и репозитории (`staffingDemandRepo.ts`,
-`projectImportConfigsRepo.ts`, `staffingDemandImportsRepo.ts`) выведены из
-`Database` так, как будто миграция уже применена — вручную дописано в
-`database.types.ts` три блока (`project_import_configs`,
-`staffing_demand_imports`, новые поля `staffing_demand`) в отсутствие
-доступа к `supabase gen types typescript` для реального проекта; после
-применения миграции обязательно перегенерировать файл штатной командой и
-свериться, что ручная правка совпала.
+**`20260805110000_add_demand_import_support.sql` применена к боевой БД** —
+подтверждено ручным прогоном импорта через интерфейс (создались записи в
+`project_import_configs`/`staffing_demand_imports`).
+
+**`20260807100000_addresses_import_source.sql` ещё не применена** —
+написана после того, как выяснилось, что импорт должен наполнять раздел
+«Адреса», а не матрицу «Потребность». Как и с TASK-010, типы и репозитории
+выведены из `Database` так, как будто миграция уже применена — вручную
+дописаны поля `source`/`import_id` в блок `addresses` в
+`database.types.ts` в отсутствие доступа к
+`supabase gen types typescript` для реального проекта; после применения
+миграции обязательно перегенерировать файл штатной командой и свериться,
+что ручная правка совпала.
+
+Колонки `address`/`source`/`import_id` в `staffing_demand` после смены
+цели импорта не используются (их заполняет только ручной ввод значениями
+по умолчанию). Они ничего не ломают; удаление — отдельная задача, если
+понадобится чистка схемы.
 
 `20260801100000_login_rate_limit.sql` **применена к боевой БД** (read-only
 проверка раздела 1.2 подтверждена через SQL Editor).

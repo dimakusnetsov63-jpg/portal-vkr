@@ -30,6 +30,7 @@ export type Database = {
           features: string[]
           full_address: string
           id: string
+          import_id: string | null
           in_progress_count: number
           latitude: number | null
           longitude: number | null
@@ -47,6 +48,7 @@ export type Database = {
           shift_type: string | null
           site_manager_name: string | null
           site_manager_phone: string | null
+          source: string
           staffed_count: number
           status: string
           updated_at: string
@@ -68,6 +70,7 @@ export type Database = {
           features?: string[]
           full_address: string
           id?: string
+          import_id?: string | null
           in_progress_count?: number
           latitude?: number | null
           longitude?: number | null
@@ -85,6 +88,7 @@ export type Database = {
           shift_type?: string | null
           site_manager_name?: string | null
           site_manager_phone?: string | null
+          source?: string
           staffed_count?: number
           status?: string
           updated_at?: string
@@ -106,6 +110,7 @@ export type Database = {
           features?: string[]
           full_address?: string
           id?: string
+          import_id?: string | null
           in_progress_count?: number
           latitude?: number | null
           longitude?: number | null
@@ -123,6 +128,7 @@ export type Database = {
           shift_type?: string | null
           site_manager_name?: string | null
           site_manager_phone?: string | null
+          source?: string
           staffed_count?: number
           status?: string
           updated_at?: string
@@ -135,6 +141,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "addresses_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "staffing_demand_imports"
             referencedColumns: ["id"]
           },
           {

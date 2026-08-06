@@ -28,15 +28,13 @@ function makeImport(overrides: Partial<StaffingDemandImportRow> = {}): StaffingD
 }
 
 describe("canRevertImport", () => {
-  it("allows revert for a replace-mode import", () => {
-    expect(canRevertImport(makeImport({ mode: "replace", updated_rows: 5 }))).toBe(true);
-  });
-
-  it("allows revert for an add-mode import that only created new rows", () => {
+  it("allows revert for an import that only created new cards", () => {
+    expect(canRevertImport(makeImport({ mode: "replace", updated_rows: 0, new_rows: 10 }))).toBe(true);
     expect(canRevertImport(makeImport({ mode: "add", updated_rows: 0, new_rows: 10 }))).toBe(true);
   });
 
-  it("blocks revert for an add-mode import that also updated existing rows", () => {
+  it("blocks revert once the import overwrote an existing card's required_count", () => {
+    expect(canRevertImport(makeImport({ mode: "replace", updated_rows: 5 }))).toBe(false);
     expect(canRevertImport(makeImport({ mode: "add", updated_rows: 3 }))).toBe(false);
   });
 

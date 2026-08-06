@@ -41,6 +41,8 @@ function makeAddress(overrides: Partial<AddressRow> = {}): AddressRow {
     created_by_login: null,
     updated_by: null,
     updated_by_login: null,
+    source: "manual",
+    import_id: null,
     ...overrides,
   };
 }

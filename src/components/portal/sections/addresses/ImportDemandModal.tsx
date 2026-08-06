@@ -20,7 +20,7 @@ import type { ImportReport } from "@/lib/imports/types";
  * используется.
  */
 export function ImportDemandModal({ onClose }: { onClose: () => void }) {
-  const { pushToast, listOptions, currentUser, refreshDemand } = usePortal();
+  const { pushToast, listOptions, currentUser, refreshAddresses } = usePortal();
   const [project, setProject] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [mode, setMode] = useState<ImportMode>("replace");
@@ -49,10 +49,10 @@ export function ImportDemandModal({ onClose }: { onClose: () => void }) {
         pushToast("Проверка завершена — данные не записаны в базу");
       } else {
         pushToast("Импорт завершён");
-        // Строки потребности пишутся сразу в staffing_demand — обновляем уже
-        // загруженные в контексте данные без перезагрузки страницы, чтобы
-        // раздел «Потребность» сразу показал результат импорта.
-        await refreshDemand();
+        // Импорт создаёт/обновляет карточки в public.addresses — перечитываем
+        // список, чтобы новые объекты появились в таблице без перезагрузки
+        // страницы.
+        await refreshAddresses();
       }
     } catch (e) {
       pushToast(toErrorMessage(e), "error");
@@ -136,14 +136,20 @@ function ImportReportView({ report, onBack, onClose }: { report: ImportReport; o
     <>
       <div className={primitives.fieldRow}>
         <Stat label="Всего строк" value={report.totalRows} />
-        <Stat label="Импортировано" value={report.importedRows} />
+        <Stat label="Обработано строк" value={report.importedRows} />
         <Stat label="Ошибок" value={report.errorRows} />
-        <Stat label="Новых записей" value={report.newRows} />
-        <Stat label="Обновлено" value={report.updatedRows} />
+        <Stat label="Новых адресов" value={report.newRows} />
+        <Stat label="Обновлено адресов" value={report.updatedRows} />
         <Stat label="Время" value={`${(report.durationMs / 1000).toFixed(1)} с`} />
       </div>
 
       {report.dryRun && <p className={modal.modalNote}>Это проверка — данные не записаны в базу.</p>}
+
+      {report.warnings.map((warning) => (
+        <p className={modal.modalNote} key={warning}>
+          {warning}
+        </p>
+      ))}
 
       {report.errors.length > 0 && (
         <div className={primitives.tableWrap}>

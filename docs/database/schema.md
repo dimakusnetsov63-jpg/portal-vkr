@@ -308,11 +308,19 @@ city + position + свежие сверху).
 | `created_at` / `updated_at` | timestamptz | not null | `default now()`, поддерживаются триггером `set_addresses_audit_fields()` |
 | `created_by` / `updated_by` | uuid | nullable | `references portal_users(id) on delete set null` — **первый случай FK из таблицы данных на `portal_users`**; проставляется тем же триггером из `auth.uid()` |
 | `created_by_login` / `updated_by_login` | text | nullable | Текстовый снимок логина на момент записи (как `portal_audit_log.actor_login`) — `portal_users` закрыта RLS, `join` из клиента не сработает |
+| `source` | text | **not null** | `default 'manual'`, `check in ('manual','excel')` — заведена руками или создана импортом потребности (миграция `20260807100000`) |
+| `import_id` | uuid | nullable | `references staffing_demand_imports(id) on delete set null` — каким импортом создана карточка; NULL у ручных. Нужен для «Отменить импорт» |
 
 **Индексы:** по `project`, `city`, `position`, `status`, `priority`,
-`object_type`, `district`, `metro`, `archived_at`; GIN trigram по
+`object_type`, `district`, `metro`, `archived_at`, `import_id`; GIN trigram по
 `full_address` для поиска (расширение `pg_trgm` уже включено миграцией
 `candidates`).
+
+**Уникального индекса по (project, city, full_address, position) нет
+намеренно** — в таблице могут быть заведённые вручную дубликаты, constraint
+не накатился бы на боевые данные. Импорт сопоставляет строки файла с
+существующими карточками в приложении (`src/lib/imports/addressPlan.ts`),
+см. `requirements/addresses.md`.
 
 **Триггер:** `trg_addresses_set_audit_fields` — своя функция
 `set_addresses_audit_fields()` (`security definer`, читает `portal_users` по
