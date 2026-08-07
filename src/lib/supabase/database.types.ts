@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      address_demand_history: {
+        Row: {
+          address_id: string
+          city: string
+          created_at: string
+          demand_date: string
+          id: string
+          import_id: string | null
+          position: string
+          project: string
+          required_count: number
+          updated_at: string
+        }
+        Insert: {
+          address_id: string
+          city: string
+          created_at?: string
+          demand_date: string
+          id?: string
+          import_id?: string | null
+          position: string
+          project: string
+          required_count: number
+          updated_at?: string
+        }
+        Update: {
+          address_id?: string
+          city?: string
+          created_at?: string
+          demand_date?: string
+          id?: string
+          import_id?: string | null
+          position?: string
+          project?: string
+          required_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "address_demand_history_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "address_demand_history_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "staffing_demand_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       addresses: {
         Row: {
           archived_at: string | null
@@ -730,6 +784,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           created_by_login: string | null
+          demand_date: string | null
           dry_run: boolean
           duration_ms: number
           error_log: Json
@@ -752,6 +807,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           created_by_login?: string | null
+          demand_date?: string | null
           dry_run?: boolean
           duration_ms?: number
           error_log?: Json
@@ -774,6 +830,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           created_by_login?: string | null
+          demand_date?: string | null
           dry_run?: boolean
           duration_ms?: number
           error_log?: Json
@@ -1228,6 +1285,22 @@ export type Database = {
       search_vacancy_projects: { Args: { p_query: string }; Returns: string[] }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      staffing_demand_effective: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          address: string | null
+          city: string
+          created_at: string
+          demand_date: string
+          id: string
+          import_id: string | null
+          planned_count: number
+          position: string
+          project: string
+          source: string
+          updated_at: string
+        }[]
+      }
     }
     Enums: {
       candidate_list_type:

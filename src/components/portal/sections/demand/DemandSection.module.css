@@ -251,6 +251,18 @@
   background: var(--accent);
 }
 
+/* Ячейка посчитана из импорта «Адресов» (source='excel') — не редактируется здесь. */
+.demandCellLocked {
+  cursor: default;
+}
+.lockIcon {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: flex;
+  color: var(--text-3);
+}
+
 .lvlEmpty {
   color: var(--text-3);
   background: var(--surface-2);

@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "@/components/portal/ui/Icon";
 import { demandLevelForValue, type DemandCellLevel } from "./demandAggregate";
 import { resolveCellCommit } from "./demandCellEdit";
 import { DemandCellMenu } from "./DemandCellMenu";
 import styles from "./DemandSection.module.css";
+
+const LOCKED_TITLE = "Значение рассчитано автоматически из импорта адресов — редактируется через раздел «Адреса»";
 
 const LEVEL_CLASS: Record<DemandCellLevel, string> = {
   empty: styles.lvlEmpty,
@@ -21,6 +24,7 @@ export function DemandCell({
   date,
   value,
   isToday,
+  locked,
   onSave,
 }: {
   project: string;
@@ -30,6 +34,8 @@ export function DemandCell({
   /** null = potребность не выставлена (no row). */
   value: number | null;
   isToday?: boolean;
+  /** Значение посчитано из импорта «Адресов» (source='excel' в staffing_demand_effective) — не редактируется здесь, см. docs/requirements/addresses.md. */
+  locked?: boolean;
   onSave: (next: number | null) => Promise<boolean>;
 }) {
   const [editing, setEditing] = useState(false);
@@ -48,6 +54,7 @@ export function DemandCell({
   const displayValue = pending !== undefined ? pending : value;
 
   function startEdit() {
+    if (locked) return;
     setDraft(value === null ? "" : String(value));
     setEditing(true);
   }
@@ -90,6 +97,7 @@ export function DemandCell({
   }
 
   function handleViewKeyDown(e: React.KeyboardEvent<HTMLTableCellElement>) {
+    if (locked) return;
     if (e.key === "Delete" || e.key === "Backspace") {
       e.preventDefault();
       if (value !== null) apply("");
@@ -128,15 +136,20 @@ export function DemandCell({
 
   return (
     <td
-      className={`${styles.demandCell} ${LEVEL_CLASS[level]} ${saving ? styles.demandCellSaving : ""} ${isToday ? styles.demandCellToday : ""}`}
+      className={`${styles.demandCell} ${LEVEL_CLASS[level]} ${saving ? styles.demandCellSaving : ""} ${isToday ? styles.demandCellToday : ""} ${locked ? styles.demandCellLocked : ""}`}
       onClick={startEdit}
       onKeyDown={handleViewKeyDown}
       tabIndex={0}
-      title={displayValue === null ? "Потребность не выставлена" : `Потребность: ${displayValue}`}
+      title={locked ? LOCKED_TITLE : displayValue === null ? "Потребность не выставлена" : `Потребность: ${displayValue}`}
     >
       {displayValue === null ? "" : displayValue}
       {saving && <span className={styles.savingDot} />}
-      {displayValue !== null && !saving && (
+      {locked && (
+        <span className={styles.lockIcon}>
+          <Icon name="shield" size={10} />
+        </span>
+      )}
+      {displayValue !== null && !saving && !locked && (
         <DemandCellMenu project={project} city={city} position={position} date={date} value={displayValue} />
       )}
     </td>

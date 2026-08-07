@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { usePortal } from "@/components/portal/context/PortalContext";
 import { Icon } from "@/components/portal/ui/Icon";
 import { getWeekRange, toIsoDate } from "@/lib/portal/demandWindow";
@@ -28,11 +29,24 @@ export function DemandPositionRow({
   matrix: DemandMatrixData;
   onSaveCell: (project: string, city: string, position: string, dateIso: string, next: number | null) => Promise<boolean>;
 }) {
-  const { bulkSetDemandCells, pushToast, demandRowMeta } = usePortal();
+  const { bulkSetDemandCells, pushToast, demandRowMeta, demandRows } = usePortal();
   const dates = matrix[project]?.[city]?.[position] ?? {};
   const total = positionPeriodTotal(dates);
   const todayIso = toIsoDate(new Date());
   const meta = getRowMeta(demandRowMeta, project, city, position);
+
+  // Даты, посчитанные из импорта «Адресов» (staffing_demand_effective
+  // помечает такие строки source='excel') — не редактируются кликом здесь,
+  // см. docs/requirements/addresses.md.
+  const lockedDates = useMemo(
+    () =>
+      new Set(
+        demandRows
+          .filter((r) => r.project === project && r.city === city && r.position === position && r.source === "excel")
+          .map((r) => r.demand_date),
+      ),
+    [demandRows, project, city, position],
+  );
 
   async function handleRepeatWeek() {
     const { from } = getWeekRange();
@@ -75,6 +89,7 @@ export function DemandPositionRow({
           date={col.key}
           value={dates[col.key] ?? null}
           isToday={col.key === todayIso}
+          locked={lockedDates.has(col.key)}
           onSave={(next) => onSaveCell(project, city, position, col.key, next)}
         />
       ))}

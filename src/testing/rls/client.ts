@@ -118,10 +118,18 @@ export async function readRowAsServiceRole<T>(table: string, id: string): Promis
  * Удаляет все тестовые фикстуры с этим маркером — вызывать в `afterAll`
  * каждого RLS-теста. `rate_cards` удаляется последним и каскадом уносит
  * свои `rates` (`on delete cascade`, см. `schema.md`) — отдельно чистить
- * `rates` не нужно.
+ * `rates` не нужно. `addresses` тем же способом каскадом уносит свои
+ * `address_demand_history` (`on delete cascade`) — явное удаление истории
+ * ниже избыточно, но оставлено, чтобы порядок не зависел от того, помнит
+ * ли следующий читающий про этот cascade (тот же приём, что и с
+ * `rate_cards`/`rates`).
  */
 export async function cleanupTestFixtures(marker: string): Promise<void> {
   await serviceRoleFetch(`/portal_users?login=like.${marker}*`, { method: "DELETE" });
   await serviceRoleFetch(`/candidates?project=like.${marker}*`, { method: "DELETE" });
   await serviceRoleFetch(`/rate_cards?project=like.${marker}*`, { method: "DELETE" });
+  await serviceRoleFetch(`/address_demand_history?project=like.${marker}*`, { method: "DELETE" });
+  await serviceRoleFetch(`/addresses?project=like.${marker}*`, { method: "DELETE" });
+  await serviceRoleFetch(`/staffing_demand?project=like.${marker}*`, { method: "DELETE" });
+  await serviceRoleFetch(`/staffing_demand_imports?project=like.${marker}*`, { method: "DELETE" });
 }

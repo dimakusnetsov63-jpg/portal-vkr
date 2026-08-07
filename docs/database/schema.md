@@ -138,6 +138,18 @@ upsert.
 себя непредсказуемо через PostgREST, а с обычным индексом `onConflict:
 "project,city,demand_date"` работает предсказуемо.
 
+**Эффективное чтение — не прямой `SELECT` из этой таблицы.** С миграции
+`20260807100300_address_demand_history.sql` раздел «Потребность» читает не
+`staffing_demand` напрямую, а функцию `staffing_demand_effective(from, to)`
+(см. `public.address_demand_history` ниже) — она подставляет вычисленную
+сумму из `address_demand_history` там, где для ключа (project, city,
+position, date) есть импортированная история, и обычную строку этой
+таблицы во всех остальных случаях. Сама таблица `staffing_demand` не
+меняется и остаётся единственным местом **записи** для ручного ввода —
+функция только решает, что показать при чтении. Подробности и
+бизнес-правило —
+[`docs/requirements/demand.md`](../requirements/demand.md#потребность-из-импорта-адресов).
+
 ### `public.staffing_demand_rows`
 
 Метаданные строки «проект+город+должность» в разделе «Потребность»: статус
@@ -206,6 +218,7 @@ upsert.
 | `parser_key` / `parser_version` | text / integer | **not null** | Какой парсер и какой его версии использовался |
 | `file_name` | text | **not null** | |
 | `mode` | text | **not null** | `check (mode in ('replace', 'add', 'sync'))` — `sync` добавлен миграцией `20260807100200` |
+| `demand_date` | date | nullable | Дата потребности, вручную введённая в форме импорта (никогда не читается из файла) — с миграции `20260807100300_address_demand_history.sql`. `NULL` у импортов, созданных до этой миграции |
 | `dry_run` | boolean | not null | `default false` — «Проверить» без записи в базу |
 | `total_rows` / `imported_rows` / `error_rows` / `new_rows` / `updated_rows` | integer | not null | `default 0` |
 | `zeroed_rows` | integer | not null | `default 0` — сколько карточек обнулено как отсутствующие в файле; ненулевое только для `mode = 'sync'` |
@@ -234,6 +247,114 @@ VALUE` — просто пересоздать/дополнить `CHECK`. Су�
 **Не удаляется физически** — как и `candidate_list_options`, без
 delete-политики: очистка комментария — это `UPDATE comment = null`, не
 удаление строки; статус тоже меняется только через `UPDATE`.
+
+### `public.address_demand_history`
+
+Журнал снимков потребности по адресу и дате: сколько людей требовалось на
+конкретном объекте на конкретный день, зафиксированное импортом из Excel
+(«Адреса» → «Импорт потребности», обязательное поле «Дата потребности»).
+Добавлена в `20260807100300_address_demand_history.sql`. **Не** дублирует
+`addresses` — там всегда только текущее (последнее) значение
+`required_count`; здесь — снимок на каждую дату, которая когда-либо
+импортировалась.
+
+| Поле | Тип | Null | Примечание |
+|------|-----|------|-----------|
+| `id` | uuid | not null | PK, `gen_random_uuid()` |
+| `address_id` | uuid | **not null** | FK → `addresses.id` (`on delete cascade`) — история живёт, пока жива карточка адреса |
+| `project` / `city` / `position` | text | **not null** | Свободный текст, снимок значений карточки на момент импорта — не FK на `addresses`, чтобы агрегирующий запрос `staffing_demand_effective()` мог группировать без join на `addresses` |
+| `demand_date` | date | **not null** | Дата потребности из формы импорта, не из файла (см. `staffing_demand_imports.demand_date`) |
+| `required_count` | integer | **not null** | `check (required_count >= 0)`. `0` — валидный снимок (адрес пропал из файла при `mode = 'sync'`), не отсутствие строки |
+| `import_id` | uuid | nullable | FK → `staffing_demand_imports.id` (`on delete set null`) — каким импортом записан/обновлён этот снимок; используется для отмены импорта |
+| `created_at` / `updated_at` | timestamptz | not null | `default now()`, `updated_at` — триггером `trg_address_demand_history_set_updated_at` (переиспользует `set_candidates_updated_at()`) |
+
+**Ограничение:** `unique (address_id, demand_date)` — повторный импорт той
+же даты обновляет существующий снимок (`upsert`,
+`onConflict: "address_id,demand_date"`), а не создаёт новую строку.
+**Индексы:** `(demand_date, project, city, position)` — **ведущая колонка
+`demand_date`, не `project`**: `staffing_demand_effective()` фильтрует
+историю целиком по диапазону дат без предиката по проекту (сам проект
+разрезается на клиенте), поэтому индекс `(project, demand_date)` эту
+выборку не обслужил бы — Postgres не может использовать составной индекс
+по второй колонке без равенства/диапазона по первой; `(import_id)` — для
+отмены импорта.
+
+**Политика хранения:** append-only журнал, хранится бессрочно —
+автоматического удаления/архивирования эта задача не делает. Физическое
+удаление строки происходит только каскадом при удалении самого адреса
+(`on delete cascade`), что сегодня случается лишь при откате импорта,
+создавшего этот адрес (`revertImport.ts`). Архивирование карточки
+(`archived_at`) историю не трогает — журнал переживает архивацию адреса.
+Партиционирование/перенос старых снимков в архив, если потребуется в
+будущем, не изменит ни функцию `staffing_demand_effective()`, ни её
+индексы — она и так читает только диапазон `demand_date`, ей неважно, в
+одной таблице лежат старые строки или в отдельной партиции.
+
+**Оговорка к «только при откате импорта, создавшего этот адрес»:**
+`canRevertImport` (`src/lib/imports/revertImport.ts`) проверяет только
+сам отменяемый импорт (`updated_rows = 0 and zeroed_rows = 0`), а не то,
+трогал ли карточку, которую он создал, какой-то другой, более поздний
+импорт. Если это произошло, откат старого импорта всё равно удалит
+карточку целиком — и каскадом унесёт **всю** её историю по всем датам, а
+не только снимок, записанный самим отменяемым импортом. Известный,
+непроверенный автоматически риск, см.
+[`../requirements/addresses.md`](../requirements/addresses.md) (раздел
+«Откат импорта — не полноценный undo»).
+
+**RLS:** `select` — та же аудитория, что у `staffing_demand`
+(`portal_can('demand') and portal_has_project(project)`), **не**
+`addresses`-аудитория — иначе менеджер (есть `demand`, нет `settings`) не
+увидел бы вычисленные ячейки «Потребности» через `staffing_demand_effective()`
+вовсе. `insert`/`update`/`delete` —
+`portal_can('addresses') and portal_can('settings') and portal_has_project(project)`,
+пишет только `importDemand.ts`/`revertImport.ts`. Прецедент для
+`portal_has_project` на запись — не `staffing_demand_imports` (она заведена
+до H-6 и project не проверяет вовсе), а `addresses`: та же колонка
+`project`, тот же пайплайн импорта, и H-6 её уже проектно-ограничил на
+`insert`/`update`. Без этой проверки координатор, ограниченный проектом A,
+мог бы вставить или удалить снимок истории проекта B, хотя сами карточки
+`addresses` этого проекта ему уже недоступны.
+
+#### Функция `public.staffing_demand_effective(p_from date, p_to date)`
+
+Вычисляет «эффективную» потребность на диапазон дат: для каждого ключа
+(project, city, position, date) берёт сумму из `address_demand_history`,
+если она есть, иначе — обычную ручную строку `staffing_demand`. Не
+таблица и не `VIEW` — обычная `language sql stable`-функция, вызывается
+через `.rpc()` вместо `.from()` (единственная правка в
+`staffingDemandRepo.listStaffingDemand`). Ничего не хранит сама и не
+может «устареть» — результат всегда пересчитывается на момент вызова из
+двух таблиц выше.
+
+**Соединение — `FULL OUTER JOIN`, не `LEFT JOIN`/`UNION ALL`:**
+`LEFT JOIN staffing_demand → history` потерял бы проекты без единой
+ручной строки (например, «Яндекс Лавка» — вся её потребность только в
+истории, обычный `LEFT JOIN` от `staffing_demand` эту сторону вообще не
+увидел бы). `UNION ALL` + `WHERE NOT EXISTS` даёт тот же результат, но
+упоминает агрегирующий подзапрос по истории дважды в одном запросе
+(риск повторного вычисления) и дублирует список колонок в двух ветках
+`SELECT`. `FULL OUTER JOIN` с `COALESCE`/`CASE` — один проход по каждой
+стороне, колонки описаны один раз.
+
+**Функция, не `VIEW`** — потому что предикат `WHERE demand_date BETWEEN
+...` исторически хуже проталкивается Postgres через `FULL OUTER JOIN` во
+внутренние подзапросы, чем через `LEFT`/`INNER JOIN`: обычная `VIEW` без
+параметров рисковала бы агрегировать всю таблицу `address_demand_history`
+целиком на каждый вызов вместо только видимого окна. Параметры
+`p_from`/`p_to` в этой функции передаются в `WHERE` **обоих** подзапросов
+до соединения явно, а не в надежде на оптимизатор — стоимость вызова
+зависит от размера окна дат, не от объёма накопленной истории (при
+типовом окне «Потребности», 59 дней, и 5000 адресах — ≈295 000 строк
+сканируется индексом `(demand_date, ...)` независимо от того, сколько лет
+истории накоплено всего). Побочный плюс: обычная `language sql` функция
+по умолчанию выполняется с правами вызывающего (`SECURITY INVOKER` — так
+всегда для Postgres, если явно не указан `SECURITY DEFINER`), поэтому RLS
+обеих таблиц применяется как обычно, без специальных прав.
+
+**Определяет `source`** результата как `'excel'`, если для ключа нашлась
+история, иначе — `source` исходной строки `staffing_demand` (обычно
+`'manual'`). UI использует это, чтобы залочить ячейку (`DemandCell.tsx`,
+`locked` проп) — см. `docs/requirements/demand.md`.
 
 ### `public.staffing_demand_history`
 
@@ -642,6 +763,10 @@ substring-поиск id вакансий по названию проекта/р
 - **История (`staffing_demand_history`) только пишется** — `insert`
   через `SECURITY DEFINER`-триггеры, ни `update`, ни `delete` для
   `authenticated` не разрешены; строки неизменны после записи.
+- **Журнал по адресам (`address_demand_history`) хранится бессрочно** —
+  append-only, не архивируется этой задачей; удаляется только каскадом
+  при физическом удалении самого адреса (откат импорта), архивация
+  карточки его не трогает. См. описание таблицы выше.
 - `updated_at` в `candidates`, `staffing_demand` и `staffing_demand_rows`
   поддерживается триггером автоматически.
 
@@ -654,9 +779,18 @@ substring-поиск id вакансий по названию проекта/р
   `updateCandidateListOption` (переименование / `is_active` / `sort_order`).
   Функции hard-delete нет намеренно.
 - [`staffingDemandRepo.ts`](../../src/lib/supabase/staffingDemandRepo.ts):
-  `listStaffingDemand`, `upsertStaffingDemandCell`, `deleteStaffingDemandCell`,
-  `bulkUpsertStaffingDemand` — все, кроме `listStaffingDemand`, принимают
-  `position` (upsert по `onConflict: "project,city,position,demand_date"`).
+  `listStaffingDemand` — с `20260807100300` вызывает
+  `.rpc("staffing_demand_effective", { p_from, p_to })`, а не
+  `.from("staffing_demand")` (см. функцию в описании таблицы выше);
+  `upsertStaffingDemandCell`, `deleteStaffingDemandCell`,
+  `bulkUpsertStaffingDemand` — пишут прямо в `staffing_demand`, без
+  изменений (upsert по `onConflict: "project,city,position,demand_date"`).
+- [`addressDemandHistoryRepo.ts`](../../src/lib/supabase/addressDemandHistoryRepo.ts):
+  `upsertAddressDemandHistory(rows)` (upsert по
+  `onConflict: "address_id,demand_date"` — идемпотентный повторный импорт
+  той же даты), `deleteAddressDemandHistoryByImportId(importId)` (откат
+  импорта). Обе вызываются только из `src/lib/imports/`, не из UI
+  «Потребности» напрямую.
 - [`staffingDemandRowsRepo.ts`](../../src/lib/supabase/staffingDemandRowsRepo.ts):
   `listStaffingDemandRowsMeta`, `upsertStaffingDemandRowMeta` (принимает
   `position`, upsert по `onConflict: "project,city,position"`). Функции
@@ -699,6 +833,7 @@ substring-поиск id вакансий по названию проекта/р
 [`staffingDemand.types.ts`](../../src/lib/supabase/staffingDemand.types.ts),
 [`staffingDemandRows.types.ts`](../../src/lib/supabase/staffingDemandRows.types.ts),
 [`staffingDemandHistory.types.ts`](../../src/lib/supabase/staffingDemandHistory.types.ts),
+[`addressDemandHistory.types.ts`](../../src/lib/supabase/addressDemandHistory.types.ts),
 [`rates.types.ts`](../../src/lib/supabase/rates.types.ts)
 — выведены из `database.types.ts` (`Row`/`Insert`/`Update`/`Enums`), кроме
 поля `rates.extras` (в сгенерированном типе `Json`, приложение

@@ -1,15 +1,19 @@
 import { createClient } from "./client";
 import type { StaffingDemandRow } from "./staffingDemand.types";
 
-/** All active demand rows whose demand_date falls in [fromDate, toDate] (both ISO, inclusive) — one query for the whole visible period. */
+/**
+ * "Действующая" потребность за [fromDate, toDate] (both ISO, inclusive) —
+ * не сырые строки таблицы, а результат `staffing_demand_effective()`: для
+ * (project, city, position, date), у которых есть снимки в
+ * `address_demand_history` (Excel-импорт «Адресов»), возвращается сумма из
+ * истории; для всех остальных — обычная ручная строка `staffing_demand`,
+ * как раньше. Форма строк идентична — этот файл её не знает, RPC
+ * возвращает те же колонки, что и `select("*")` с таблицы. Подробности и
+ * почему это функция, а не VIEW — docs/requirements/demand.md.
+ */
 export async function listStaffingDemand(fromDate: string, toDate: string): Promise<StaffingDemandRow[]> {
   const supabase = createClient();
-  const { data, error } = await supabase
-    .from("staffing_demand")
-    .select("*")
-    .gte("demand_date", fromDate)
-    .lte("demand_date", toDate)
-    .order("demand_date", { ascending: true });
+  const { data, error } = await supabase.rpc("staffing_demand_effective", { p_from: fromDate, p_to: toDate });
   if (error) throw error;
   return data;
 }

@@ -90,6 +90,7 @@ npx supabase db query --linked "select conname, pg_get_constraintdef(oid) from p
 | `20260807100000_addresses_import_source.sql` | Импорт пишет в «Адреса», а не в «Потребность»: `addresses` `+source text NOT NULL DEFAULT 'manual'` (`check in ('manual','excel')`), `+import_id uuid` (FK на `staffing_demand_imports`), индекс по `import_id`. Уникального индекса по (project, city, full_address, position) намеренно нет — в таблице уже могут быть ручные дубликаты, сопоставление делается в приложении (`addressPlan.ts`) |
 | `20260807100100_lavka_conditions_mapping.sql` | Только данные, без DDL: в `column_mapping` конфига `lavka_v1` добавлены колонки условий («Метро», «График», «Ночной формат работы», «Разгрузка»), `version` → 2. `parser_key` не меняется — структура файла та же, парсер просто начал читать столбцы, которые в нём и так были. jsonb-конкатенация (`||`) — идемпотентно и не затирает ручные правки конфига |
 | `20260807100200_import_sync_mode.sql` | Режим «Синхронизировать»: CHECK на `staffing_demand_imports.mode` расширен до `('replace','add','sync')`, `+zeroed_rows integer NOT NULL DEFAULT 0`. Нужен, потому что выгрузка тикетов показывает только открытые позиции — закрытый объект из неё исчезает, и без обнуления карточка навсегда сохраняет старое `required_count` |
+| `20260807100300_address_demand_history.sql` | Дата потребности + история по адресам. Новая таблица `address_demand_history` (снимок `required_count` по адресу и дате, `unique (address_id, demand_date)`, индекс `(demand_date, project, city, position)` — **ведущая `demand_date`**, не `project`, см. `schema.md`), RLS (`select` на `portal_can('demand')`, запись — на `portal_can('addresses') and portal_can('settings')`); `staffing_demand_imports` `+demand_date date NULL`; функция `staffing_demand_effective(p_from, p_to)` — `FULL OUTER JOIN` `staffing_demand`×агрегата `address_demand_history`, `language sql stable` (без `SECURITY DEFINER` — `SECURITY INVOKER` по умолчанию), обоснование выбора функции вместо `VIEW` и `FULL OUTER JOIN` вместо `LEFT JOIN`/`UNION ALL` — в `schema.md`. Не меняет схему `staffing_demand`/`addresses` |
 
 ## Миграция `20260728120000_portal_auth.sql`: что учесть при применении
 
@@ -147,7 +148,11 @@ npx supabase db query --linked "select conname, pg_get_constraintdef(oid) from p
 - `updated_by` в `candidates`/`staffing_demand*` — известно только *когда*
   изменено, не *кем* (у `addresses` это уже решено, см. выше);
 - ограничений длины у текстовых полей;
-- партиционирования и политики хранения для растущей `staffing_demand_history`.
+- партиционирования и политики хранения для растущей `staffing_demand_history`
+  и `address_demand_history` (обе — append-only журналы без плана
+  автоматического архивирования; для `address_demand_history` политика
+  хранения и масштабируемость на несколько лет уже разобраны в `schema.md`,
+  но само партиционирование не реализовано — не нужно на текущем объёме).
 
 `20260729130000_create_addresses.sql` (и две последующие), `20260728120000_portal_auth.sql`,
 `20260731100000_rates_list_types.sql`…`20260731100300_update_portal_role_sections_rates.sql`
@@ -207,6 +212,42 @@ typecheck`/`npm run build` показывают ошибки конкретно 
 цели импорта не используются (их заполняет только ручной ввод значениями
 по умолчанию). Они ничего не ломают; удаление — отдельная задача, если
 понадобится чистка схемы.
+
+**`20260807100300_address_demand_history.sql` применена к боевой БД**
+(7 августа 2026, SQL Editor). Применение потребовало двух правок уже
+написанного файла — оба нашлись только на реальном Postgres, ни разбор
+плана, ни `typecheck`/`lint`/`test`/`build` (проверяют TS, не SQL) их не
+могли поймать:
+
+1. `42601: syntax error at or near "position"` в списке колонок `returns
+   table`. `position` — зарезервированное слово Postgres
+   (`POSITION(x IN y)`): как обычная колонка таблицы оно проходит без
+   кавычек (`addresses`/`candidates`/`staffing_demand` уже так делают), но
+   список колонок `returns table`/параметров функции разбирается по более
+   строгим правилам, где это же слово без кавычек не проходит. Исправлено
+   явными кавычками — `"position" text` — только в этом одном месте;
+   везде в теле функции (`m.position`, `group by ... position`, `as
+   position`) слово стоит в более permissive контексте (ссылка на колонку/
+   алиас результата) и кавычек не требует.
+2. `42883: function max(uuid) does not exist`. `uuid` поддерживает
+   операторы сравнения (сортируется, участвует в `<`/`>`), но Postgres не
+   регистрирует для него агрегат `max()`, в отличие от `text`/`int`/
+   `timestamp`. Исправлено кастом через text: `max(import_id::text)::uuid`
+   — какой конкретно `import_id` из нескольких адресов группы попадёт в
+   отчёт, не имеет значения (поле нигде не читается бизнес-логикой
+   «Потребности», только частью формы `StaffingDemandRow`), важно только
+   не упасть.
+
+Заодно, не дождавшись отдельной ошибки, добавлен явный `::integer` на
+`sum(required_count)` — `sum(integer)` в Postgres возвращает `bigint`, а
+`planned_count` в `returns table` объявлен `integer`; без каста это почти
+наверняка следующая ошибка того же класса (`структура запроса не совпадает
+с типом результата функции`).
+
+`EXPLAIN ANALYZE select * from staffing_demand_effective(...)` на реальном
+окне дат (подтверждение `Index Scan` по `idx_address_demand_history_date`,
+не `Seq Scan`) и регенерация `database.types.ts` — ещё не сделаны, см.
+`docs/tasks/current.md`.
 
 `20260801100000_login_rate_limit.sql` **применена к боевой БД** (read-only
 проверка раздела 1.2 подтверждена через SQL Editor).

@@ -8,6 +8,7 @@ function makeImport(overrides: Partial<StaffingDemandImportRow> = {}): StaffingD
     created_at: "2026-08-05T10:00:00Z",
     created_by: "user-1",
     created_by_login: "head",
+    demand_date: "2026-08-05",
     project: "Лавка",
     parser_key: "lavka_v1",
     parser_version: 1,

@@ -71,6 +71,8 @@ export type ImportReport = {
   warnings: string[];
   /** Что именно изменится (или изменилось) в public.addresses — по одной строке на карточку, для предпросмотра перед реальной записью. */
   preview: ImportPreviewRow[];
+  /** Дата потребности, выбранная пользователем в форме — не читается из файла (см. ImportDemandInput.demandDate). */
+  demandDate: string;
   /** Заполняется только для реального (не dry-run) импорта — id записи в staffing_demand_imports. */
   importId: string | null;
 };

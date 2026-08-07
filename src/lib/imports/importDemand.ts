@@ -10,6 +10,8 @@ import {
   listActiveAddressesForProject,
 } from "../supabase/addressesRepo";
 import { aggregateByObject, planAddressWrites } from "./addressPlan";
+import { buildHistoryRows } from "./demandHistoryPlan";
+import { upsertAddressDemandHistory } from "../supabase/addressDemandHistoryRepo";
 
 /** Everything importDemand() needs from the caller — the UI supplies the file/mode/dryRun choices, and the already-loaded candidate_list_options dictionaries and current-user identity, so this module never talks to those directly. */
 export type ImportDemandInput = {
@@ -17,6 +19,8 @@ export type ImportDemandInput = {
   file: File;
   mode: ImportMode;
   dryRun: boolean;
+  /** Введена пользователем в форме импорта — не читается из файла, даже если у парсера есть своя колонка даты (см. docs/requirements/addresses.md). Это дата снимка потребности, который пишется в address_demand_history. */
+  demandDate: string;
   knownCities: readonly string[];
   knownPositions: readonly string[];
   actor: { id: string; login: string };
@@ -118,6 +122,7 @@ export async function importDemand(input: ImportDemandInput): Promise<ImportRepo
     errors,
     warnings,
     preview: plan.preview,
+    demandDate: input.demandDate,
     importId: null,
   };
 
@@ -132,6 +137,7 @@ export async function importDemand(input: ImportDemandInput): Promise<ImportRepo
     file_name: input.file.name,
     mode: input.mode,
     dry_run: false,
+    demand_date: input.demandDate,
     total_rows: report.totalRows,
     imported_rows: report.importedRows,
     error_rows: report.errorRows,
@@ -144,8 +150,15 @@ export async function importDemand(input: ImportDemandInput): Promise<ImportRepo
     warnings,
   });
 
-  await bulkInsertAddressesFromImport(plan.creates, record.id);
+  const insertedCards = await bulkInsertAddressesFromImport(plan.creates, record.id);
   await bulkUpdateAddressesFromImport([...plan.updates, ...plan.zeroes]);
+
+  // Снимок потребности на выбранную дату — независимо от того, попал ли
+  // объект в creates/updates/zeroes. staffing_demand_effective() пересчитает
+  // сумму из этого журнала на следующем чтении «Потребности», без
+  // отдельного шага агрегации здесь (см. docs/requirements/addresses.md).
+  const historyRows = buildHistoryRows(plan.preview, existingCards, insertedCards, input.demandDate, record.id);
+  await upsertAddressDemandHistory(historyRows);
 
   return { ...report, importId: record.id };
 }

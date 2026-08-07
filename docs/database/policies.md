@@ -6,10 +6,9 @@
 
 ## Действующая модель
 
-RLS включён на **всех шестнадцати** таблицах схемы `public` (одиннадцать +
-пять таблиц TASK-010 «Описание вакансии»: `vacancy_projects`/
-`vacancy_sections`/`vacancy_fields`/`vacancy_attachments`/`vacancy_history`).
-Политики созданы
+RLS включён на **всех семнадцати** таблицах схемы `public` (одиннадцать +
+пять таблиц TASK-010 «Описание вакансии» + `address_demand_history`,
+20260807100300). Политики созданы
 только для роли `authenticated`; для `anon` политик нет ни на одной таблице —
 неавторизованный доступ запрещён по умолчанию.
 
@@ -21,7 +20,11 @@ RLS включён на **всех шестнадцати** таблицах с�
 на шести таблицах с колонкой `project` (`candidates`, `staffing_demand`,
 `staffing_demand_rows`, `staffing_demand_history`, `addresses`, `rate_cards`)
 и на `rates` (через FK на `rate_cards`) к проверке раздела добавлена
-проверка проекта:
+проверка проекта. `address_demand_history` (20260807100300) добавлена уже
+с этой проверкой сразу, а не отдельной миграцией задним числом — её
+`select`-политика намеренно скопирована с `staffing_demand`
+(`portal_can('demand')`), не с `addresses`, чтобы вычисленные ячейки
+«Потребности» видел тот же менеджер/координатор, что видит саму матрицу:
 
 ```sql
 create policy "portal_select_staffing_demand"
@@ -58,6 +61,7 @@ create policy "portal_select_rates"
 | `staffing_demand_rows` | `demand` | ✅ | ✅ | ✅ | ❌ |
 | `staffing_demand_history` | `demand` | ✅ | ❌ | ❌ | ❌ |
 | `addresses` | `addresses` | ✅ | ✅ | ✅ | ❌ |
+| `address_demand_history` | `demand` (чтение) / `addresses`+`settings` (запись) | ✅ | ✅ | ✅ | **✅** |
 | `rate_cards` | `rates` | ✅ | ✅ | ✅ | **✅** |
 | `rates` | `rates` | ✅ | ✅ | ✅ | **✅** |
 | `vacancy_projects` | `vacancies` (чтение) / `vacancies` + `settings` (запись) | ✅ | ✅ | ✅ | ❌ |
@@ -92,6 +96,21 @@ create policy "portal_select_rates"
 - **`staffing_demand_history` только на чтение** — записи создаются
   исключительно триггерами `log_staffing_demand_change` и
   `log_staffing_demand_rows_change` (`SECURITY DEFINER`).
+- **`address_demand_history` — читает аудитория «Потребности», пишет
+  аудитория «Адресов», обе стороны — в рамках своего проекта.** `select`
+  проверяет `portal_can('demand') and portal_has_project(project)` (не
+  `addresses`), иначе менеджер/координатор не увидел бы залоченные
+  вычисленные ячейки матрицы через `staffing_demand_effective()`, хотя сам
+  раздел «Адреса» ему не доступен. `insert`/`update`/`delete` —
+  `portal_can('addresses') and portal_can('settings') and
+  portal_has_project(project)`: пишет только пайплайн импорта
+  (`src/lib/imports/`), не UI «Потребности» напрямую. Прецедент на
+  `portal_has_project` для записи — `addresses` (H-6 project-scoped её
+  `insert`/`update`), не `staffing_demand_imports` (она заведена до H-6 и
+  project вообще не проверяет) — без этой проверки координатор одного
+  проекта мог бы вставить или удалить снимок истории чужого проекта.
+  `delete` есть (в отличие от `staffing_demand_history`) — нужен откату
+  импорта (`revertImport.ts`).
 - **Пять таблиц раздела «Описание вакансии» — единственный случай, где
   запись строже чтения на уровне одного раздела.** Читают все, у кого есть
   `vacancies` (все 4 роли — раздел виден всем, как «Адреса»/«Ставки»), но
@@ -122,6 +141,7 @@ create policy "portal_select_rates"
 | `portal_save_vacancy_project_tree(project_id, expected_version, payload)` | authenticated | TASK-010: атомарное сохранение дерева вакансии (проект+разделы+поля+вложения), проверяет `vacancies`+`settings` и `version` (оптимистическая блокировка) сама |
 | `portal_duplicate_vacancy_project(project_id)` | authenticated | TASK-010: копирует вакансию целиком под новым id, та же проверка доступа |
 | `search_vacancy_projects(query)` | authenticated | TASK-010: substring-поиск id вакансий по названию/разделам/полям; пусто, если нет `vacancies` |
+| `staffing_demand_effective(p_from, p_to)` | authenticated | 20260807100300: читает `staffing_demand`+`address_demand_history` за диапазон дат. Обычная `language sql` функция без `SECURITY DEFINER` — выполняется с правами вызывающего, RLS обеих таблиц применяется как при прямом `SELECT`, отдельных прав не требует |
 | `portal_current_user_id()` / `portal_current_session_id()` | anon, authenticated | Claim'ы `sub` / `sid` текущего JWT |
 | `portal_login`, `portal_session_context`, `portal_logout` | anon, authenticated | Вход, проверка сессии, выход |
 | `portal_admin_*` | authenticated | Управление пользователями и журнал. Внутри — `portal_require_admin()` |

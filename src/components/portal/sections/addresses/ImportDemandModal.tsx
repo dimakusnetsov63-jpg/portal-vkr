@@ -8,6 +8,7 @@ import { Modal } from "@/components/portal/ui/Modal";
 import modal from "@/components/portal/ui/Modal.module.css";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import { activeListOptions } from "@/lib/portal/candidateOptions";
+import { toIsoDate } from "@/lib/portal/demandWindow";
 import { importDemand } from "@/lib/imports/importDemand";
 import type { ImportMode, ImportPreviewAction, ImportPreviewRow, ImportReport } from "@/lib/imports/types";
 
@@ -30,6 +31,10 @@ export function ImportDemandModal({ onClose }: { onClose: () => void }) {
   const [project, setProject] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [mode, setMode] = useState<ImportMode>("replace");
+  // Дата потребности — вводится вручную, не читается из файла (даже если
+  // у формата проекта есть своя колонка с датой, как у «Обновлено» Лавки):
+  // это дата снимка в address_demand_history, а не дата из Excel.
+  const [demandDate, setDemandDate] = useState(() => toIsoDate(new Date()));
   const [report, setReport] = useState<ImportReport | null>(null);
   const [busy, setBusy] = useState<"check" | "import" | null>(null);
 
@@ -38,7 +43,7 @@ export function ImportDemandModal({ onClose }: { onClose: () => void }) {
   const knownPositions = activeListOptions(listOptions, "position").map((o) => o.value);
 
   async function runImport(dryRun: boolean) {
-    if (!project || !file) return;
+    if (!project || !file || !demandDate) return;
     setBusy(dryRun ? "check" : "import");
     try {
       const result = await importDemand({
@@ -46,6 +51,7 @@ export function ImportDemandModal({ onClose }: { onClose: () => void }) {
         file,
         mode,
         dryRun,
+        demandDate,
         knownCities,
         knownPositions,
         actor: { id: currentUser.id, login: currentUser.login },
@@ -95,7 +101,16 @@ export function ImportDemandModal({ onClose }: { onClose: () => void }) {
               />
               {file && <span className={modal.modalNote}>{file.name}</span>}
             </div>
+            <div className={primitives.field}>
+              <label>Дата потребности</label>
+              <input type="date" value={demandDate} onChange={(e) => setDemandDate(e.target.value)} />
+            </div>
           </div>
+
+          <p className={modal.modalNote}>
+            Дата вводится вручную и не читается из файла — на неё будет записан снимок потребности по каждому
+            объекту, даже если в выгрузке есть своя колонка с датой.
+          </p>
 
           <div className={primitives.field}>
             <label>Режим импорта</label>
@@ -130,10 +145,14 @@ export function ImportDemandModal({ onClose }: { onClose: () => void }) {
 
           <div className={modal.modalFoot}>
             <Button onClick={onClose}>Отмена</Button>
-            <Button disabled={!project || !file || busy !== null} onClick={() => runImport(true)}>
+            <Button disabled={!project || !file || !demandDate || busy !== null} onClick={() => runImport(true)}>
               {busy === "check" ? "Проверка…" : "Проверить"}
             </Button>
-            <Button variant="primary" disabled={!project || !file || busy !== null} onClick={() => runImport(false)}>
+            <Button
+              variant="primary"
+              disabled={!project || !file || !demandDate || busy !== null}
+              onClick={() => runImport(false)}
+            >
               {busy === "import" ? "Импорт…" : "Импортировать"}
             </Button>
           </div>
@@ -149,6 +168,7 @@ function ImportReportView({ report, onBack, onClose }: { report: ImportReport; o
   return (
     <>
       <div className={primitives.fieldRow}>
+        <Stat label="Дата потребности" value={formatDemandDate(report.demandDate)} />
         <Stat label="Всего строк" value={report.totalRows} />
         <Stat label="Обработано строк" value={report.importedRows} />
         <Stat label="Ошибок" value={report.errorRows} />
@@ -237,6 +257,12 @@ function PreviewTable({ rows }: { rows: ImportPreviewRow[] }) {
       </div>
     </div>
   );
+}
+
+/** ISO "2026-08-07" → "07.08.2026" — год важен здесь (в отличие от fmtDate из format.ts), импорты могут накопиться на дату из другого года. */
+function formatDemandDate(iso: string): string {
+  const [year, month, day] = iso.split("-");
+  return `${day}.${month}.${year}`;
 }
 
 function Stat({ label, value }: { label: string; value: string | number }) {

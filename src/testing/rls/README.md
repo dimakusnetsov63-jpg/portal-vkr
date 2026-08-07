@@ -43,6 +43,7 @@ npm run test:rls
 | `smoke.rls-test.ts` | Проверяется первым: переменные заданы, PostgREST отвечает, `service_role` реально проходит мимо RLS. Если окружение не готово — падает здесь с понятной причиной, а не десятками случайных ошибок в сценарных тестах |
 | `candidates.rls-test.ts` | H-6, прямая колонка `project` — `portal_has_project()` |
 | `rates.rls-test.ts` | H-6, `rates` без своей колонки `project` — `portal_has_rate_card_project()` через join |
+| `addressDemandHistory.rls-test.ts` | 20260807100300: RLS `address_demand_history` (read-аудитория `demand` шире write-аудитории `addresses`+`settings`, обе — project-scoped) + `staffing_demand_effective()` через `/rpc/` — SUM по нескольким адресам с явным нулём, победа истории при коллизии с ручной строкой, ручная строка без истории не исчезает, RLS фильтрует чужой проект внутри самой функции, не только через `.from()` |
 
 ## Принципы
 
