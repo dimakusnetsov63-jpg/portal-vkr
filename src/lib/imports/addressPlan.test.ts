@@ -306,6 +306,58 @@ describe("planAddressWrites — режим «Синхронизировать»"
   });
 });
 
+describe("planAddressWrites — предпросмотр", () => {
+  const object: ImportedObject = {
+    project: "Яндекс Лавка",
+    city: "Москва",
+    position: "Кладовщик",
+    address: "МСК Снежная 20",
+    required: 3,
+    conditions: EMPTY_CONDITIONS,
+  };
+
+  it("reports a create with no previous value", () => {
+    const plan = planAddressWrites([object], [], "replace");
+    expect(plan.preview).toEqual([
+      { action: "create", project: "Яндекс Лавка", city: "Москва", position: "Кладовщик", address: "МСК Снежная 20", required: 3 },
+    ]);
+  });
+
+  it("reports an update with both the previous and the new value", () => {
+    const plan = planAddressWrites([object], [makeCard({ required_count: 10 })], "replace");
+    expect(plan.preview).toEqual([
+      { action: "update", project: "Яндекс Лавка", city: "Москва", position: "Кладовщик", address: "МСК Снежная 20", required: 3, previousRequired: 10 },
+    ]);
+  });
+
+  it("reflects add mode's summed value in the preview, not the raw file number", () => {
+    const plan = planAddressWrites([object], [makeCard({ required_count: 10 })], "add");
+    expect(plan.preview[0]!.required).toBe(13);
+    expect(plan.preview[0]!.previousRequired).toBe(10);
+  });
+
+  it("reports a sync zero alongside the ordinary rows in the same file", () => {
+    const stale = makeCard({ id: "stale", full_address: "МСК Егерская 1", source: "excel", required_count: 7 });
+    const plan = planAddressWrites([object], [stale], "sync");
+    expect(plan.preview).toContainEqual({
+      action: "zero",
+      project: "Яндекс Лавка",
+      city: "Москва",
+      position: "Кладовщик",
+      address: "МСК Егерская 1",
+      required: 0,
+      previousRequired: 7,
+    });
+    expect(plan.preview).toContainEqual(expect.objectContaining({ action: "create", address: "МСК Снежная 20" }));
+  });
+
+  it("does not include a manually created card that sync skips", () => {
+    const manual = makeCard({ id: "manual", full_address: "МСК Егерская 1", source: "manual", required_count: 7 });
+    const plan = planAddressWrites([object], [manual], "sync");
+    expect(plan.preview.some((row) => row.action === "zero")).toBe(false);
+  });
+});
+
 describe("aggregateByObject — условия работы", () => {
   it("takes the first non-empty value across tickets of the same object", () => {
     const [object] = aggregateByObject([

@@ -117,6 +117,7 @@ export async function importDemand(input: ImportDemandInput): Promise<ImportRepo
     durationMs: Date.now() - startedAt,
     errors,
     warnings,
+    preview: plan.preview,
     importId: null,
   };
 

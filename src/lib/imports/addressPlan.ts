@@ -1,5 +1,6 @@
 import type { DemandImportRow, ImportMode } from "./types";
 import { EMPTY_CONDITIONS, type ImportedConditions } from "./mapping/normalizeConditions";
+import type { ImportPreviewRow } from "./preview";
 import type { AddressInsert, AddressRow, AddressUpdate } from "../supabase/addresses.types";
 
 /** One staffing object as the import understands it: a place + a role, plus how many people it needs and the working conditions the file described. */
@@ -19,6 +20,8 @@ export type AddressWritePlan = {
   zeroes: { id: string; patch: AddressUpdate }[];
   /** Заведённые вручную карточки, которых нет в файле: `sync` их не трогает, но о них стоит сказать пользователю. */
   skippedManual: number;
+  /** Человекочитаемая версия creates/updates/zeroes для предпросмотра в UI — что именно изменится, а не только счётчики. */
+  preview: ImportPreviewRow[];
 };
 
 /**
@@ -104,18 +107,29 @@ export function planAddressWrites(
 
   const creates: AddressInsert[] = [];
   const updates: { id: string; patch: AddressUpdate }[] = [];
+  const preview: ImportPreviewRow[] = [];
   const matchedCardIds = new Set<string>();
 
   for (const object of objects) {
     const card = cardByKey.get(objectKey(object.project, object.city, object.position, object.address));
     if (card) {
       matchedCardIds.add(card.id);
+      const required = mode === "add" ? card.required_count + object.required : object.required;
       updates.push({
         id: card.id,
         patch: {
-          required_count: mode === "add" ? card.required_count + object.required : object.required,
+          required_count: required,
           ...conditionsPatchFor(card, object.conditions),
         },
+      });
+      preview.push({
+        action: "update",
+        project: object.project,
+        city: object.city,
+        position: object.position,
+        address: object.address,
+        required,
+        previousRequired: card.required_count,
       });
     } else {
       // Район, тип объекта, статус, приоритет, укомплектованность в выгрузке
@@ -132,11 +146,19 @@ export function planAddressWrites(
         ...(object.conditions.shiftType ? { shift_type: object.conditions.shiftType } : {}),
         ...(object.conditions.features.length > 0 ? { features: object.conditions.features } : {}),
       });
+      preview.push({
+        action: "create",
+        project: object.project,
+        city: object.city,
+        position: object.position,
+        address: object.address,
+        required: object.required,
+      });
     }
   }
 
-  const { zeroes, skippedManual } = planZeroes(existingCards, matchedCardIds, mode);
-  return { creates, updates, zeroes, skippedManual };
+  const { zeroes, skippedManual, zeroPreview } = planZeroes(existingCards, matchedCardIds, mode);
+  return { creates, updates, zeroes, skippedManual, preview: [...preview, ...zeroPreview] };
 }
 
 /**
@@ -162,10 +184,11 @@ function planZeroes(
   existingCards: AddressRow[],
   matchedCardIds: Set<string>,
   mode: ImportMode,
-): { zeroes: { id: string; patch: AddressUpdate }[]; skippedManual: number } {
-  if (mode !== "sync") return { zeroes: [], skippedManual: 0 };
+): { zeroes: { id: string; patch: AddressUpdate }[]; skippedManual: number; zeroPreview: ImportPreviewRow[] } {
+  if (mode !== "sync") return { zeroes: [], skippedManual: 0, zeroPreview: [] };
 
   const zeroes: { id: string; patch: AddressUpdate }[] = [];
+  const zeroPreview: ImportPreviewRow[] = [];
   let skippedManual = 0;
 
   for (const card of existingCards) {
@@ -175,9 +198,18 @@ function planZeroes(
       continue;
     }
     zeroes.push({ id: card.id, patch: { required_count: 0 } });
+    zeroPreview.push({
+      action: "zero",
+      project: card.project,
+      city: card.city,
+      position: card.position,
+      address: card.full_address,
+      required: 0,
+      previousRequired: card.required_count,
+    });
   }
 
-  return { zeroes, skippedManual };
+  return { zeroes, skippedManual, zeroPreview };
 }
 
 /**

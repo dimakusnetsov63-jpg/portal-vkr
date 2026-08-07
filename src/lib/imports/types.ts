@@ -1,6 +1,7 @@
 import type { ImportedConditions } from "./mapping/normalizeConditions";
+import type { ImportPreviewAction, ImportPreviewRow } from "./preview";
 
-export type { ImportedConditions };
+export type { ImportedConditions, ImportPreviewAction, ImportPreviewRow };
 
 /** Единый внутренний формат строки потребности — выход любого парсера, независимо от структуры исходного Excel. */
 export type DemandImportRow = {
@@ -68,6 +69,8 @@ export type ImportReport = {
   durationMs: number;
   errors: RowError[];
   warnings: string[];
+  /** Что именно изменится (или изменилось) в public.addresses — по одной строке на карточку, для предпросмотра перед реальной записью. */
+  preview: ImportPreviewRow[];
   /** Заполняется только для реального (не dry-run) импорта — id записи в staffing_demand_imports. */
   importId: string | null;
 };

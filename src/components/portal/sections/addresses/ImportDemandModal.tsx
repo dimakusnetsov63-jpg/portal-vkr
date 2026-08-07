@@ -9,8 +9,7 @@ import modal from "@/components/portal/ui/Modal.module.css";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import { activeListOptions } from "@/lib/portal/candidateOptions";
 import { importDemand } from "@/lib/imports/importDemand";
-import type { ImportMode } from "@/lib/imports/types";
-import type { ImportReport } from "@/lib/imports/types";
+import type { ImportMode, ImportPreviewAction, ImportPreviewRow, ImportReport } from "@/lib/imports/types";
 
 const MODE_HINTS: Record<ImportMode, string> = {
   replace: "«Требуется» у совпавших объектов будет перезаписано числом из файла. Объекты, которых в файле нет, останутся как есть.",
@@ -167,6 +166,8 @@ function ImportReportView({ report, onBack, onClose }: { report: ImportReport; o
         </p>
       ))}
 
+      {report.preview.length > 0 && <PreviewTable rows={report.preview} />}
+
       {report.errors.length > 0 && (
         <div className={primitives.tableWrap}>
           <table className={primitives.table}>
@@ -195,6 +196,46 @@ function ImportReportView({ report, onBack, onClose }: { report: ImportReport; o
         </Button>
       </div>
     </>
+  );
+}
+
+const ACTION_LABELS: Record<ImportPreviewAction, string> = {
+  create: "Новый",
+  update: "Обновление",
+  zero: "Обнуление",
+};
+
+/** Что именно запишется в «Адреса» — не только счётчики, но и сами объекты: город/должность/адрес и «было → станет». ТЗ §5 требует такой предпросмотр, а не только итоги. */
+function PreviewTable({ rows }: { rows: ImportPreviewRow[] }) {
+  return (
+    <div className={primitives.tableWrap}>
+      <div className={primitives.tableScroll}>
+        <table className={primitives.table}>
+          <thead>
+            <tr>
+              <th>Действие</th>
+              <th>Город</th>
+              <th>Должность</th>
+              <th>Адрес</th>
+              <th>Было</th>
+              <th>Станет</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={`${row.city}-${row.position}-${row.address}-${i}`}>
+                <td>{ACTION_LABELS[row.action]}</td>
+                <td>{row.city}</td>
+                <td>{row.position}</td>
+                <td>{row.address}</td>
+                <td>{row.previousRequired ?? "—"}</td>
+                <td>{row.required}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
