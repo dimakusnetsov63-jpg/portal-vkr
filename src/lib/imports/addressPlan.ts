@@ -91,11 +91,21 @@ export function objectKey(project: string, city: string, position: string, addre
  * mention. Cards are matched in memory rather than via a DB unique
  * constraint — public.addresses has none, because it may already contain
  * manually-created duplicates (see the 20260807100000 migration).
+ *
+ * `project` scopes `sync`'s zeroing defensively, on top of importDemand.ts
+ * already passing in only that project's cards
+ * (`listActiveAddressesForProject`). Without this, a caller bug that leaked
+ * another project's card into `existingCards` would zero it — nothing else
+ * here checks the card's project before deciding "the file didn't mention
+ * this, zero it". Create/update matching doesn't need the same guard:
+ * `objectKey` already includes `project`, so a card from another project
+ * simply never matches an object and is left alone by that path alone.
  */
 export function planAddressWrites(
   objects: ImportedObject[],
   existingCards: AddressRow[],
   mode: ImportMode,
+  project: string,
 ): AddressWritePlan {
   const cardByKey = new Map<string, AddressRow>();
   for (const card of existingCards) {
@@ -157,7 +167,7 @@ export function planAddressWrites(
     }
   }
 
-  const { zeroes, skippedManual, zeroPreview } = planZeroes(existingCards, matchedCardIds, mode);
+  const { zeroes, skippedManual, zeroPreview } = planZeroes(existingCards, matchedCardIds, mode, project);
   return { creates, updates, zeroes, skippedManual, preview: [...preview, ...zeroPreview] };
 }
 
@@ -172,6 +182,10 @@ export function planAddressWrites(
  * выгрузке вместе со всем, что координатор заполнил руками.
  *
  * Не трогаются:
+ * - карточки **другого проекта** (`card.project !== project`) — sync
+ *   работает только в рамках выбранного проекта, никогда по всей базе;
+ *   этот guard защищает саму функцию, а не полагается на то, что вызывающий
+ *   код уже передал только нужные карточки;
  * - карточки, заведённые вручную (`source !== 'excel'`) — файл им не
  *   источник истины, молча обнулять чужую работу нельзя; они считаются
  *   отдельно и показываются пользователю;
@@ -184,6 +198,7 @@ function planZeroes(
   existingCards: AddressRow[],
   matchedCardIds: Set<string>,
   mode: ImportMode,
+  project: string,
 ): { zeroes: { id: string; patch: AddressUpdate }[]; skippedManual: number; zeroPreview: ImportPreviewRow[] } {
   if (mode !== "sync") return { zeroes: [], skippedManual: 0, zeroPreview: [] };
 
@@ -192,6 +207,7 @@ function planZeroes(
   let skippedManual = 0;
 
   for (const card of existingCards) {
+    if (card.project !== project) continue;
     if (matchedCardIds.has(card.id) || !card.position || card.required_count === 0) continue;
     if (card.source !== "excel") {
       skippedManual++;

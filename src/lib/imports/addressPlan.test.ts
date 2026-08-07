@@ -116,7 +116,7 @@ describe("planAddressWrites", () => {
   };
 
   it("creates a card when nothing matches", () => {
-    const plan = planAddressWrites([object], [], "replace");
+    const plan = planAddressWrites([object], [], "replace", "Яндекс Лавка");
     expect(plan.updates).toEqual([]);
     expect(plan.creates).toEqual([
       {
@@ -130,41 +130,41 @@ describe("planAddressWrites", () => {
   });
 
   it("replace mode overwrites the matched card's required_count", () => {
-    const plan = planAddressWrites([object], [makeCard({ required_count: 10 })], "replace");
+    const plan = planAddressWrites([object], [makeCard({ required_count: 10 })], "replace", "Яндекс Лавка");
     expect(plan.creates).toEqual([]);
     expect(plan.updates).toEqual([{ id: "card-1", patch: { required_count: 3 } }]);
   });
 
   it("add mode sums onto the matched card's required_count", () => {
-    const plan = planAddressWrites([object], [makeCard({ required_count: 10 })], "add");
+    const plan = planAddressWrites([object], [makeCard({ required_count: 10 })], "add", "Яндекс Лавка");
     expect(plan.updates).toEqual([{ id: "card-1", patch: { required_count: 13 } }]);
   });
 
   it("matches an existing card case-insensitively instead of duplicating it", () => {
-    const plan = planAddressWrites([object], [makeCard({ full_address: "мск снежная 20" })], "replace");
+    const plan = planAddressWrites([object], [makeCard({ full_address: "мск снежная 20" })], "replace", "Яндекс Лавка");
     expect(plan.creates).toEqual([]);
     expect(plan.updates).toHaveLength(1);
   });
 
   it("does not match a card of a different position", () => {
-    const plan = planAddressWrites([object], [makeCard({ position: "Сборщик" })], "replace");
+    const plan = planAddressWrites([object], [makeCard({ position: "Сборщик" })], "replace", "Яндекс Лавка");
     expect(plan.updates).toEqual([]);
     expect(plan.creates).toHaveLength(1);
   });
 
   it("does not match a card of a different city", () => {
-    const plan = planAddressWrites([object], [makeCard({ city: "Казань" })], "replace");
+    const plan = planAddressWrites([object], [makeCard({ city: "Казань" })], "replace", "Яндекс Лавка");
     expect(plan.creates).toHaveLength(1);
   });
 
   it("ignores cards with no position — they can never correspond to a file row", () => {
-    const plan = planAddressWrites([object], [makeCard({ position: null })], "replace");
+    const plan = planAddressWrites([object], [makeCard({ position: null })], "replace", "Яндекс Лавка");
     expect(plan.updates).toEqual([]);
     expect(plan.creates).toHaveLength(1);
   });
 
   it("leaves optional card fields unset so they keep their DB defaults", () => {
-    const [created] = planAddressWrites([object], [], "replace").creates;
+    const [created] = planAddressWrites([object], [], "replace", "Яндекс Лавка").creates;
     expect(created).not.toHaveProperty("status");
     expect(created).not.toHaveProperty("priority");
     expect(created).not.toHaveProperty("object_type");
@@ -188,7 +188,7 @@ describe("planAddressWrites — условия работы", () => {
   };
 
   it("fills conditions on a newly created card", () => {
-    const [created] = planAddressWrites([withConditions], [], "replace").creates;
+    const [created] = planAddressWrites([withConditions], [], "replace", "Яндекс Лавка").creates;
     expect(created).toMatchObject({
       metro: "Владыкино",
       schedule_type: "5/2",
@@ -198,7 +198,7 @@ describe("planAddressWrites — условия работы", () => {
   });
 
   it("omits conditions the file did not provide instead of writing nulls", () => {
-    const [created] = planAddressWrites([{ ...withConditions, conditions: EMPTY_CONDITIONS }], [], "replace").creates;
+    const [created] = planAddressWrites([{ ...withConditions, conditions: EMPTY_CONDITIONS }], [], "replace", "Яндекс Лавка").creates;
     expect(created).not.toHaveProperty("metro");
     expect(created).not.toHaveProperty("schedule_type");
     expect(created).not.toHaveProperty("shift_type");
@@ -207,7 +207,7 @@ describe("planAddressWrites — условия работы", () => {
 
   it("fills only the empty fields of an existing card", () => {
     const card = makeCard({ metro: null, schedule_type: "2/2", shift_type: null });
-    const [update] = planAddressWrites([withConditions], [card], "replace").updates;
+    const [update] = planAddressWrites([withConditions], [card], "replace", "Яндекс Лавка").updates;
     expect(update!.patch.metro).toBe("Владыкино");
     expect(update!.patch.shift_type).toBe("night");
     // График уже заполнен руками — импорт его не трогает.
@@ -216,19 +216,19 @@ describe("planAddressWrites — условия работы", () => {
 
   it("never overwrites conditions a coordinator already filled in", () => {
     const card = makeCard({ metro: "Уточнённая станция", schedule_type: "2/2", shift_type: "day" });
-    const [update] = planAddressWrites([withConditions], [card], "replace").updates;
+    const [update] = planAddressWrites([withConditions], [card], "replace", "Яндекс Лавка").updates;
     expect(update!.patch).toEqual({ required_count: 3, features: ["unloading"] });
   });
 
   it("appends imported features without dropping manually ticked ones", () => {
     const card = makeCard({ features: ["free_meals"] });
-    const [update] = planAddressWrites([withConditions], [card], "replace").updates;
+    const [update] = planAddressWrites([withConditions], [card], "replace", "Яндекс Лавка").updates;
     expect(update!.patch.features).toEqual(["free_meals", "unloading"]);
   });
 
   it("does not re-add a feature the card already has", () => {
     const card = makeCard({ features: ["unloading"] });
-    const [update] = planAddressWrites([withConditions], [card], "replace").updates;
+    const [update] = planAddressWrites([withConditions], [card], "replace", "Яндекс Лавка").updates;
     expect(update!.patch).not.toHaveProperty("features");
   });
 });
@@ -249,7 +249,7 @@ describe("planAddressWrites — режим «Синхронизировать»"
 
   it("zeroes an imported card the file no longer mentions", () => {
     const stale = importedCard({ id: "stale", full_address: "МСК Егерская 1" });
-    const plan = planAddressWrites([object], [stale], "sync");
+    const plan = planAddressWrites([object], [stale], "sync", "Яндекс Лавка");
     expect(plan.zeroes).toEqual([{ id: "stale", patch: { required_count: 0 } }]);
     // Объект из файла при этом обрабатывается как обычно.
     expect(plan.creates).toHaveLength(1);
@@ -257,34 +257,34 @@ describe("planAddressWrites — режим «Синхронизировать»"
 
   it("does not zero the card the file did mention", () => {
     const matching = importedCard({ id: "matching" });
-    const plan = planAddressWrites([object], [matching], "sync");
+    const plan = planAddressWrites([object], [matching], "sync", "Яндекс Лавка");
     expect(plan.zeroes).toEqual([]);
     expect(plan.updates).toEqual([{ id: "matching", patch: { required_count: 3 } }]);
   });
 
   it("zeroes nothing in replace or add mode", () => {
     const stale = [importedCard({ id: "stale", full_address: "МСК Егерская 1" })];
-    expect(planAddressWrites([object], stale, "replace").zeroes).toEqual([]);
-    expect(planAddressWrites([object], stale, "add").zeroes).toEqual([]);
+    expect(planAddressWrites([object], stale, "replace", "Яндекс Лавка").zeroes).toEqual([]);
+    expect(planAddressWrites([object], stale, "add", "Яндекс Лавка").zeroes).toEqual([]);
   });
 
   it("leaves manually created cards alone and counts them instead", () => {
     const manual = makeCard({ id: "manual", full_address: "МСК Егерская 1", source: "manual", required_count: 7 });
-    const plan = planAddressWrites([object], [manual], "sync");
+    const plan = planAddressWrites([object], [manual], "sync", "Яндекс Лавка");
     expect(plan.zeroes).toEqual([]);
     expect(plan.skippedManual).toBe(1);
   });
 
   it("skips cards already at zero so the counter reflects real changes", () => {
     const already = importedCard({ id: "already", full_address: "МСК Егерская 1", required_count: 0 });
-    const plan = planAddressWrites([object], [already], "sync");
+    const plan = planAddressWrites([object], [already], "sync", "Яндекс Лавка");
     expect(plan.zeroes).toEqual([]);
     expect(plan.skippedManual).toBe(0);
   });
 
   it("ignores cards without a position — they never take part in matching", () => {
     const noPosition = importedCard({ id: "no-position", full_address: "МСК Егерская 1", position: null });
-    const plan = planAddressWrites([object], [noPosition], "sync");
+    const plan = planAddressWrites([object], [noPosition], "sync", "Яндекс Лавка");
     expect(plan.zeroes).toEqual([]);
   });
 
@@ -293,7 +293,7 @@ describe("planAddressWrites — режим «Синхронизировать»"
       importedCard({ id: "a", full_address: "МСК А 1" }),
       importedCard({ id: "b", full_address: "МСК Б 2" }),
     ];
-    const plan = planAddressWrites([], cards, "sync");
+    const plan = planAddressWrites([], cards, "sync", "Яндекс Лавка");
     expect(plan.zeroes.map((z) => z.id)).toEqual(["a", "b"]);
   });
 
@@ -301,8 +301,25 @@ describe("planAddressWrites — режим «Синхронизировать»"
     // Файл принёс «Кладовщик» на этот адрес; карточка «Сборщик» на нём же
     // в файле не упомянута и должна обнулиться.
     const otherPosition = importedCard({ id: "picker", position: "Сборщик" });
-    const plan = planAddressWrites([object], [otherPosition], "sync");
+    const plan = planAddressWrites([object], [otherPosition], "sync", "Яндекс Лавка");
     expect(plan.zeroes).toEqual([{ id: "picker", patch: { required_count: 0 } }]);
+  });
+
+  /**
+   * planAddressWrites получает existingCards уже отфильтрованными по
+   * проекту — importDemand.ts вызывает listActiveAddressesForProject(project),
+   * а не listAllAddresses(). Здесь это подтверждается прямо: если бы функция
+   * сама не учитывала project при сопоставлении (а полагалась только на
+   * то, что ей передали снаружи), карточка другого проекта могла бы
+   * случайно совпасть по городу/должности/адресу и обнулиться. Она не
+   * совпадает — ключ сопоставления включает project.
+   */
+  it("never zeroes a card belonging to a different project, even with an identical address", () => {
+    const otherProject = importedCard({ id: "samokat-card", project: "Самокат" });
+    const plan = planAddressWrites([object], [otherProject], "sync", "Яндекс Лавка");
+    expect(plan.zeroes).toEqual([]);
+    // Карточка чужого проекта не совпала — файл её создаёт как новую в своём.
+    expect(plan.creates).toHaveLength(1);
   });
 });
 
@@ -317,28 +334,28 @@ describe("planAddressWrites — предпросмотр", () => {
   };
 
   it("reports a create with no previous value", () => {
-    const plan = planAddressWrites([object], [], "replace");
+    const plan = planAddressWrites([object], [], "replace", "Яндекс Лавка");
     expect(plan.preview).toEqual([
       { action: "create", project: "Яндекс Лавка", city: "Москва", position: "Кладовщик", address: "МСК Снежная 20", required: 3 },
     ]);
   });
 
   it("reports an update with both the previous and the new value", () => {
-    const plan = planAddressWrites([object], [makeCard({ required_count: 10 })], "replace");
+    const plan = planAddressWrites([object], [makeCard({ required_count: 10 })], "replace", "Яндекс Лавка");
     expect(plan.preview).toEqual([
       { action: "update", project: "Яндекс Лавка", city: "Москва", position: "Кладовщик", address: "МСК Снежная 20", required: 3, previousRequired: 10 },
     ]);
   });
 
   it("reflects add mode's summed value in the preview, not the raw file number", () => {
-    const plan = planAddressWrites([object], [makeCard({ required_count: 10 })], "add");
+    const plan = planAddressWrites([object], [makeCard({ required_count: 10 })], "add", "Яндекс Лавка");
     expect(plan.preview[0]!.required).toBe(13);
     expect(plan.preview[0]!.previousRequired).toBe(10);
   });
 
   it("reports a sync zero alongside the ordinary rows in the same file", () => {
     const stale = makeCard({ id: "stale", full_address: "МСК Егерская 1", source: "excel", required_count: 7 });
-    const plan = planAddressWrites([object], [stale], "sync");
+    const plan = planAddressWrites([object], [stale], "sync", "Яндекс Лавка");
     expect(plan.preview).toContainEqual({
       action: "zero",
       project: "Яндекс Лавка",
@@ -353,7 +370,7 @@ describe("planAddressWrites — предпросмотр", () => {
 
   it("does not include a manually created card that sync skips", () => {
     const manual = makeCard({ id: "manual", full_address: "МСК Егерская 1", source: "manual", required_count: 7 });
-    const plan = planAddressWrites([object], [manual], "sync");
+    const plan = planAddressWrites([object], [manual], "sync", "Яндекс Лавка");
     expect(plan.preview.some((row) => row.action === "zero")).toBe(false);
   });
 });

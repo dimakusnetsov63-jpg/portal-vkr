@@ -93,7 +93,7 @@ export async function importDemand(input: ImportDemandInput): Promise<ImportRepo
   // не пришло ни одного объекта, ведь именно тогда обнулять придётся всё.
   const needsExistingCards = objects.length > 0 || input.mode === "sync";
   const existingCards = needsExistingCards ? await listActiveAddressesForProject(input.project) : [];
-  const plan = planAddressWrites(objects, existingCards, input.mode);
+  const plan = planAddressWrites(objects, existingCards, input.mode, input.project);
 
   if (plan.skippedManual > 0) {
     warnings.push(
