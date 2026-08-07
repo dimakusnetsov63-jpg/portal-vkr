@@ -16,15 +16,18 @@
 -- трогаются: файл не является для них источником истины, и молча обнулять
 -- чужую работу нельзя.
 
+-- `if exists` / `if not exists` — миграции применяются руками через SQL
+-- Editor, без раннера, отслеживающего «применено/нет»: повторный запуск
+-- должен быть безопасен, а не падать на середине.
 alter table public.staffing_demand_imports
-  drop constraint staffing_demand_imports_mode_check;
+  drop constraint if exists staffing_demand_imports_mode_check;
 
 alter table public.staffing_demand_imports
   add constraint staffing_demand_imports_mode_check
   check (mode in ('replace', 'add', 'sync'));
 
 alter table public.staffing_demand_imports
-  add column zeroed_rows integer not null default 0;
+  add column if not exists zeroed_rows integer not null default 0;
 
 comment on column public.staffing_demand_imports.zeroed_rows is
   'Сколько карточек адресов импорт обнулил как отсутствующие в файле (только режим sync). Ноль для остальных режимов.';

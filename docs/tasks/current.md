@@ -43,7 +43,7 @@ UI полностью подключён: кнопка → модалка (пр�
 
 Осталось:
 
-- [ ] применить миграцию `20260807100000_addresses_import_source.sql`
+- [x] применить миграцию `20260807100000_addresses_import_source.sql`
       (SQL Editor Supabase) — без неё у `addresses` нет `source`/`import_id`
       и импорт упадёт на записи
 - [ ] применить `20260807100100_lavka_conditions_mapping.sql` — без неё

@@ -183,10 +183,17 @@ typecheck`/`npm run build` показывают ошибки конкретно 
 подтверждено ручным прогоном импорта через интерфейс (создались записи в
 `project_import_configs`/`staffing_demand_imports`).
 
-**`20260807100000_addresses_import_source.sql`,
-`20260807100100_lavka_conditions_mapping.sql` и
-`20260807100200_import_sync_mode.sql` ещё не применены** (вторая только
-правит данные в `project_import_configs` и типов не касается) —
+Все три миграции `20260807*` **идемпотентны** (`add column if not exists`,
+`create index if not exists`, `drop constraint if exists`, jsonb-`||` вместо
+перезаписи): порядок применения здесь не отслеживается раннером, файлы
+запускаются руками через SQL Editor, поэтому повторный запуск не должен
+падать с `42701: column already exists`.
+
+**`20260807100100_lavka_conditions_mapping.sql` и
+`20260807100200_import_sync_mode.sql` ещё не применены**
+(`20260807100000_addresses_import_source.sql` — применена; первая из двух
+оставшихся только правит данные в `project_import_configs` и типов не
+касается) —
 написана после того, как выяснилось, что импорт должен наполнять раздел
 «Адреса», а не матрицу «Потребность». Как и с TASK-010, типы и репозитории
 выведены из `Database` так, как будто миграция уже применена — вручную
