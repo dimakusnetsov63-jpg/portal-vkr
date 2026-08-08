@@ -61,6 +61,9 @@ type Draft = {
   invitation_at: string;
   registration_at: string;
   first_shift_at: string;
+  termination_reason: string;
+  terminated_at: string;
+  return_reason: string;
 };
 
 function draftFromCandidate(c: Candidate): Draft {
@@ -83,6 +86,9 @@ function draftFromCandidate(c: Candidate): Draft {
     invitation_at: toDatetimeLocal(c.invitation_at),
     registration_at: toDatetimeLocal(c.registration_at),
     first_shift_at: toDatetimeLocal(c.first_shift_at),
+    termination_reason: c.termination_reason ?? "",
+    terminated_at: toDatetimeLocal(c.terminated_at),
+    return_reason: c.return_reason ?? "",
   };
 }
 
@@ -112,6 +118,8 @@ export function RealCandidateDrawer({ candidateId }: { candidateId: string | nul
   const recruiterOptions = activeListOptions(listOptions, "recruiter").map((o) => o.value);
   const managerOptions = activeListOptions(listOptions, "manager").map((o) => o.value);
   const coordinatorOptions = activeListOptions(listOptions, "coordinator").map((o) => o.value);
+  const terminationReasonOptions = activeListOptions(listOptions, "termination_reason").map((o) => o.value);
+  const returnReasonOptions = activeListOptions(listOptions, "return_reason").map((o) => o.value);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset local draft when the selected candidate changes
@@ -146,6 +154,9 @@ export function RealCandidateDrawer({ candidateId }: { candidateId: string | nul
       invitation_at: fromDatetimeLocal(draft.invitation_at),
       registration_at: fromDatetimeLocal(draft.registration_at),
       first_shift_at: fromDatetimeLocal(draft.first_shift_at),
+      termination_reason: draft.termination_reason.trim() || null,
+      terminated_at: fromDatetimeLocal(draft.terminated_at),
+      return_reason: draft.return_reason.trim() || null,
     };
     await saveRealCandidate(candidate.id, patch);
     setSaving(false);
@@ -291,6 +302,36 @@ export function RealCandidateDrawer({ candidateId }: { candidateId: string | nul
                   <input type="datetime-local" value={draft[f.key]} onChange={(e) => set(f.key, e.target.value)} />
                 </div>
               ))}
+            </div>
+
+            <div className={styles.section}>
+              <h4>Увольнение</h4>
+              <div className={primitives.fieldRow}>
+                <div className={primitives.field}>
+                  <label>Причина увольнения</label>
+                  <Combobox
+                    value={draft.termination_reason}
+                    onChange={(v) => set("termination_reason", v)}
+                    options={terminationReasonOptions}
+                  />
+                </div>
+                <div className={primitives.field}>
+                  <label>Дата увольнения</label>
+                  <input
+                    type="datetime-local"
+                    value={draft.terminated_at}
+                    onChange={(e) => set("terminated_at", e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className={primitives.field}>
+                <label>Причина возвращения</label>
+                <Combobox
+                  value={draft.return_reason}
+                  onChange={(v) => set("return_reason", v)}
+                  options={returnReasonOptions}
+                />
+              </div>
             </div>
 
             <div className={styles.section}>

@@ -56,14 +56,19 @@
 | `invitation_at` | timestamptz | nullable | |
 | `registration_at` | timestamptz | nullable | |
 | `first_shift_at` | timestamptz | nullable | Используется в метрике «Успешно вышли» |
+| `termination_reason` | text | nullable | Причина увольнения. Свободный текст, подсказки — `candidate_list_options` (`list_type = termination_reason`). С `20260808100200_add_candidate_termination_fields.sql` |
+| `terminated_at` | timestamptz | nullable | Дата увольнения. С той же миграции |
+| `return_reason` | text | nullable | Причина возвращения кандидата после увольнения. Свободный текст, подсказки — `candidate_list_options` (`list_type = return_reason`). С той же миграции |
 | `created_at` | timestamptz | not null | `default now()` |
 | `updated_at` | timestamptz | not null | `default now()`, обновляется триггером |
 | `archived_at` | timestamptz | nullable | NULL = активный; заполнено = архивирован |
 
 **Индексы:** по большинству фильтруемых полей (project, stage, city,
-recruiter, manager, coordinator, датам, phone, telegram_tag, max_tag,
-has_medical_book, created_at, archived_at) + GIN trigram-индекс по `full_name`
-(`pg_trgm`) для поиска по части имени.
+recruiter, manager, coordinator, датам включая `terminated_at`, phone,
+telegram_tag, max_tag, has_medical_book, created_at, archived_at) + GIN
+trigram-индекс по `full_name` (`pg_trgm`) для поиска по части имени.
+`termination_reason`/`return_reason` без индекса — описательный текст, не
+используется в фильтрах, как `comment`/`salary_card`.
 
 **Триггер:** `trg_candidates_set_updated_at` — ставит `updated_at = now()`
 перед каждым `UPDATE`.
@@ -714,8 +719,8 @@ substring-поиск id вакансий по названию проекта/р
 
 | Enum | Значения |
 |------|----------|
-| `candidate_stage` | Прибыл на проект, Отработал 1 смену, Отработал 10 смен, Завершил вахту (4) |
-| `candidate_list_type` | recruiter, manager, coordinator, city, position, project, legal_entity, vacancy_category (8) |
+| `candidate_stage` | Прибыл на проект, Отработал 1 смену, Отработал 10 смен, Завершил вахту, Уволился (5) — 5-е значение с `20260808100000_add_stage_terminated.sql` |
+| `candidate_list_type` | recruiter, manager, coordinator, city, position, project, legal_entity, vacancy_category, termination_reason, return_reason (10) — последние два с `20260808100100_add_termination_list_types.sql` |
 | `staffing_demand_history_action` | insert, update, delete (3) |
 | `portal_user_role` | head, coordinator, manager, recruiter (4) |
 | `portal_audit_action` | user_created, user_updated, user_role_changed, user_password_changed, user_activated, user_deactivated, login_success, login_failed, logout (9) |
@@ -725,6 +730,11 @@ substring-поиск id вакансий по названию проекта/р
 
 Значения стадий заданы бизнесом дословно и не переименовываются. Изменение
 состава enum — это миграция схемы, а не правка справочника.
+
+**`Уволился` не считается успешным исходом** — `SUCCESSFUL_STAGES`
+(`src/lib/portal/candidateOptions.ts`) явно исключает это значение, хотя оно
+и стоит после «Прибыл на проект» в порядке объявления enum. Иначе кандидат,
+уволенный до первой смены, попадал бы в метрику «Успешно вышли».
 
 **`candidate_project`** (Самокат, Купер, ДонатсКофе, Яндекс Лавка, Яндекс РБ,
 Газпромнефть, Евроторг, Мастер Деливери, Мастер Деливери Таксопарк, Азбука

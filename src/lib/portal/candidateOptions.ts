@@ -6,9 +6,12 @@ import type { BadgeColor } from "@/lib/portal/types";
 export const CANDIDATE_STAGES: readonly CandidateStage[] = Constants.public.Enums.candidate_stage;
 export const CANDIDATE_LIST_TYPES: readonly CandidateListType[] = Constants.public.Enums.candidate_list_type;
 
-/** Stages counted as a successful outcome (arrived-but-not-started is not). */
+/**
+ * Stages counted as a successful outcome (arrived-but-not-started is not,
+ * and neither is having quit).
+ */
 export const SUCCESSFUL_STAGES: readonly CandidateStage[] = CANDIDATE_STAGES.filter(
-  (s) => s !== "Прибыл на проект",
+  (s) => s !== "Прибыл на проект" && s !== "Уволился",
 );
 
 export const LIST_TYPE_LABELS: Record<CandidateListType, string> = {
@@ -20,6 +23,8 @@ export const LIST_TYPE_LABELS: Record<CandidateListType, string> = {
   project: "Проекты",
   legal_entity: "Юр. лица (Ставки)",
   vacancy_category: "Категории вакансий",
+  termination_reason: "Причины увольнения",
+  return_reason: "Причины возвращения",
 };
 
 const STAGE_COLORS: Record<CandidateStage, BadgeColor> = {
@@ -27,6 +32,7 @@ const STAGE_COLORS: Record<CandidateStage, BadgeColor> = {
   "Отработал 1 смену": "amber",
   "Отработал 10 смен": "teal",
   "Завершил вахту": "green",
+  "Уволился": "red",
 };
 
 /** Stage badge color; a null stage (not started yet) renders gray. */

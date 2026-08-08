@@ -25,6 +25,9 @@ function makeCandidate(overrides: Partial<Candidate> = {}): Candidate {
     invitation_at: null,
     registration_at: null,
     first_shift_at: null,
+    termination_reason: null,
+    terminated_at: null,
+    return_reason: null,
     created_at: "2026-07-01T00:00:00.000Z",
     updated_at: "2026-07-01T00:00:00.000Z",
     archived_at: null,
@@ -51,6 +54,12 @@ describe("calculateCandidateMetrics", () => {
     const m = calculateCandidateMetrics([makeCandidate({ stage: "Отработал 1 смену", first_shift_at: null })]);
     expect(m.successful).toBe(1);
     expect(m.awaiting).toBe(0);
+  });
+
+  it("does not count 'Уволился' as a successful stage on its own", () => {
+    const m = calculateCandidateMetrics([makeCandidate({ stage: "Уволился", first_shift_at: null })]);
+    expect(m.successful).toBe(0);
+    expect(m.awaiting).toBe(1);
   });
 
   it("never counts a candidate as both awaiting and successful (they partition the set)", () => {

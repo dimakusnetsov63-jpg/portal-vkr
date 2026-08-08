@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -11,6 +11,31 @@ export type Database = {
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -260,10 +285,13 @@ export type Database = {
           project: string
           recruiter: string | null
           registration_at: string | null
+          return_reason: string | null
           salary_card: string | null
           source: string | null
           stage: Database["public"]["Enums"]["candidate_stage"] | null
           telegram_tag: string | null
+          terminated_at: string | null
+          termination_reason: string | null
           updated_at: string
         }
         Insert: {
@@ -285,10 +313,13 @@ export type Database = {
           project: string
           recruiter?: string | null
           registration_at?: string | null
+          return_reason?: string | null
           salary_card?: string | null
           source?: string | null
           stage?: Database["public"]["Enums"]["candidate_stage"] | null
           telegram_tag?: string | null
+          terminated_at?: string | null
+          termination_reason?: string | null
           updated_at?: string
         }
         Update: {
@@ -310,10 +341,13 @@ export type Database = {
           project?: string
           recruiter?: string | null
           registration_at?: string | null
+          return_reason?: string | null
           salary_card?: string | null
           source?: string | null
           stage?: Database["public"]["Enums"]["candidate_stage"] | null
           telegram_tag?: string | null
+          terminated_at?: string | null
+          termination_reason?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1288,12 +1322,12 @@ export type Database = {
       staffing_demand_effective: {
         Args: { p_from: string; p_to: string }
         Returns: {
-          address: string | null
+          address: string
           city: string
           created_at: string
           demand_date: string
           id: string
-          import_id: string | null
+          import_id: string
           planned_count: number
           position: string
           project: string
@@ -1312,6 +1346,8 @@ export type Database = {
         | "project"
         | "legal_entity"
         | "vacancy_category"
+        | "termination_reason"
+        | "return_reason"
       candidate_project:
         | "Самокат"
         | "Купер"
@@ -1330,6 +1366,7 @@ export type Database = {
         | "Отработал 1 смену"
         | "Отработал 10 смен"
         | "Завершил вахту"
+        | "Уволился"
       portal_audit_action:
         | "user_created"
         | "user_updated"
@@ -1467,6 +1504,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       candidate_list_type: [
@@ -1478,6 +1518,8 @@ export const Constants = {
         "project",
         "legal_entity",
         "vacancy_category",
+        "termination_reason",
+        "return_reason",
       ],
       candidate_project: [
         "Самокат",
@@ -1498,6 +1540,7 @@ export const Constants = {
         "Отработал 1 смену",
         "Отработал 10 смен",
         "Завершил вахту",
+        "Уволился",
       ],
       portal_audit_action: [
         "user_created",

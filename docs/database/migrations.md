@@ -91,6 +91,52 @@ npx supabase db query --linked "select conname, pg_get_constraintdef(oid) from p
 | `20260807100100_lavka_conditions_mapping.sql` | Только данные, без DDL: в `column_mapping` конфига `lavka_v1` добавлены колонки условий («Метро», «График», «Ночной формат работы», «Разгрузка»), `version` → 2. `parser_key` не меняется — структура файла та же, парсер просто начал читать столбцы, которые в нём и так были. jsonb-конкатенация (`||`) — идемпотентно и не затирает ручные правки конфига |
 | `20260807100200_import_sync_mode.sql` | Режим «Синхронизировать»: CHECK на `staffing_demand_imports.mode` расширен до `('replace','add','sync')`, `+zeroed_rows integer NOT NULL DEFAULT 0`. Нужен, потому что выгрузка тикетов показывает только открытые позиции — закрытый объект из неё исчезает, и без обнуления карточка навсегда сохраняет старое `required_count` |
 | `20260807100300_address_demand_history.sql` | Дата потребности + история по адресам. Новая таблица `address_demand_history` (снимок `required_count` по адресу и дате, `unique (address_id, demand_date)`, индекс `(demand_date, project, city, position)` — **ведущая `demand_date`**, не `project`, см. `schema.md`), RLS (`select` на `portal_can('demand')`, запись — на `portal_can('addresses') and portal_can('settings')`); `staffing_demand_imports` `+demand_date date NULL`; функция `staffing_demand_effective(p_from, p_to)` — `FULL OUTER JOIN` `staffing_demand`×агрегата `address_demand_history`, `language sql stable` (без `SECURITY DEFINER` — `SECURITY INVOKER` по умолчанию), обоснование выбора функции вместо `VIEW` и `FULL OUTER JOIN` вместо `LEFT JOIN`/`UNION ALL` — в `schema.md`. Не меняет схему `staffing_demand`/`addresses` |
+| `20260808100000_add_stage_terminated.sql` | Значение `Уволился` в enum `candidate_stage` — отдельно (та же причина, что у `20260725100000`). Применена 8 августа 2026 (`supabase db query -f`, см. примечание ниже) |
+| `20260808100100_add_termination_list_types.sql` | Значения `termination_reason`/`return_reason` в enum `candidate_list_type` — отдельно от следующей миграции (та же причина). Применена 8 августа 2026 |
+| `20260808100200_add_candidate_termination_fields.sql` | `candidates` `+termination_reason text`, `+terminated_at timestamptz`, `+return_reason text`, индекс по `terminated_at`. Применена 8 августа 2026 |
+| `20260808100300_seed_termination_return_reasons.sql` | Засев 12 причин увольнения и 9 причин возвращения в `candidate_list_options`, формулировки от бизнеса. Применена 8 августа 2026 |
+
+## Известная проблема: таблица истории миграций рассинхронизирована с реальной схемой
+
+Обнаружено 8 августа 2026 при попытке `supabase db push --linked`: команда
+отказалась выполняться (`LegacyDbPushMissingRemoteError`), а после
+`--include-all` немедленно упала на `create table public.addresses` с
+`ERROR: relation "addresses" already exists`. Проверка `information_schema`
+показала, что **таблицы `addresses`, `vacancy_projects`/`vacancy_sections`/
+`vacancy_fields`/`vacancy_attachments`/`vacancy_history`,
+`project_import_configs`, `staffing_demand_imports`,
+`address_demand_history` уже существуют** на боевой базе — то есть миграции
+`20260729130000`…`20260807100300` (17 файлов) физически применены, но не
+записаны в `supabase_migrations.schema_migrations` (последняя учтённая там
+запись — `20260803150000`). Судя по всему, все они выполнялись вручную через
+SQL Editor Supabase, а не через `supabase db push`.
+
+Три миграции `20260808100000`…`20260808100200` из этой находки применены
+точечно, через `supabase db query --linked -f <файл>` по одному, а не через
+`db push` — с проверкой каждого шага (`pg_enum`/`information_schema.columns`)
+после применения.
+
+**Рассинхронизация устранена** (8 августа 2026): `supabase migration repair
+--linked` не смог подключиться из этой среды (нужно прямое подключение к
+Postgres на 5432/6543, а окружение видит только HTTPS до Management API,
+которым пользуется `db query`) — `LegacyDbExecError: Connection error` на
+каждой попытке. Вместо этого 20 недостающих версий (17 старых + 3 из этой
+задачи) дописаны напрямую тем же путём, что и обычно работал —
+`supabase db query --linked`:
+
+```sql
+insert into supabase_migrations.schema_migrations (version)
+values ('20260729130000'), ..., ('20260808100200')
+on conflict (version) do nothing;
+```
+
+`name`/`statements` оставлены `NULL` — так же, как у всех остальных строк
+таблицы на этом проекте (репозиторий никогда их не заполнял, значит это не
+отступление от нормы). Проверено: `supabase migration list --linked`
+показывает совпадение `local`/`remote` по всем миграциям, `supabase db push
+--linked --dry-run` (без `--include-all`) отвечает `"Remote database is up
+to date."` — `db push` снова можно использовать в обычном режиме для
+следующих миграций.
 
 ## Миграция `20260728120000_portal_auth.sql`: что учесть при применении
 
