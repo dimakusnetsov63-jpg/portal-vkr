@@ -182,8 +182,11 @@ describe("portal_section_permissions закрыта для клиента", () =
   it("пользователь не может прочитать матрицу напрямую", async () => {
     const user = await makeUser("head");
     const response = await asUserFetch(user.id, "/portal_section_permissions?select=*");
-    // Гранты отозваны — PostgREST отвечает ошибкой доступа, а не пустым списком.
-    expect(response.status).toBeGreaterThanOrEqual(400);
+    // Именно отказ в доступе, а не «любая ошибка»: опечатка в имени таблицы
+    // дала бы 404, и тест зеленел бы, ничего не проверив (ровно та ловушка,
+    // что описана в docs/ROLLOUT-rls-tests.md — зелёный тест хуже
+    // отсутствующего).
+    expect([401, 403]).toContain(response.status);
   });
 
   it("пользователь не может выдать себе право", async () => {
@@ -192,7 +195,7 @@ describe("portal_section_permissions закрыта для клиента", () =
       method: "PATCH",
       body: JSON.stringify({ visible: true, can_view: true, can_edit: true }),
     });
-    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect([401, 403]).toContain(response.status);
 
     // И право действительно не появилось.
     expect(await callRpcAsUser<boolean>(user.id, "portal_can_view_section", { p_section: "settings" })).toBe(false);
