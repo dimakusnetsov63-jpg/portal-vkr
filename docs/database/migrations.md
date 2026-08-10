@@ -95,6 +95,26 @@ npx supabase db query --linked "select conname, pg_get_constraintdef(oid) from p
 | `20260808100100_add_termination_list_types.sql` | Значения `termination_reason`/`return_reason` в enum `candidate_list_type` — отдельно от следующей миграции (та же причина). Применена 8 августа 2026 |
 | `20260808100200_add_candidate_termination_fields.sql` | `candidates` `+termination_reason text`, `+terminated_at timestamptz`, `+return_reason text`, индекс по `terminated_at`. Применена 8 августа 2026 |
 | `20260808100300_seed_termination_return_reasons.sql` | Засев 12 причин увольнения и 9 причин возвращения в `candidate_list_options`, формулировки от бизнеса. Применена 8 августа 2026 |
+| `20260811100000_portal_section_permissions.sql` | **Не применена.** Новая модель доступа, фаза A (ADR-005). Функция `portal_section_order()` (канонический список прав + порядок меню), таблица `portal_section_permissions` (`role`/`section`/`project` nullable/`visible`/`can_view`/`can_edit`) с инвариантами `can_edit => can_view => visible`, два частичных unique-индекса (обычный не годится: `NULL` не конфликтует с `NULL`), RLS без политик + отзыв грантов, baseline seed на 44 строки. Аддитивная: ничего её пока не читает |
+| `20260811100100_portal_users_all_projects.sql` | **Не применена.** `portal_users` `+all_projects boolean not null default false` — доступ ко всем проектам, включая будущие, без перечисления руками. Все существующие учётки получают `false`, `projects` не трогается. На поведение не влияет до следующей миграции |
+| `20260811100200_portal_section_permission_functions.sql` | **Не применена.** `portal_can_view_section(text)` / `portal_can_edit_section(text)`; `portal_can(text)` → синоним VIEW; `portal_role_sections(role)` переписана на чтение таблицы. Сигнатура и результат последней прежние, но волатильность `immutable` → `stable` (читает таблицу) и добавлен `security definer` (иначе RLS вернула бы пустой массив). **Политики RLS не трогаются** |
+| `20260811100300_portal_has_project_all_projects.sql` | **Не применена.** `portal_has_project()` учитывает `all_projects`. Обе прежние ветки сохранены буква в букву: `head` — bypass как был, иначе `project = any(projects)`. Архитектура H-6 не меняется |
+
+### Фаза A новой модели доступа — статус
+
+Четыре миграции выше **написаны, но не выполнялись нигде**: ни на боевой
+базе, ни на локальном Postgres (на машине разработки нет Docker, поэтому
+`npm run test:rls` не запускался). Проверены только статически —
+`typecheck`/`lint`/`test`/`build` и вычитка SQL.
+
+Порядок применения имеет значение: `20260811100300` читает колонку, которую
+добавляет `20260811100100`, а `20260811100200` — таблицу из
+`20260811100000`. Применять строго по возрастанию имени.
+
+Перед применением стоит прогнать `npm run test:rls` на эфемерной базе
+(`supabase start`) — там лежит `src/testing/rls/sectionPermissions.rls-test.ts`,
+сверяющий настоящие SQL-функции с матрицей из `roles.ts`. Он тоже ни разу
+не выполнялся.
 
 ## Известная проблема: таблица истории миграций рассинхронизирована с реальной схемой
 

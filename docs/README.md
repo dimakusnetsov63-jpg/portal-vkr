@@ -61,6 +61,7 @@
 - [`ADR-002-auth.md`](architecture/decisions/ADR-002-auth.md) — Supabase Auth и RLS без ролей *(заменено на ADR-004)*
 - [`ADR-003-state-management.md`](architecture/decisions/ADR-003-state-management.md) — единый React Context
 - [`ADR-004-portal-auth.md`](architecture/decisions/ADR-004-portal-auth.md) — собственная авторизация портала, роли и права
+- [`ADR-005-access-control-v2.md`](architecture/decisions/ADR-005-access-control-v2.md) — права разделов в базе: VISIBLE / VIEW / EDIT *(реализована фаза A, к БД не применялась)*
 
 ### База данных — [`database/`](database/)
 

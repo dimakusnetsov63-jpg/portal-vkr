@@ -649,6 +649,7 @@ substring-поиск id вакансий по названию проекта/р
 | `password_hash` | text | **not null** | bcrypt (`pgcrypto`: `crypt`/`gen_salt('bf', 10)`). Открытый пароль не хранится и не возвращается ни одной функцией |
 | `role` | enum `portal_user_role` | **not null** | head / coordinator / manager / recruiter |
 | `projects` | text[] | **not null** | Значения проектов как текст, без FK. `check (cardinality(projects) > 0)` |
+| `all_projects` | boolean | **not null** | `default false`. `true` = доступны все проекты, включая будущие; `projects` при этом игнорируется. Миграция `20260811100100`, **не применена** |
 | `is_active` | boolean | not null | `default true`; `false` = вход запрещён |
 | `created_at` | timestamptz | not null | `default now()` |
 | `updated_at` | timestamptz | not null | `default now()`, триггер `set_candidates_updated_at()` |
@@ -669,6 +670,70 @@ substring-поиск id вакансий по названию проекта/р
 см. `docs/ROLLOUT-project-access.md`). При заведении первого сотрудника
 не-`head` роли важно назначить ей правильные проекты сразу — иначе она
 увидит ноль данных ни в одном проектном разделе.
+
+С фазы A новой модели доступа (`20260811100100`, **не применена**) у поля
+появился спутник `all_projects`. Он не заменяет `projects`, а даёт третий
+вариант ответа на «какие проекты видны»: перечисленные, все, или все — потому
+что роль `head`. Без него чекбокс «Все проекты» пришлось бы имитировать
+перечислением всех проектов руками, дописывая каждый новый.
+
+> Открытый вопрос фазы D/E: `check (cardinality(projects) > 0)` действует и
+> при `all_projects = true`, то есть такой учётке всё равно нужен хотя бы
+> один проект в массиве. Ограничение сознательно не тронуто в фазе A.
+
+### `public.portal_section_permissions`
+
+Матрица прав «роль → раздел → `visible`/`can_view`/`can_edit`». Источник
+истины для доступа к разделам с фазы A новой модели (миграция
+`20260811100000`, **не применена**). До неё матрица была продублирована
+руками в `portal_role_sections()` и `src/lib/auth/roles.ts`.
+
+| Поле | Тип | Null | Примечание |
+|------|-----|------|-----------|
+| `id` | uuid | not null | PK, `gen_random_uuid()` |
+| `role` | enum `portal_user_role` | **not null** | Право выдаётся роли, не пользователю |
+| `section` | text | **not null** | `check (section = any (portal_section_order()))` — 10 разделов + `users` |
+| `project` | text | nullable | `NULL` = правило для всех проектов роли. Ненулевое — задел под project-specific overrides, **в первой версии не используется** |
+| `visible` | boolean | **not null** | `default false`. Показывать пункт в меню. **Только UX, не механизм безопасности** |
+| `can_view` | boolean | **not null** | `default false`. Открыть раздел и читать данные (`select` в политиках) |
+| `can_edit` | boolean | **not null** | `default false`. Изменять данные (`insert`/`update`/`delete` в политиках) |
+| `created_at` | timestamptz | not null | `default now()` |
+| `updated_at` | timestamptz | not null | `default now()`, триггер `set_candidates_updated_at()` |
+
+**Инварианты** (`check`, в базе, а не только в интерфейсе):
+
+```sql
+check (not can_view or visible)   -- can_view => visible
+check (not can_edit or can_view)  -- can_edit  => can_view
+```
+
+Невозможны состояния «редактирует, но не видит» и «читает, но раздела нет
+в меню». Ограничение живёт в базе, поэтому его не обойти ни ручным `UPDATE`
+из SQL Editor, ни ошибкой в будущем интерфейсе.
+
+**Индексы:** два *частичных* unique вместо одного составного —
+
+```sql
+unique (role, section)          where project is null
+unique (role, section, project) where project is not null
+```
+
+Обычное `unique (role, section, project)` не подошло бы: в Postgres `NULL`
+не конфликтует с `NULL`, и два «правила для всех проектов» на одну пару
+прошли бы насквозь. `nulls not distinct` решает это одной строкой, но
+требует PG15+; частичные индексы работают везде.
+
+**Доступ к самой таблице:** RLS включён, **политик нет, гранты отозваны** —
+та же модель, что у `portal_users`/`portal_sessions`/`portal_audit_log`.
+Напрямую через PostgREST матрицу не прочитать и не изменить; чтение и
+редактирование появятся отдельными `SECURITY DEFINER`-функциями в фазе D.
+Пользователь не может выдать себе право ни при каком стечении обстоятельств.
+
+**Baseline:** 44 строки (4 роли × 11 прав), воспроизводящие прежнюю матрицу
+один в один. Единственная неочевидная ячейка — `vacancies` у `manager` и
+`recruiter`: `can_view = true`, `can_edit = false`, потому что запись в
+`vacancy_*` и сегодня требует `vacancies` **и** `settings`. Сверка
+автоматизирована в `src/lib/auth/sectionPermissionsSeed.test.ts`.
 
 ### `public.portal_sessions`
 

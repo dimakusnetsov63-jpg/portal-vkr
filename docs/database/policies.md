@@ -51,6 +51,44 @@ create policy "portal_select_rates"
 `projects` — архитектурное решение H-6, не default-поведение самой функции.
 Подробности и обоснование — `docs/ROLLOUT-project-access.md`.
 
+## Фаза A новой модели доступа: политики НЕ изменены
+
+11 августа 2026 добавлены четыре миграции (`20260811100000`…`20260811100300`,
+**к боевой базе не применялись**), переносящие матрицу прав из кода в таблицу
+`portal_section_permissions` и вводящие разделение `visible`/`can_view`/
+`can_edit` — см. [`ADR-005`](../architecture/decisions/ADR-005-access-control-v2.md).
+
+**Ни одна политика RLS в фазе A не переписана.** Список политик, их выражения
+и таблица «состав политик» ниже действительны как были. Изменилась только
+реализация двух функций, которые эти политики вызывают, — при неизменном
+результате:
+
+- `portal_can(section)` стал синонимом `portal_can_view_section(section)`;
+- `portal_role_sections(role)` читает `portal_section_permissions` вместо
+  захардкоженного `case`.
+
+Baseline матрицы воспроизводит прежние права один в один (сверка —
+`src/lib/auth/sectionPermissionsSeed.test.ts`, 23 теста), поэтому наблюдаемое
+поведение для всех четырёх ролей не меняется. Перевод политик на явные
+`portal_can_view_section`/`portal_can_edit_section` — отдельная задача
+(фаза C).
+
+**Ловушка фазы C, зафиксированная заранее.** У пяти таблиц запись гейтится
+*вторым* разделом, а не своим собственным. Переводить их на `can_edit`
+«своего» раздела нельзя — роли получат права, которых у них сейчас нет:
+
+| Таблица | Запись сегодня | Во что переводить |
+|---|---|---|
+| `candidate_list_options` | `portal_can('settings')` | `portal_can_edit_section('settings')` |
+| `vacancy_*` (5 таблиц) | `vacancies` + `settings` | `portal_can_edit_section('vacancies')` — в baseline уже `false` у manager/recruiter |
+| `address_demand_history` | `addresses` + `settings` | `... and portal_can_edit_section('settings')` |
+| `project_import_configs` | `addresses` + `settings` | `... and portal_can_edit_section('settings')` |
+| `staffing_demand_imports` | `addresses` + `settings` | `... and portal_can_edit_section('settings')` |
+
+Причина: раздел «Адреса» редактируют все четыре роли, а импорт и историю —
+только head/coordinator. Гранулярность «роль × раздел» это одним булевым
+полем не выражает, поэтому связка «раздел + `settings`» сохраняется.
+
 ## Состав политик по таблицам
 
 | Таблица | Раздел | select | insert | update | delete |
@@ -134,10 +172,13 @@ create policy "portal_select_rates"
 
 | Функция | Кому доступна | Назначение |
 |---|---|---|
-| `portal_can(section)` | anon, authenticated | Есть ли у запроса доступ к разделу. Используется в политиках |
-| `portal_has_project(project)` | anon, authenticated | H-6: есть ли доступ к проекту. `head` — всегда `true` (bypass), остальные роли — `project = any(portal_users.projects)` |
+| `portal_can(section)` | anon, authenticated | Есть ли у запроса доступ к разделу. Используется в политиках. С `20260811100200` — синоним `portal_can_view_section` |
+| `portal_can_view_section(section)` | anon, authenticated | Фаза A: может ли открыть раздел и читать данные. Для `select`-политик. **Пока не используется ни одной политикой** |
+| `portal_can_edit_section(section)` | anon, authenticated | Фаза A: может ли изменять данные раздела. Для `insert`/`update`/`delete`. Проверять `can_view` отдельно не нужно — гарантировано `check`-инвариантом. **Пока не используется ни одной политикой** |
+| `portal_section_order()` | anon, authenticated | Фаза A: канонический список прав в порядке меню (10 разделов + `users`). Задаёт допустимые значения `section` и порядок в `portal_role_sections()` |
+| `portal_has_project(project)` | anon, authenticated | H-6: есть ли доступ к проекту. `head` — всегда `true` (bypass), `all_projects = true` — тоже; остальные — `project = any(portal_users.projects)` |
 | `portal_has_rate_card_project(rate_card_id)` | anon, authenticated | H-6: то же самое для `rates` — своей колонки `project` нет, ищет её через `rate_cards` |
-| `portal_role_sections(role)` | anon, authenticated | Матрица «роль → разделы». Дубль `src/lib/auth/roles.ts` |
+| `portal_role_sections(role)` | anon, authenticated | Матрица «роль → разделы» в порядке меню. С `20260811100200` читает `portal_section_permissions`; сигнатура и результат прежние, но функция стала `stable` + `security definer` (см. ADR-005) |
 | `portal_save_vacancy_project_tree(project_id, expected_version, payload)` | authenticated | TASK-010: атомарное сохранение дерева вакансии (проект+разделы+поля+вложения), проверяет `vacancies`+`settings` и `version` (оптимистическая блокировка) сама |
 | `portal_duplicate_vacancy_project(project_id)` | authenticated | TASK-010: копирует вакансию целиком под новым id, та же проверка доступа |
 | `search_vacancy_projects(query)` | authenticated | TASK-010: substring-поиск id вакансий по названию/разделам/полям; пусто, если нет `vacancies` |
@@ -180,6 +221,11 @@ create policy "portal_select_rates"
    column-level protection, не входит в H-6.
 3. **Матрица прав продублирована** в SQL (`portal_role_sections`) и TS
    (`src/lib/auth/roles.ts`). Рассинхронизацию не поймают ни типы, ни тесты.
+   Частично закрыто фазой A: SQL-сторона больше не хардкод, а таблица
+   `portal_section_permissions`, и расхождение с `roles.ts` теперь ловит
+   `sectionPermissionsSeed.test.ts` на каждом прогоне. Но `roles.ts` пока
+   остаётся рантайм-источником прав для фронтенда — окончательно дубль
+   уйдёт в фазах D/E, когда матрица поедет клиенту из базы.
 4. **`portal_login` доступен `anon`** — иначе форма входа не работала бы.
    Защита от перебора: 10 неудачных попыток на логин за 15 минут.
 5. **Нет автоматических тестов RLS** (находка H-13, отдельная) — матрица
