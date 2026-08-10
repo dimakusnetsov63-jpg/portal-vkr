@@ -23,11 +23,41 @@
 
 | Фаза | Что | Статус |
 |---|---|---|
-| A | Таблица `portal_section_permissions`, `all_projects`, функции `portal_can_view_section`/`portal_can_edit_section`, baseline seed | **готова, к БД не применена** |
-| B | Сверка baseline на реальной базе | не начата |
-| C | Перевод политик RLS на `view`/`edit` + закрытие project-gap у `project_import_configs`/`staffing_demand_imports` | не начата |
+| A | Таблица `portal_section_permissions`, `all_projects`, функции `portal_can_view_section`/`portal_can_edit_section`, baseline seed | **готова, подтверждена CI** |
+| B | Сверка baseline на реальной базе | **пройдена в CI** (11 августа 2026) |
+| C | Перевод политик RLS на `view`/`edit` + закрытие project-gap у `project_import_configs`/`staffing_demand_imports` | **готова, к БД не применена** |
 | D | Permission layer, RPC управления правами, аудит изменений | не начата |
 | E | Интерфейс «Настройки → Доступы», чекбокс «Все проекты» | не начата |
+
+### Фаза B — что подтвердил CI
+
+Прогон на эфемерном Postgres (джоба `rls-tests`) подтвердил: все четыре
+миграции фазы A применяются на чистую базу, baseline seed валиден,
+`portal_role_sections()` работает через PostgREST и совпадает с `roles.ts`
+для всех четырёх ролей включая порядок, `all_projects` работает, матрица
+закрыта от пользовательского доступа. Расхождений не найдено. Локально
+проверить было нечем — на машине разработки нет Docker.
+
+### Фаза C — что сделано
+
+Четыре миграции `20260811110000`…`20260811110300` (C1–C4), 50 политик и три
+`SECURITY DEFINER`-функции. Подробности — в
+[`../database/policies.md`](../database/policies.md) и
+[`../database/migrations.md`](../database/migrations.md).
+
+**Единственное изменение поведения** — `project_import_configs` и
+`staffing_demand_imports` получили `portal_has_project(project)` (пробел
+H-6 закрыт). Вынесено отдельной миграцией C4 и последней, чтобы
+откатывалось независимо от C1–C3.
+
+Негативные тесты добавлены: manager не пишет в `vacancy_*`, recruiter не
+пишет в `candidate_list_options`, координатор не видит импорты чужого
+проекта, и три CHECK-инварианта `portal_section_permissions` (последний
+непроверенный кусок фазы A).
+
+**Не проверено:** миграции C1–C4 не выполнялись ни на боевой базе, ни
+локально; `npm run test:rls` не запускался. Фаза C — **code-complete,
+DB-unverified**, до прогона CI.
 
 ### Фаза A — что сделано
 

@@ -20,7 +20,12 @@ function restUrl(path: string): string {
   return `${rlsTestEnv.apiUrl()}/rest/v1${path}`;
 }
 
-async function serviceRoleFetch(path: string, init: RequestInit = {}): Promise<Response> {
+/**
+ * Запрос в обход RLS. Экспортируется для тестов, где ожидаемым результатом
+ * является **ошибка** (нарушение CHECK-ограничения) — `insertTestRow` для
+ * них не годится, он бросает на любом не-2xx и съедает проверяемый ответ.
+ */
+export async function serviceRoleFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const key = rlsTestEnv.serviceRoleKey();
   return fetch(restUrl(path), {
     ...init,

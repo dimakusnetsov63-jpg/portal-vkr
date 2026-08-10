@@ -100,6 +100,25 @@ npx supabase db query --linked "select conname, pg_get_constraintdef(oid) from p
 | `20260811100200_portal_section_permission_functions.sql` | **Не применена.** `portal_can_view_section(text)` / `portal_can_edit_section(text)`; `portal_can(text)` → синоним VIEW; `portal_role_sections(role)` переписана на чтение таблицы. Сигнатура и результат последней прежние, но волатильность `immutable` → `stable` (читает таблицу) и добавлен `security definer` (иначе RLS вернула бы пустой массив). **Политики RLS не трогаются** |
 | `20260811100300_portal_has_project_all_projects.sql` | **Не применена.** `portal_has_project()` учитывает `all_projects`. Обе прежние ветки сохранены буква в букву: `head` — bypass как был, иначе `project = any(projects)`. Архитектура H-6 не меняется |
 
+| `20260811110000_rls_view_edit_data_tables.sql` | **Не применена.** Фаза C1: 22 политики на 7 проектных таблицах (`candidates`, `staffing_demand`, `_rows`, `_history`, `addresses`, `rate_cards`, `rates`) переведены на `portal_can_view_section` (select) / `portal_can_edit_section` (insert/update/delete). Проектная проверка H-6 перенесена дословно. Поведение не меняется |
+| `20260811110100_rls_view_edit_settings_gated.sql` | **Не применена.** Фаза C2: `candidate_list_options` (3) и `address_demand_history` (4). Административный гейт **сохранён** как `portal_can_edit_section('settings')` — перевод на `can_edit` своего раздела выдал бы manager/recruiter права, которых у них нет. Поведение не меняется |
+| `20260811110200_rls_view_edit_vacancies.sql` | **Не применена.** Фаза C3: 16 политик на пяти `vacancy_*` + три `SECURITY DEFINER`-функции (`portal_save_vacancy_project_tree`, `portal_duplicate_vacancy_project`, `search_vacancy_projects`). Связка `vacancies + settings` растворена в `portal_can_edit_section('vacancies')` — различие уже несёт baseline. Поведение не меняется |
+| `20260811110300_rls_import_tables_project_scope.sql` | **Не применена. Единственная миграция фазы C, меняющая поведение.** `project_import_configs` (`for all` разбита на insert/update/delete) и `staffing_demand_imports` получают `portal_has_project(project)` — закрытие пробела H-6. Координатор перестаёт видеть импорты чужих проектов; `head` не затронут |
+
+### Фаза C новой модели доступа — статус
+
+Четыре миграции выше **написаны, но не выполнялись нигде** — на машине
+разработки нет Docker. Проверены статически (`typecheck`/`lint`/`test`/
+`build`) и вычиткой SQL. Реальная проверка — прогон CI, где джоба
+`rls-tests` накатывает миграции на эфемерный Postgres и выполняет
+`npm run test:rls`.
+
+Применять строго по возрастанию имени. Откат каждой фазы — повторное
+выполнение файла с прежними определениями (`20260803140000`,
+`20260728120000`/`20260807100300`, `20260805100500`/`20260805100600`,
+`20260805110000` соответственно); C1–C3 от C4 не зависят, поэтому C4
+откатывается отдельно.
+
 ### Фаза A новой модели доступа — статус
 
 Четыре миграции выше **написаны, но не выполнялись нигде**: ни на боевой

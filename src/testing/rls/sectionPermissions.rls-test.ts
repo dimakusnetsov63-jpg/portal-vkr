@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { PORTAL_ROLES, permissionsForRole, type PortalPermission, type PortalRole } from "@/lib/auth/roles";
 import { rlsTestEnv } from "./env";
-import { asUserFetch, cleanupTestFixtures, createTestPortalUser, testMarker } from "./client";
+import { asUserFetch, cleanupTestFixtures, createTestPortalUser, serviceRoleFetch, testMarker } from "./client";
 
 /**
  * Третья опора сверки baseline (фаза A): настоящие SQL-функции против
@@ -23,6 +23,10 @@ let userSeq = 0;
 afterAll(async () => {
   // Все логины и проекты этого файла начинаются с baseMarker, а очистка идёт
   // по префиксу (`like.${marker}*`) — одного вызова достаточно.
+  // portal_section_permissions чистится отдельно: её нет в общем хелпере, а
+  // тесты CHECK-инвариантов ниже пробуют в неё писать (все попытки обязаны
+  // провалиться, но подстраховка дешевле разбирательства с мусором).
+  await serviceRoleFetch(`/portal_section_permissions?project=like.${baseMarker}*`, { method: "DELETE" });
   await cleanupTestFixtures(baseMarker);
 });
 
@@ -199,5 +203,55 @@ describe("portal_section_permissions закрыта для клиента", () =
 
     // И право действительно не появилось.
     expect(await callRpcAsUser<boolean>(user.id, "portal_can_view_section", { p_section: "settings" })).toBe(false);
+  });
+});
+
+/**
+ * CHECK-инварианты: до этих тестов было доказано лишь, что baseline seed им
+ * удовлетворяет (иначе миграция не применилась бы), но не то, что база
+ * **отвергает** невалидное состояние. Разница существенная: с фазы D права
+ * начнёт писать администраторская RPC, и ограничение в таблице станет
+ * последним рубежом против состояния «редактирует, но не видит».
+ *
+ * Пишем от service_role: у пользовательских ролей грантов на эту таблицу
+ * нет вовсе, и отказ пришёл бы раньше CHECK — по правам, а не по существу.
+ * project заполняется маркером, чтобы не конфликтовать с baseline-строками
+ * по уникальному индексу (у тех project is null).
+ */
+describe("CHECK-инварианты portal_section_permissions", () => {
+  async function tryInsert(row: Record<string, unknown>) {
+    return serviceRoleFetch("/portal_section_permissions", {
+      method: "POST",
+      body: JSON.stringify({ role: "manager", section: "analytics", project: `${baseMarker}chk`, ...row }),
+    });
+  }
+
+  it("отвергает can_edit = true при can_view = false", async () => {
+    const response = await tryInsert({ visible: true, can_view: false, can_edit: true });
+    expect(response.status).toBe(400);
+    expect(((await response.json()) as { code: string }).code).toBe("23514");
+  });
+
+  it("отвергает can_view = true при visible = false", async () => {
+    const response = await tryInsert({ visible: false, can_view: true, can_edit: false });
+    expect(response.status).toBe(400);
+    expect(((await response.json()) as { code: string }).code).toBe("23514");
+  });
+
+  it("отвергает неизвестный section", async () => {
+    // Флаги валидны — единственное нарушение здесь именно имя раздела.
+    const response = await tryInsert({ section: "not_a_section", visible: true, can_view: true, can_edit: true });
+    expect(response.status).toBe(400);
+    expect(((await response.json()) as { code: string }).code).toBe("23514");
+  });
+
+  it("валидную комбинацию принимает — значит отказы выше по существу, а не по правам", async () => {
+    // Контроль на ложноположительный результат: если бы service_role просто
+    // не имел доступа к таблице, три теста выше «прошли» бы, ничего не
+    // проверив. Эта строка обязана вставиться и тут же удаляется.
+    const response = await tryInsert({ section: "marketing", visible: true, can_view: true, can_edit: false });
+    expect(response.status).toBe(201);
+
+    await serviceRoleFetch(`/portal_section_permissions?project=eq.${baseMarker}chk`, { method: "DELETE" });
   });
 });
