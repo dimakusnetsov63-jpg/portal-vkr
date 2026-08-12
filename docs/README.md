@@ -97,6 +97,7 @@
 |---|---|
 | [`changelog/CHANGELOG.md`](changelog/CHANGELOG.md) | Заметные изменения продукта |
 | [`DEVELOPMENT.md`](DEVELOPMENT.md) | Практический workflow: запуск, env, проверки, коммиты |
+| [`SETUP-NEW-MACHINE.md`](SETUP-NEW-MACHINE.md) | Перенос проекта на другой компьютер: что едет через git, что руками, чек-лист приёмки |
 | [`SECURITY.md`](SECURITY.md) | Проверка зависимостей, реестр принятых исключений по уязвимостям |
 | [`ROLLOUT-login-rate-limit.md`](ROLLOUT-login-rate-limit.md) | Пошаговый выкат защиты входа (C-3/C-4): три фазы, точки отката, чек-лист, ложноположительные проверки |
 | [`ROLLOUT-jwt-signing-keys.md`](ROLLOUT-jwt-signing-keys.md) | Переход с HS256 на ES256 (C-5): Dashboard/Vercel до деплоя кода, откат, Definition of Done |
