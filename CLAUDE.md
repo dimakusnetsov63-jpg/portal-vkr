@@ -246,8 +246,9 @@ head и coordinator** (`portal_can('settings')` как гейт записи) �
   отдельно от `Database`.
 - **Миграции:** `supabase/migrations/*.sql` — источник истины для схемы.
 - **Env (в `.env.local`, НЕ коммитить):** `NEXT_PUBLIC_SUPABASE_URL`,
-  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_JWT_SECRET` (серверная,
-  без `NEXT_PUBLIC_`). Реальные значения в документацию не записывать.
+  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_JWT_PRIVATE_JWK`
+  (серверная, без `NEXT_PUBLIC_`; до C-5 это был `SUPABASE_JWT_SECRET`).
+  Реальные значения в документацию не записывать.
 
 ### 7.1 Авторизация
 

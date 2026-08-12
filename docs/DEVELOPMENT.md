@@ -19,23 +19,31 @@ npm run dev        # dev-сервер (next dev)
 ```
 NEXT_PUBLIC_SUPABASE_URL=<url проекта Supabase>
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable ключ>
-SUPABASE_JWT_SECRET=<JWT-секрет проекта>
+SUPABASE_JWT_PRIVATE_JWK=<приватный ключ ES256 в формате JWK, одной строкой>
 ```
 
-Значения — из Supabase Dashboard проекта (`SUPABASE_JWT_SECRET`: Project
-Settings → API → JWT Settings → JWT Secret). Реальные ключи в чат/
-документацию/git не попадают. На Vercel те же переменные заданы в настройках
-проекта.
+Значения `NEXT_PUBLIC_*` — из Supabase Dashboard проекта (Project Settings →
+API). `SUPABASE_JWT_PRIVATE_JWK` из Dashboard **не восстанавливается**: там
+лежит только публичная половина ключа (Project Settings → API → JWT Signing
+Keys), приватная есть только у портала — она берётся из окружения Vercel
+(`vercel env pull`) или с машины, где проект уже настроен. Реальные ключи в
+чат/документацию/git не попадают. На Vercel те же переменные заданы в
+настройках проекта.
 
-`SUPABASE_JWT_SECRET` — **серверная**, без префикса `NEXT_PUBLIC_`: в
+`SUPABASE_JWT_PRIVATE_JWK` — **серверная**, без префикса `NEXT_PUBLIC_`: в
 браузерный бандл она не попадает и попасть не должна. Им портал подписывает
 короткоживущие токены доступа к данным (см.
-[`ADR-004`](architecture/decisions/ADR-004-portal-auth.md)).
+[`ADR-004`](architecture/decisions/ADR-004-portal-auth.md)). До C-5 подпись
+была симметричной, переменной `SUPABASE_JWT_SECRET` (HS256) — она больше не
+читается кодом, см. [`ROLLOUT-jwt-signing-keys.md`](ROLLOUT-jwt-signing-keys.md).
 
 Без переменных Supabase клиент бросит понятную ошибку
 (`Missing environment variable…`, см. `lib/supabase/env.ts`). Без
-`SUPABASE_JWT_SECRET` симптом другой: **вход пройдёт, а данные не
+`SUPABASE_JWT_PRIVATE_JWK` симптом другой: **вход пройдёт, а данные не
 загрузятся** — `/api/auth/token` вернёт 500, запросы к Supabase получат 401.
+
+Перенос проекта на другой компьютер целиком (что едет через git, что руками,
+чек-лист приёмки) — [`SETUP-NEW-MACHINE.md`](SETUP-NEW-MACHINE.md).
 
 ## Первый вход
 
@@ -53,16 +61,18 @@ select public.portal_bootstrap_admin('admin', 'Имя Фамилия', '<пар�
 ## Проверки
 
 ```bash
-npx tsc --noEmit   # проверка типов (отдельного npm-скрипта нет)
+npm run typecheck  # проверка типов (tsc --noEmit)
 npm run lint       # ESLint (eslint-config-next)
+npm test           # Vitest, чистая логика (фильтры, метрики, права ролей)
 npm run build      # production-сборка (next build)
 ```
 
-- `tsc` проверяет **только типы** — не логику и не UI.
+- `typecheck` проверяет **только типы** — не логику и не UI.
 - `lint` не заменяет функциональную проверку.
 - `build` компилирует и проверяет типы, но не гарантирует корректность
   интерфейса.
-- `npm test` — Vitest, чистая логика (фильтры, метрики, права ролей).
+- `npm run test:rls` — отдельный набор тестов RLS-политик против локального
+  Supabase; требует Docker, в обязательные четыре шага не входит.
 - **UI-изменения проверяются в браузере.** Почти всё за авторизацией; для
   проверки нужен тестовый сотрудник, заведённый в «Настройки → Команда и
   роли». Чтобы проверить ограничения ролей, удобно держать по учётке на
@@ -116,7 +126,7 @@ npm run build      # production-сборка (next build)
 - Двигаться маленькими логическими этапами.
 - Переносить код **дословно**, отдельно от смысловых изменений.
 - Для перемещений использовать `git mv` (сохраняет историю).
-- После каждого этапа — `npx tsc --noEmit`.
+- После каждого этапа — `npm run typecheck`.
 - В конце — `lint` + `build`.
 - Не менять публичный API компонентов и `usePortal()` без необходимости.
 - Перед удалением файла — grep всех использований по проекту.
