@@ -295,3 +295,73 @@
   background: var(--surface);
   box-shadow: var(--ring);
 }
+
+/* Панель «Доступы» — матрица «раздел × роль» с тремя переключателями. */
+.panelHint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  max-width: 68ch;
+}
+
+.panelError {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+/* Четыре роли × три переключателя не помещаются на узком экране, поэтому
+   таблица прокручивается внутри себя, а не растягивает страницу. */
+.accessScroll {
+  overflow-x: auto;
+}
+
+.accessTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.accessTable th,
+.accessTable td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.accessTable thead th {
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.accessTable tbody th {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.accessCellLocked {
+  background: var(--surface-muted);
+}
+
+.accessFlag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.accessFlag input:disabled {
+  cursor: not-allowed;
+}
+
+.accessFlag input:disabled + span {
+  color: var(--text-muted);
+}
+
+.fieldHint {
+  font-size: 12px;
+  color: var(--text-muted);
+}

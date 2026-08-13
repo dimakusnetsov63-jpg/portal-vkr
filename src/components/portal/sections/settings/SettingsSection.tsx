@@ -4,6 +4,7 @@ import { usePortal } from "@/components/portal/context/PortalContext";
 import { PageHead } from "@/components/portal/ui/PageHead";
 import { Panel, PanelBody, PanelHead } from "@/components/portal/ui/Panel";
 import { ROLE_LABELS } from "@/lib/auth/roles";
+import { AccessPanel } from "./AccessPanel";
 import { AuditLogPanel } from "./AuditLogPanel";
 import { CandidateListsPanel } from "./CandidateListsPanel";
 import { ImportHistoryPanel } from "./ImportHistoryPanel";
@@ -69,6 +70,11 @@ export function SettingsSection() {
           </Panel>
 
           {manageUsers && <TeamPanel />}
+
+          {/* Управление правами — там же, где управление людьми, и под тем
+              же гейтом: `portal_admin_set_section_permission` всё равно
+              пускает только руководителя. */}
+          {manageUsers && <AccessPanel />}
         </div>
 
         <div className={styles.column}>

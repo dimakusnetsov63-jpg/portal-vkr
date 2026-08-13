@@ -9,11 +9,16 @@ import { Icon } from "@/components/portal/ui/Icon";
 import styles from "./Sidebar.module.css";
 
 export function Sidebar() {
-  const { activePage, goto, mobileSidebarOpen, closeMobileSidebar, currentUser, can } = usePortal();
+  const { activePage, goto, mobileSidebarOpen, closeMobileSidebar, currentUser, isVisible } = usePortal();
 
-  // Меню показывает только разделы роли. Это удобство, а не защита: данные
-  // закрыты RLS, маршруты — middleware.
-  const navItems = NAV_ITEMS.filter((item) => can(item.id));
+  // Меню строится по `visible`, а не по праву читать раздел: это два разных
+  // вопроса. Раздел можно убрать из навигации, оставив доступным по прямой
+  // ссылке — тогда `visible = false`, но `can_view = true`, и middleware
+  // такой переход не завернёт. Обратное сочетание невозможно: инвариант
+  // can_view => visible держит CHECK-ограничение в базе.
+  //
+  // Это удобство, а не защита: данные закрыты RLS, маршруты — middleware.
+  const navItems = NAV_ITEMS.filter((item) => isVisible(item.id));
 
   return (
     <>
@@ -49,7 +54,7 @@ export function Sidebar() {
           <button
             className={styles.userChip}
             onClick={() => goto("settings")}
-            disabled={!can("settings")}
+            disabled={!isVisible("settings")}
           >
             <div className={styles.avatar} style={{ background: avatarColor(currentUser.full_name) }}>
               {initials(currentUser.full_name)}

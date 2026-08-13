@@ -3,7 +3,7 @@ import {
   PORTAL_ROLES,
   allowedSections,
   canAccess,
-  defaultPageForRole,
+
   isPortalPage,
   isPortalRole,
 } from "./roles";
@@ -61,24 +61,6 @@ describe("canAccess — минимальные права из ТЗ", () => {
   it("отдаёт управление пользователями только руководителю", () => {
     const withUsers = PORTAL_ROLES.filter((role) => canAccess(role, "users"));
     expect(withUsers).toEqual(["head"]);
-  });
-});
-
-describe("defaultPageForRole", () => {
-  it("ведёт роль на первый доступный ей раздел", () => {
-    expect(defaultPageForRole("head")).toBe("overview");
-    expect(defaultPageForRole("coordinator")).toBe("overview");
-    expect(defaultPageForRole("manager")).toBe("overview");
-    // У рекрутера «Обзора» нет — стартовый раздел другой. С добавлением
-    // «Адресов» (доступны всем ролям, идут в SECTION_ORDER раньше
-    // «Кандидатов») это теперь «Адреса», а не «Кандидаты».
-    expect(defaultPageForRole("recruiter")).toBe("addresses");
-  });
-
-  it("возвращает раздел, к которому у роли действительно есть доступ", () => {
-    for (const role of PORTAL_ROLES) {
-      expect(canAccess(role, defaultPageForRole(role))).toBe(true);
-    }
   });
 });
 

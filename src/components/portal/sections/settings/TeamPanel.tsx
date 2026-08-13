@@ -9,11 +9,13 @@ import { Panel, PanelBody, PanelHead } from "@/components/portal/ui/Panel";
 import { SkeletonLines } from "@/components/portal/ui/StateViews";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import { avatarColor, initials } from "@/lib/portal/format";
+import { activeListOptions } from "@/lib/portal/candidateOptions";
 import {
   createPortalUser,
   listPortalUsers,
   setPortalUserActive,
   setPortalUserPassword,
+  setPortalUserProjects,
   updatePortalUser,
 } from "@/lib/supabase/portalUsersRepo";
 import type { PortalUser } from "@/lib/supabase/portalAuth.types";
@@ -39,7 +41,7 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 export function TeamPanel() {
-  const { pushToast, currentUser } = usePortal();
+  const { pushToast, currentUser, listOptions } = usePortal();
 
   const [users, setUsers] = useState<PortalUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +49,10 @@ export function TeamPanel() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<PortalUser | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  // Полный список проектов справочника — нужен только для обходного пути
+  // создания учётки с «Всеми проектами» (см. handleSubmit).
+  const allProjectOptions = activeListOptions(listOptions, "project").map((o) => o.value);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -78,23 +84,39 @@ export function TeamPanel() {
   async function handleSubmit(values: UserFormSubmit): Promise<string | null> {
     try {
       if (!editing) {
+        // portal_admin_create_user требует непустой список проектов и про
+        // all_projects не знает вовсе. Поэтому при «Все проекты» создаём с
+        // текущим полным списком (на этот момент он и означает «все»), а
+        // сразу следом переводим учётку на флаг — тогда ей достанутся и
+        // проекты, которые заведут позже.
         const created = await createPortalUser({
           full_name: values.fullName,
           login: values.login,
           password: values.password,
           role: values.role,
-          projects: values.projects,
+          projects: values.allProjects && values.projects.length === 0 ? allProjectOptions : values.projects,
           is_active: values.isActive,
         });
-        setUsers((prev) => [...prev, created]);
+        const withProjects = values.allProjects
+          ? await setPortalUserProjects(created.id, { projects: [], all_projects: true })
+          : created;
+        setUsers((prev) => [...prev, withProjects]);
         pushToast("Пользователь создан");
         return null;
       }
 
-      let saved = await updatePortalUser(editing.id, {
+      // Проекты сохраняются первыми: portal_admin_update_user разрешает
+      // пустой список только у учётки, у которой all_projects уже поднят.
+      // В обратном порядке включение «Всех проектов» с очисткой списка
+      // упиралось бы в её проверку.
+      let saved = await setPortalUserProjects(editing.id, {
+        projects: values.allProjects ? [] : values.projects,
+        all_projects: values.allProjects,
+      });
+      saved = await updatePortalUser(editing.id, {
         full_name: values.fullName,
         role: values.role,
-        projects: values.projects,
+        projects: values.allProjects ? [] : values.projects,
       });
       // Пустой пароль в форме означает «не менять» — лишний вызов закрыл бы
       // пользователю все сессии без причины.
@@ -171,8 +193,12 @@ export function TeamPanel() {
                     {user.is_active ? "Активен" : "Отключён"}
                   </Badge>
                 </div>
-                <span className={styles.teamProjects} title={user.projects.join(", ")}>
-                  {ROLE_LABELS[user.role]} · {user.projects.join(", ") || "проекты не выбраны"}
+                <span
+                  className={styles.teamProjects}
+                  title={user.all_projects ? "Все проекты, включая будущие" : user.projects.join(", ")}
+                >
+                  {ROLE_LABELS[user.role]} ·{" "}
+                  {user.all_projects ? "все проекты" : user.projects.join(", ") || "проекты не выбраны"}
                 </span>
               </div>
               <div className={styles.teamControls}>

@@ -22,6 +22,12 @@ export interface UserFormValues {
   confirmPassword: string;
   role: PortalRole;
   projects: string[];
+  /**
+   * Доступ ко всем проектам, включая те, что появятся позже. При `true`
+   * список `projects` не используется — ни интерфейсом, ни
+   * `portal_has_project()` в базе.
+   */
+  allProjects: boolean;
   isActive: boolean;
 }
 
@@ -55,8 +61,12 @@ export function validateUserForm(values: UserFormValues, mode: UserFormMode): Us
     }
   }
 
-  if (values.projects.length === 0) {
-    errors.projects = "Выберите хотя бы один проект";
+  // Пустой список допустим только вместе с «Все проекты» — ровно то же
+  // условие, что стоит CHECK-ограничением на portal_users
+  // (`all_projects or cardinality(projects) > 0`). Учётка без проектов и
+  // без флага не увидела бы ни строки ни в одном проектном разделе.
+  if (!values.allProjects && values.projects.length === 0) {
+    errors.projects = "Выберите хотя бы один проект или включите «Все проекты»";
   }
 
   return errors;

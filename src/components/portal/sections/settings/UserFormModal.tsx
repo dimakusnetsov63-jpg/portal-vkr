@@ -31,6 +31,7 @@ export interface UserFormSubmit {
   password: string;
   role: PortalRole;
   projects: string[];
+  allProjects: boolean;
   isActive: boolean;
 }
 
@@ -44,6 +45,7 @@ function initialValues(user: PortalUser | null): UserFormValues {
     confirmPassword: "",
     role: user?.role ?? "recruiter",
     projects: user?.projects ?? [],
+    allProjects: user?.all_projects ?? false,
     isActive: user?.is_active ?? true,
   };
 }
@@ -141,7 +143,10 @@ export function UserFormModal({
       login,
       password: values.password,
       role: values.role,
+      // Форма сообщает выбор как есть; согласование с ограничениями RPC —
+      // забота TeamPanel, которая знает порядок вызовов.
       projects: values.projects,
+      allProjects: values.allProjects,
       isActive: values.isActive,
     });
     setSaving(false);
@@ -152,7 +157,6 @@ export function UserFormModal({
     else onClose();
   }
 
-  const allProjectsSelected = values.projects.length === projectOptions.length;
 
   return (
     <Modal
@@ -258,24 +262,33 @@ export function UserFormModal({
         <div className={primitives.field}>
           <label>Проекты *</label>
           <div className={styles.projectPicker}>
+            {/* Настоящий признак, а не «выбрать все существующие»: с ним
+                сотрудник увидит и те проекты, которые заведут позже, и
+                дописывать их в список руками не придётся. */}
             <button
               type="button"
-              className={`${styles.projectChip} ${allProjectsSelected ? styles.projectChipOn : ""}`}
-              onClick={() => set("projects", allProjectsSelected ? [] : [...projectOptions])}
+              className={`${styles.projectChip} ${values.allProjects ? styles.projectChipOn : ""}`}
+              onClick={() => set("allProjects", !values.allProjects)}
             >
               Все проекты
             </button>
-            {projectOptions.map((project) => (
-              <button
-                key={project}
-                type="button"
-                className={`${styles.projectChip} ${values.projects.includes(project) ? styles.projectChipOn : ""}`}
-                onClick={() => toggleProject(project)}
-              >
-                {project}
-              </button>
-            ))}
+            {!values.allProjects &&
+              projectOptions.map((project) => (
+                <button
+                  key={project}
+                  type="button"
+                  className={`${styles.projectChip} ${values.projects.includes(project) ? styles.projectChipOn : ""}`}
+                  onClick={() => toggleProject(project)}
+                >
+                  {project}
+                </button>
+              ))}
           </div>
+          {values.allProjects && (
+            <span className={styles.fieldHint}>
+              Доступны все проекты, включая те, что появятся позже. Выбирать по одному не нужно.
+            </span>
+          )}
           {errors.projects && <span className={styles.fieldError}>{errors.projects}</span>}
         </div>
 

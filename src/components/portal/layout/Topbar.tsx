@@ -19,7 +19,7 @@ import styles from "./Topbar.module.css";
 type OpenMenu = "profile" | null;
 
 export function Topbar() {
-  const { activePage, goto, openMobileSidebar, contextAction, currentUser, can, signOut } = usePortal();
+  const { activePage, goto, openMobileSidebar, contextAction, currentUser, isVisible, signOut } = usePortal();
 
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -80,7 +80,9 @@ export function Topbar() {
                   <div>{ROLE_LABELS[currentUser.role]}</div>
                 </div>
               </div>
-              {can("settings") && (
+              {/* Ярлык в меню профиля — навигация, а не запись, поэтому
+                  `visible`: тот же признак, по которому строится Sidebar. */}
+              {isVisible("settings") && (
                 <button
                   className={dropdownStyles.profileItem}
                   onClick={() => {

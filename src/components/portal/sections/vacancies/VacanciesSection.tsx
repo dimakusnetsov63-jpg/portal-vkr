@@ -28,10 +28,14 @@ export function VacanciesSection() {
     selectedVacancyProjectId,
     openVacancyProjectDrawer,
     listOptions,
-    can,
+    canEdit,
   } = usePortal();
 
-  const canEdit = can("settings");
+  // Право править содержимое вакансии. До фазы C оно выражалось связкой
+  // «раздел vacancies + раздел settings» и здесь, и в политиках RLS; теперь
+  // различие несёт сама матрица (can_edit у vacancies выключен у manager и
+  // recruiter), поэтому спрашиваем прямо — см. docs/database/policies.md.
+  const canEditVacancies = canEdit("vacancies");
   const [search, setSearch] = useState("");
   const [categoryOptionId, setCategoryOptionId] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -103,7 +107,7 @@ export function VacanciesSection() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            {canEdit && (
+            {canEditVacancies && (
               <Button variant="primary" size="sm" onClick={() => setModalOpen(true)}>
                 <Icon name="plus" size={14} />
                 Добавить
@@ -174,7 +178,7 @@ export function VacanciesSection() {
 
         <div className={`${primitives.panel} ${styles.detailPanel}`}>
           {selected ? (
-            <VacancyDetail projectId={selected.id} canEdit={canEdit} />
+            <VacancyDetail projectId={selected.id} canEdit={canEditVacancies} />
           ) : (
             <EmptyState
               title="Выберите вакансию"

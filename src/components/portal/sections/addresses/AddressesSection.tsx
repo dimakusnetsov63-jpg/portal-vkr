@@ -44,7 +44,7 @@ export function AddressesSection() {
     listOptions,
     setContextAction,
     currentUser,
-    can,
+    canEdit,
   } = usePortal();
 
   const [filters, setFilters] = useState(EMPTY_FILTERS);
@@ -56,7 +56,12 @@ export function AddressesSection() {
   // requirements/addresses.md, раздел «Импорт потребности»), в отличие от
   // остального раздела, доступного всем четырём ролям.
   const [importModalOpen, setImportModalOpen] = useState(false);
-  const canImport = can("settings");
+  // Обе проверки — дословно то же условие, что стоит в политиках
+  // project_import_configs / staffing_demand_imports / address_demand_history
+  // после фазы C4: `edit('addresses') and edit('settings')`. Одного
+  // edit('addresses') мало — раздел «Адреса» редактируют все четыре роли, а
+  // импорт только head и coordinator.
+  const canImport = canEdit("addresses") && canEdit("settings");
 
   useEffect(() => {
     setContextAction({ label: "Добавить адрес", onClick: () => setModalOpen(true) });

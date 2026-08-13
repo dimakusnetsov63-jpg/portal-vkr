@@ -14,8 +14,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { NAV_ITEMS } from "@/lib/portal/constants";
 import type { PortalPage, Toast, ToastType } from "@/lib/portal/types";
 import { clearPortalAccessToken } from "@/lib/supabase/accessToken";
-import { canAccess, defaultPageForRole, type PortalPermission } from "@/lib/auth/roles";
-import type { PortalUser } from "@/lib/supabase/portalAuth.types";
+import type { PortalPermission } from "@/lib/auth/roles";
+import {
+  canEditSection,
+  canViewSection,
+  firstViewableSection,
+  isSectionVisible,
+} from "@/lib/auth/permissions";
+import type { PortalUser, SectionPermission } from "@/lib/supabase/portalAuth.types";
 import {
   archiveCandidate,
   createCandidate,
@@ -93,8 +99,21 @@ interface PortalContextValue {
   setContextAction: (action: ContextAction | null) => void;
 
   currentUser: PortalUser;
-  /** Есть ли у текущей роли доступ к разделу или праву. Интерфейс прячет, база закрывает. */
+  /**
+   * Может ли пользователь открыть раздел и читать данные. Права приходят с
+   * сервера (`currentUser.permissions`), интерфейс их только отображает.
+   * Интерфейс прячет, база закрывает.
+   */
   can: (permission: PortalPermission) => boolean;
+  /** Может ли пользователь изменять данные раздела — гейт кнопок записи. */
+  canEdit: (permission: PortalPermission) => boolean;
+  /**
+   * Показывать ли раздел в меню. Отличается от `can`: скрытый раздел с
+   * правом просмотра открывается по прямой ссылке и не даёт 403.
+   */
+  isVisible: (permission: PortalPermission) => boolean;
+  /** Применить право, которое администратор изменил для собственной роли. */
+  applyOwnSectionPermission: (section: string, permission: SectionPermission) => void;
   signOut: () => Promise<void>;
 
   realCandidates: RealCandidate[];
@@ -220,9 +239,14 @@ export function PortalProvider({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [currentUser] = useState<PortalUser>(initialUser);
-  // Стартовый раздел зависит от роли: у рекрутера «Обзора» нет вовсе.
-  const [activePage, setActivePage] = useState<PortalPage>(() => defaultPageForRole(initialUser.role));
+  const [currentUser, setCurrentUser] = useState<PortalUser>(initialUser);
+  // Стартовый раздел — первый доступный по матрице прав: у рекрутера
+  // «Обзора» нет вовсе. Если недоступно вообще ничего (администратор может
+  // отобрать у роли всё), берём первый пункт меню — открыть его не дадут ни
+  // рендер-гейт, ни RLS, зато интерфейс не падает на undefined.
+  const [activePage, setActivePage] = useState<PortalPage>(
+    () => firstViewableSection(initialUser.permissions, NAV_ITEMS.map((item) => item.id)) ?? NAV_ITEMS[0].id,
+  );
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [densityCompact, setDensityCompact] = useState(false);
@@ -265,8 +289,44 @@ export function PortalProvider({
   const [selectedRateId, setSelectedRateId] = useState<string | null>(null);
 
   const can = useCallback(
-    (permission: PortalPermission) => canAccess(currentUser.role, permission),
-    [currentUser.role],
+    (permission: PortalPermission) => canViewSection(currentUser.permissions, permission),
+    [currentUser.permissions],
+  );
+
+  const canEdit = useCallback(
+    (permission: PortalPermission) => canEditSection(currentUser.permissions, permission),
+    [currentUser.permissions],
+  );
+
+  const isVisible = useCallback(
+    (permission: PortalPermission) => isSectionVisible(currentUser.permissions, permission),
+    [currentUser.permissions],
+  );
+
+  /**
+   * Применить к текущему пользователю право, которое администратор только
+   * что изменил для его же роли.
+   *
+   * Матрица берётся из `initialUser` один раз, при загрузке страницы, —
+   * то есть администратор, снявший право сам себе, иначе не увидел бы
+   * эффекта до перезагрузки и решил бы, что сохранение не сработало.
+   * Значение известно точно (сервер вернул сохранённую строку), поэтому
+   * лишнего запроса не требуется.
+   *
+   * Остальных пользователей это не касается: их права подтянутся при
+   * следующей загрузке страницы. Ни realtime, ни опроса здесь нет — и не
+   * нужно: middleware и RLS читают матрицу из базы на каждом запросе, так
+   * что расхождение может выражаться только в лишнем пункте меню, а не в
+   * доступе к данным.
+   */
+  const applyOwnSectionPermission = useCallback(
+    (section: string, permission: SectionPermission) => {
+      setCurrentUser((prev) => ({
+        ...prev,
+        permissions: { ...prev.permissions, [section]: permission },
+      }));
+    },
+    [],
   );
 
   // Restore the active section from `?section=` once, after mount (client
@@ -280,7 +340,8 @@ export function PortalProvider({
     // Раздел, закрытый для роли, не восстанавливается: до сюда такой запрос
     // обычно не доходит (middleware уводит на /403), но ссылка могла быть
     // сохранена ещё при другой роли.
-    const valid = NAV_ITEMS.some((n) => n.id === section) && canAccess(currentUser.role, section as PortalPage);
+    const valid =
+      NAV_ITEMS.some((n) => n.id === section) && canViewSection(currentUser.permissions, section as PortalPage);
     if (valid) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time restore from the URL on mount
       setActivePage(section as PortalPage);
@@ -293,12 +354,12 @@ export function PortalProvider({
       // Защита от перехода в закрытый раздел мимо меню (командная палитра,
       // старая ссылка). Данные всё равно закрыты RLS, но показывать пустой
       // раздел вместо отказа — хуже.
-      if (!canAccess(currentUser.role, page)) return;
+      if (!canViewSection(currentUser.permissions, page)) return;
       setActivePage(page);
       setMobileSidebarOpen(false);
       setContextAction(null);
     },
-    [currentUser.role],
+    [currentUser.permissions],
   );
 
   const openMobileSidebar = useCallback(() => setMobileSidebarOpen(true), []);
@@ -1011,6 +1072,9 @@ export function PortalProvider({
       setContextAction,
       currentUser,
       can,
+      canEdit,
+      isVisible,
+      applyOwnSectionPermission,
       signOut,
       realCandidates,
       realCandidatesLoading,
@@ -1097,6 +1161,9 @@ export function PortalProvider({
       contextAction,
       currentUser,
       can,
+      canEdit,
+      isVisible,
+      applyOwnSectionPermission,
       signOut,
       realCandidates,
       realCandidatesLoading,

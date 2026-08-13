@@ -9,6 +9,7 @@ function makeValues(overrides: Partial<UserFormValues> = {}): UserFormValues {
     confirmPassword: "sekret12",
     role: "recruiter",
     projects: ["Самокат"],
+    allProjects: false,
     isActive: true,
     ...overrides,
   };
@@ -66,5 +67,25 @@ describe("validateUserForm — редактирование", () => {
 describe("normalizeLogin", () => {
   it("приводит к нижнему регистру и убирает пробелы по краям", () => {
     expect(normalizeLogin("  Ivanov ")).toBe("ivanov");
+  });
+});
+
+describe("«Все проекты»", () => {
+  it("пустой список допустим, если флаг включён", () => {
+    // Ровно то же условие, что в CHECK на portal_users:
+    // all_projects or cardinality(projects) > 0.
+    const errors = validateUserForm(makeValues({ projects: [], allProjects: true }), "create");
+    expect(errors.projects).toBeUndefined();
+  });
+
+  it("пустой список без флага отклоняется", () => {
+    const errors = validateUserForm(makeValues({ projects: [], allProjects: false }), "create");
+    expect(errors.projects).toBeDefined();
+  });
+
+  it("флаг не мешает выбранным проектам остаться в форме", () => {
+    // Их просто не отправят на сервер — валидация к ним не придирается.
+    const errors = validateUserForm(makeValues({ projects: ["Самокат"], allProjects: true }), "create");
+    expect(errors.projects).toBeUndefined();
   });
 });
