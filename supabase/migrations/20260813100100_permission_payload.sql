@@ -107,4 +107,53 @@ as $$
 $$;
 
 comment on function public.portal_user_json(public.portal_users) is
-  'Пользователь в виде JSON для ответов portal_login/portal_session_context/portal_admin_list_users. С фазы D включает all_projects и permissions (матрицу прав роли). Пароль не возвращается ни в каком виде.';
+  'Пользователь в виде JSON для ответов portal_login и portal_session_context. С фазы D включает all_projects и permissions (матрицу прав роли). Пароль не возвращается ни в каком виде.';
+
+-- 4. portal_admin_list_users — те же поля -------------------------------
+-- Единственная из трёх точек входа, которая portal_user_json НЕ использует:
+-- она объявлена как `returns table` с явным перечислением колонок, поэтому
+-- правка portal_user_json её не касается. Без этого блока список
+-- пользователей отдавал бы объекты без all_projects и permissions, то есть
+-- не соответствующие типу PortalUser в коде.
+--
+-- drop + create, а не create or replace: Postgres не позволяет менять
+-- состав возвращаемых колонок у существующей функции. Гранты пересоздаются
+-- следом — при удалении функции они пропадают вместе с ней.
+drop function public.portal_admin_list_users();
+
+create function public.portal_admin_list_users()
+returns table (
+  id uuid,
+  full_name text,
+  login text,
+  role public.portal_user_role,
+  projects text[],
+  all_projects boolean,
+  is_active boolean,
+  created_at timestamptz,
+  updated_at timestamptz,
+  last_login_at timestamptz,
+  permissions jsonb
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  perform public.portal_require_admin();
+
+  return query
+    select u.id, u.full_name, u.login, u.role, u.projects, u.all_projects,
+           u.is_active, u.created_at, u.updated_at, u.last_login_at,
+           public.portal_role_permissions(u.role)
+    from public.portal_users u
+    order by u.is_active desc, u.full_name;
+end;
+$$;
+
+comment on function public.portal_admin_list_users() is
+  'Список учётных записей для «Команда и роли». С фазы D отдаёт all_projects и permissions — те же поля, что portal_user_json, чтобы обе точки входа описывались одним типом PortalUser. Матрица одинакова у всех пользователей одной роли: это плата за единый тип, а не за счёт полезных данных.';
+
+revoke execute on function public.portal_admin_list_users() from public;
+grant execute on function public.portal_admin_list_users() to authenticated;
