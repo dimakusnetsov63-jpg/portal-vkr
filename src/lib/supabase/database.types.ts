@@ -424,6 +424,42 @@ export type Database = {
         }
         Relationships: []
       }
+      portal_section_permissions: {
+        Row: {
+          can_edit: boolean
+          can_view: boolean
+          created_at: string
+          id: string
+          project: string | null
+          role: Database["public"]["Enums"]["portal_user_role"]
+          section: string
+          updated_at: string
+          visible: boolean
+        }
+        Insert: {
+          can_edit?: boolean
+          can_view?: boolean
+          created_at?: string
+          id?: string
+          project?: string | null
+          role: Database["public"]["Enums"]["portal_user_role"]
+          section: string
+          updated_at?: string
+          visible?: boolean
+        }
+        Update: {
+          can_edit?: boolean
+          can_view?: boolean
+          created_at?: string
+          id?: string
+          project?: string | null
+          role?: Database["public"]["Enums"]["portal_user_role"]
+          section?: string
+          updated_at?: string
+          visible?: boolean
+        }
+        Relationships: []
+      }
       portal_sessions: {
         Row: {
           created_at: string
@@ -467,6 +503,7 @@ export type Database = {
       }
       portal_users: {
         Row: {
+          all_projects: boolean
           created_at: string
           full_name: string
           id: string
@@ -479,6 +516,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          all_projects?: boolean
           created_at?: string
           full_name: string
           id?: string
@@ -491,6 +529,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          all_projects?: boolean
           created_at?: string
           full_name?: string
           id?: string
@@ -1252,6 +1291,8 @@ export type Database = {
         Returns: Json
       }
       portal_can: { Args: { p_section: string }; Returns: boolean }
+      portal_can_edit_section: { Args: { p_section: string }; Returns: boolean }
+      portal_can_view_section: { Args: { p_section: string }; Returns: boolean }
       portal_current_session_id: { Args: never; Returns: string }
       portal_current_user_id: { Args: never; Returns: string }
       portal_duplicate_vacancy_project: {
@@ -1281,6 +1322,7 @@ export type Database = {
       portal_require_admin: {
         Args: never
         Returns: {
+          all_projects: boolean
           created_at: string
           full_name: string
           id: string
@@ -1311,6 +1353,7 @@ export type Database = {
         }
         Returns: Json
       }
+      portal_section_order: { Args: never; Returns: string[] }
       portal_session_context: { Args: { p_token: string }; Returns: Json }
       portal_user_json: {
         Args: { p_user: Database["public"]["Tables"]["portal_users"]["Row"] }

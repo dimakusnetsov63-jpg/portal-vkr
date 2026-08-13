@@ -95,45 +95,59 @@ npx supabase db query --linked "select conname, pg_get_constraintdef(oid) from p
 | `20260808100100_add_termination_list_types.sql` | Значения `termination_reason`/`return_reason` в enum `candidate_list_type` — отдельно от следующей миграции (та же причина). Применена 8 августа 2026 |
 | `20260808100200_add_candidate_termination_fields.sql` | `candidates` `+termination_reason text`, `+terminated_at timestamptz`, `+return_reason text`, индекс по `terminated_at`. Применена 8 августа 2026 |
 | `20260808100300_seed_termination_return_reasons.sql` | Засев 12 причин увольнения и 9 причин возвращения в `candidate_list_options`, формулировки от бизнеса. Применена 8 августа 2026 |
-| `20260811100000_portal_section_permissions.sql` | **Не применена.** Новая модель доступа, фаза A (ADR-005). Функция `portal_section_order()` (канонический список прав + порядок меню), таблица `portal_section_permissions` (`role`/`section`/`project` nullable/`visible`/`can_view`/`can_edit`) с инвариантами `can_edit => can_view => visible`, два частичных unique-индекса (обычный не годится: `NULL` не конфликтует с `NULL`), RLS без политик + отзыв грантов, baseline seed на 44 строки. Аддитивная: ничего её пока не читает |
-| `20260811100100_portal_users_all_projects.sql` | **Не применена.** `portal_users` `+all_projects boolean not null default false` — доступ ко всем проектам, включая будущие, без перечисления руками. Все существующие учётки получают `false`, `projects` не трогается. На поведение не влияет до следующей миграции |
-| `20260811100200_portal_section_permission_functions.sql` | **Не применена.** `portal_can_view_section(text)` / `portal_can_edit_section(text)`; `portal_can(text)` → синоним VIEW; `portal_role_sections(role)` переписана на чтение таблицы. Сигнатура и результат последней прежние, но волатильность `immutable` → `stable` (читает таблицу) и добавлен `security definer` (иначе RLS вернула бы пустой массив). **Политики RLS не трогаются** |
-| `20260811100300_portal_has_project_all_projects.sql` | **Не применена.** `portal_has_project()` учитывает `all_projects`. Обе прежние ветки сохранены буква в букву: `head` — bypass как был, иначе `project = any(projects)`. Архитектура H-6 не меняется |
+| `20260811100000_portal_section_permissions.sql` | **Применена 11 августа 2026.** Новая модель доступа, фаза A (ADR-005). Функция `portal_section_order()` (канонический список прав + порядок меню), таблица `portal_section_permissions` (`role`/`section`/`project` nullable/`visible`/`can_view`/`can_edit`) с инвариантами `can_edit => can_view => visible`, два частичных unique-индекса (обычный не годится: `NULL` не конфликтует с `NULL`), RLS без политик + отзыв грантов, baseline seed на 44 строки. Аддитивная: ничего её пока не читает |
+| `20260811100100_portal_users_all_projects.sql` | **Применена 11 августа 2026.** `portal_users` `+all_projects boolean not null default false` — доступ ко всем проектам, включая будущие, без перечисления руками. Все существующие учётки получают `false`, `projects` не трогается. На поведение не влияет до следующей миграции |
+| `20260811100200_portal_section_permission_functions.sql` | **Применена 11 августа 2026.** `portal_can_view_section(text)` / `portal_can_edit_section(text)`; `portal_can(text)` → синоним VIEW; `portal_role_sections(role)` переписана на чтение таблицы. Сигнатура и результат последней прежние, но волатильность `immutable` → `stable` (читает таблицу) и добавлен `security definer` (иначе RLS вернула бы пустой массив). **Политики RLS не трогаются** |
+| `20260811100300_portal_has_project_all_projects.sql` | **Применена 11 августа 2026.** `portal_has_project()` учитывает `all_projects`. Обе прежние ветки сохранены буква в букву: `head` — bypass как был, иначе `project = any(projects)`. Архитектура H-6 не меняется |
 
-| `20260811110000_rls_view_edit_data_tables.sql` | **Не применена.** Фаза C1: 22 политики на 7 проектных таблицах (`candidates`, `staffing_demand`, `_rows`, `_history`, `addresses`, `rate_cards`, `rates`) переведены на `portal_can_view_section` (select) / `portal_can_edit_section` (insert/update/delete). Проектная проверка H-6 перенесена дословно. Поведение не меняется |
-| `20260811110100_rls_view_edit_settings_gated.sql` | **Не применена.** Фаза C2: `candidate_list_options` (3) и `address_demand_history` (4). Административный гейт **сохранён** как `portal_can_edit_section('settings')` — перевод на `can_edit` своего раздела выдал бы manager/recruiter права, которых у них нет. Поведение не меняется |
-| `20260811110200_rls_view_edit_vacancies.sql` | **Не применена.** Фаза C3: 16 политик на пяти `vacancy_*` + три `SECURITY DEFINER`-функции (`portal_save_vacancy_project_tree`, `portal_duplicate_vacancy_project`, `search_vacancy_projects`). Связка `vacancies + settings` растворена в `portal_can_edit_section('vacancies')` — различие уже несёт baseline. Поведение не меняется |
-| `20260811110300_rls_import_tables_project_scope.sql` | **Не применена. Единственная миграция фазы C, меняющая поведение.** `project_import_configs` (`for all` разбита на insert/update/delete) и `staffing_demand_imports` получают `portal_has_project(project)` — закрытие пробела H-6. Координатор перестаёт видеть импорты чужих проектов; `head` не затронут |
+| `20260811110000_rls_view_edit_data_tables.sql` | **Применена 11 августа 2026.** Фаза C1: 22 политики на 7 проектных таблицах (`candidates`, `staffing_demand`, `_rows`, `_history`, `addresses`, `rate_cards`, `rates`) переведены на `portal_can_view_section` (select) / `portal_can_edit_section` (insert/update/delete). Проектная проверка H-6 перенесена дословно. Поведение не меняется |
+| `20260811110100_rls_view_edit_settings_gated.sql` | **Применена 11 августа 2026.** Фаза C2: `candidate_list_options` (3) и `address_demand_history` (4). Административный гейт **сохранён** как `portal_can_edit_section('settings')` — перевод на `can_edit` своего раздела выдал бы manager/recruiter права, которых у них нет. Поведение не меняется |
+| `20260811110200_rls_view_edit_vacancies.sql` | **Применена 11 августа 2026.** Фаза C3: 16 политик на пяти `vacancy_*` + три `SECURITY DEFINER`-функции (`portal_save_vacancy_project_tree`, `portal_duplicate_vacancy_project`, `search_vacancy_projects`). Связка `vacancies + settings` растворена в `portal_can_edit_section('vacancies')` — различие уже несёт baseline. Поведение не меняется |
+| `20260811110300_rls_import_tables_project_scope.sql` | **Применена 11 августа 2026. Единственная миграция фазы C, меняющая поведение.** `project_import_configs` (`for all` разбита на insert/update/delete) и `staffing_demand_imports` получают `portal_has_project(project)` — закрытие пробела H-6. Координатор перестаёт видеть импорты чужих проектов; `head` не затронут |
 
-### Фаза C новой модели доступа — статус
+### Фазы A и C новой модели доступа — применены к бою
 
-Четыре миграции выше **написаны, но не выполнялись нигде** — на машине
-разработки нет Docker. Проверены статически (`typecheck`/`lint`/`test`/
-`build`) и вычиткой SQL. Реальная проверка — прогон CI, где джоба
-`rls-tests` накатывает миграции на эфемерный Postgres и выполняет
-`npm run test:rls`.
+Все восемь миграций применены к боевой базе **11 августа 2026**, по одной,
+через `supabase db query --linked -f <файл>`, с проверкой после каждой.
+Порядок был обязателен: `20260811100300` читает колонку из
+`20260811100100`, `20260811100200` — таблицу из `20260811100000`, а C1–C4
+вызывают функции из `20260811100200`.
 
-Применять строго по возрастанию имени. Откат каждой фазы — повторное
-выполнение файла с прежними определениями (`20260803140000`,
-`20260728120000`/`20260807100300`, `20260805100500`/`20260805100600`,
-`20260805110000` соответственно); C1–C3 от C4 не зависят, поэтому C4
-откатывается отдельно.
+Перед выкатом прогон CI (джоба `rls-tests`) подтвердил все восемь на
+эфемерном Postgres — 59 RLS-тестов. Локально проверить нечем: на машине
+разработки нет Docker.
 
-### Фаза A новой модели доступа — статус
+Состояние production после выката:
 
-Четыре миграции выше **написаны, но не выполнялись нигде**: ни на боевой
-базе, ни на локальном Postgres (на машине разработки нет Docker, поэтому
-`npm run test:rls` не запускался). Проверены только статически —
-`typecheck`/`lint`/`test`/`build` и вычитка SQL.
+| Проверка | Значение |
+|---|---|
+| Политик в `public` | **52** (было 50) |
+| `select` → `portal_can_view_section` | 16 |
+| запись → `portal_can_edit_section` | 36 |
+| со старым `portal_can(...)` | **0** |
+| с проектным гейтом | 33 (было 26, +7 от C4) |
+| `using (true)` | 0 |
+| `portal_role_sections()` | совпал с `roles.ts` побайтово для всех 4 ролей, включая порядок |
+| `portal_section_permissions` | 44 seed-строки, 3 CHECK, RLS без политик |
 
-Порядок применения имеет значение: `20260811100300` читает колонку, которую
-добавляет `20260811100100`, а `20260811100200` — таблицу из
-`20260811100000`. Применять строго по возрастанию имени.
+**Важно про способ применения.** `supabase db query --linked -f` **не**
+записывает версию в `supabase_migrations.schema_migrations` — именно так
+возникала прежняя рассинхронизация (см. раздел ниже). После каждого файла
+версия дописывалась вручную:
 
-Перед применением стоит прогнать `npm run test:rls` на эфемерной базе
-(`supabase start`) — там лежит `src/testing/rls/sectionPermissions.rls-test.ts`,
-сверяющий настоящие SQL-функции с матрицей из `roles.ts`. Он тоже ни разу
-не выполнялся.
+```sql
+insert into supabase_migrations.schema_migrations (version)
+values ('<version>') on conflict (version) do nothing;
+```
+
+Итог: 54 записи в истории против 54 файлов локально, расхождений нет.
+
+**Откат.** Повторное выполнение файла с прежними определениями:
+`20260803140000` (C1), `20260728120000`/`20260807100300` (C2),
+`20260805100500`/`20260805100600` (C3), `20260805110000` — только секция
+Row Level Security (C4). C1–C3 от C4 не зависят, поэтому C4 откатывается
+отдельно. **Обратной миграции для фазы A не написано** — если понадобится,
+это отдельная задача.
 
 ## Известная проблема: таблица истории миграций рассинхронизирована с реальной схемой
 
