@@ -212,6 +212,10 @@ Baseline матрицы воспроизводит прежние права о�
 | `portal_has_project(project)` | anon, authenticated | H-6: есть ли доступ к проекту. `head` — всегда `true` (bypass), `all_projects = true` — тоже; остальные — `project = any(portal_users.projects)` |
 | `portal_has_rate_card_project(rate_card_id)` | anon, authenticated | H-6: то же самое для `rates` — своей колонки `project` нет, ищет её через `rate_cards` |
 | `portal_role_sections(role)` | anon, authenticated | Матрица «роль → разделы» в порядке меню. С `20260811100200` читает `portal_section_permissions`; сигнатура и результат прежние, но функция стала `stable` + `security definer` (см. ADR-005) |
+| `portal_role_permissions(role)` | anon, authenticated | Фаза D: матрица роли как объект `{раздел: {visible, can_view, can_edit}}` — то, что уезжает клиенту внутри `portal_user_json`. Только UX, доступ решают политики |
+| `portal_admin_list_section_permissions()` | authenticated | Фаза D: вся матрица для «Настройки → Доступы». Внутри — `portal_require_admin()` |
+| `portal_admin_set_section_permission(role, section, visible, can_view, can_edit)` | authenticated | Фаза D: правка одной ячейки + запись «было → стало» в журнал. Только head. У `head` разделы `settings`/`users` отключить нельзя |
+| `portal_admin_set_user_projects(user_id, projects, all_projects)` | authenticated | Фаза D: проекты пользователя и признак «все проекты» + журнал. Только head |
 | `portal_save_vacancy_project_tree(project_id, expected_version, payload)` | authenticated | TASK-010: атомарное сохранение дерева вакансии (проект+разделы+поля+вложения), проверяет `vacancies`+`settings` и `version` (оптимистическая блокировка) сама |
 | `portal_duplicate_vacancy_project(project_id)` | authenticated | TASK-010: копирует вакансию целиком под новым id, та же проверка доступа |
 | `search_vacancy_projects(query)` | authenticated | TASK-010: substring-поиск id вакансий по названию/разделам/полям; пусто, если нет `vacancies` |

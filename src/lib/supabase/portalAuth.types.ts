@@ -13,16 +13,41 @@ import type { PortalRole } from "@/lib/auth/roles";
  * `portal_audit_log` закрыты RLS полностью и доступны только через RPC.
  */
 
+/**
+ * Права роли на один раздел. Приходят с сервера из
+ * `portal_section_permissions` — той же таблицы, на которую смотрит RLS.
+ *
+ * `visible` — только UX: скрытый пункт меню не является защитой, прямой
+ * заход по URL обязан упереться в `can_view` (middleware) и в политики RLS.
+ */
+export interface SectionPermission {
+  visible: boolean;
+  can_view: boolean;
+  can_edit: boolean;
+}
+
+/**
+ * Матрица прав роли: ключ — раздел (`PortalPermission`), значение — три
+ * флага. Ключи присутствуют для **всех** разделов, включая недоступные (у
+ * них все три `false`), поэтому отсутствие ключа означает не «нет права», а
+ * рассинхронизацию с `portal_section_order()`.
+ */
+export type SectionPermissions = Record<string, SectionPermission>;
+
 export interface PortalUser {
   id: string;
   full_name: string;
   login: string;
   role: PortalRole;
   projects: string[];
+  /** `true` — доступны все проекты, включая будущие; `projects` игнорируется. */
+  all_projects: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;
   last_login_at: string | null;
+  /** Матрица прав роли. Источник истины — база, а не `roles.ts`. */
+  permissions: SectionPermissions;
 }
 
 /** Почему вход не удался. `disabled` — учётка отключена администратором. */
@@ -52,7 +77,9 @@ export type PortalAuditAction =
   | "user_deactivated"
   | "login_success"
   | "login_failed"
-  | "logout";
+  | "logout"
+  | "section_permission_changed"
+  | "user_projects_changed";
 
 export interface PortalAuditEntry {
   id: string;
@@ -76,6 +103,22 @@ export interface PortalUserPatch {
   full_name: string;
   role: PortalRole;
   projects: string[];
+}
+
+/** Строка матрицы прав в ответе `portal_admin_list_section_permissions`. */
+export interface SectionPermissionRow {
+  role: PortalRole;
+  section: string;
+  visible: boolean;
+  can_view: boolean;
+  can_edit: boolean;
+  updated_at: string;
+}
+
+/** Что меняет `portal_admin_set_user_projects`: список и признак «все проекты». */
+export interface PortalUserProjectsPatch {
+  projects: string[];
+  all_projects: boolean;
 }
 
 /** Схема для типизированного клиента Supabase: только RPC, без таблиц. */
@@ -137,6 +180,24 @@ export type PortalAuthDatabase = {
       portal_admin_list_audit: {
         Args: { p_limit?: number };
         Returns: PortalAuditEntry[];
+      };
+      portal_admin_list_section_permissions: {
+        Args: never;
+        Returns: SectionPermissionRow[];
+      };
+      portal_admin_set_section_permission: {
+        Args: {
+          p_role: PortalRole;
+          p_section: string;
+          p_visible: boolean;
+          p_can_view: boolean;
+          p_can_edit: boolean;
+        };
+        Returns: SectionPermissionRow;
+      };
+      portal_admin_set_user_projects: {
+        Args: { p_user_id: string; p_projects: string[]; p_all_projects: boolean };
+        Returns: PortalUser;
       };
     };
     Enums: {

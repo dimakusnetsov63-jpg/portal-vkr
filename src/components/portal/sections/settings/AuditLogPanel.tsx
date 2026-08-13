@@ -27,6 +27,8 @@ const ACTION_LABELS: Record<PortalAuditAction, string> = {
   login_success: "вошёл в портал",
   login_failed: "неудачная попытка входа",
   logout: "вышел из портала",
+  section_permission_changed: "изменил права роли",
+  user_projects_changed: "изменил проекты пользователя",
 };
 
 function formatMoment(iso: string): string {

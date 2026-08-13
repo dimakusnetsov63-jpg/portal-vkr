@@ -1,9 +1,12 @@
 import { createPortalAuthClient } from "./client";
+import type { PortalRole } from "@/lib/auth/roles";
 import type {
   NewPortalUserInput,
   PortalAuditEntry,
   PortalUser,
   PortalUserPatch,
+  PortalUserProjectsPatch,
+  SectionPermissionRow,
 } from "./portalAuth.types";
 
 /**
@@ -75,6 +78,60 @@ export async function setPortalUserPassword(id: string, password: string): Promi
   const { data, error } = await supabase.rpc("portal_admin_set_password", {
     p_user_id: id,
     p_password: password,
+  });
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Проекты пользователя — отдельно от `updatePortalUser`: у той пришлось бы
+ * менять сигнатуру RPC вместе с грантами. Здесь ровно один орган
+ * управления — список проектов и чекбокс «Все проекты».
+ *
+ * Пустой список допустим только вместе с `all_projects: true`; иначе база
+ * ответит `22023` — учётка без проектов не увидит ни строки ни в одном
+ * проектном разделе.
+ */
+export async function setPortalUserProjects(
+  id: string,
+  patch: PortalUserProjectsPatch,
+): Promise<PortalUser> {
+  const supabase = createPortalAuthClient();
+  const { data, error } = await supabase.rpc("portal_admin_set_user_projects", {
+    p_user_id: id,
+    p_projects: patch.projects,
+    p_all_projects: patch.all_projects,
+  });
+  if (error) throw error;
+  return data;
+}
+
+/** Матрица прав целиком — для раздела «Настройки → Доступы». */
+export async function listSectionPermissions(): Promise<SectionPermissionRow[]> {
+  const supabase = createPortalAuthClient();
+  const { data, error } = await supabase.rpc("portal_admin_list_section_permissions");
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Одна ячейка матрицы. Инвариант `can_edit => can_view => visible`
+ * проверяет база: она же вернёт внятную ошибку, если интерфейс пропустит
+ * невалидное сочетание. У роли `head` разделы `settings` и `users`
+ * отключить нельзя — иначе управление доступами станет недостижимым.
+ */
+export async function setSectionPermission(
+  role: PortalRole,
+  section: string,
+  flags: { visible: boolean; can_view: boolean; can_edit: boolean },
+): Promise<SectionPermissionRow> {
+  const supabase = createPortalAuthClient();
+  const { data, error } = await supabase.rpc("portal_admin_set_section_permission", {
+    p_role: role,
+    p_section: section,
+    p_visible: flags.visible,
+    p_can_view: flags.can_view,
+    p_can_edit: flags.can_edit,
   });
   if (error) throw error;
   return data;

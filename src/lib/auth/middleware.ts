@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE, resolveSession } from "./session";
+import { SESSION_COOKIE, type PortalSession, resolveSession } from "./session";
 import { canAccess, isPortalPage } from "./roles";
+import type { PortalPage } from "@/lib/portal/types";
 
 /**
  * Централизованная проверка доступа. Выполняется перед каждым защищённым
@@ -90,9 +91,33 @@ export async function guardRequest(request: NextRequest): Promise<NextResponse> 
   // единственное, по чему на уровне маршрута видно, куда именно идёт
   // пользователь.
   const section = searchParams.get("section");
-  if (pathname === "/" && section && isPortalPage(section) && !canAccess(session.user.role, section)) {
+  if (pathname === "/" && section && isPortalPage(section) && !canViewSection(session, section)) {
     return redirectTo(FORBIDDEN_PATH);
   }
 
   return NextResponse.next();
+}
+
+/**
+ * Может ли пользователь открыть раздел. Права приходят с сервера — из той
+ * же таблицы `portal_section_permissions`, на которую смотрит RLS, поэтому
+ * middleware и база отвечают на вопрос доступа одинаково, а не по двум
+ * независимым матрицам, как было до фазы D.
+ *
+ * Проверяется `can_view`, а не `visible`: скрытый пункт меню — это UX, и
+ * прямой заход по URL обязан упираться именно в право читать раздел.
+ * Обратное сочетание (`visible` без `can_view`) невозможно — запрещено
+ * CHECK-ограничением таблицы.
+ *
+ * Запасной путь на `roles.ts` нужен ровно для одного случая: код выкачен, а
+ * миграции фазы D ещё не применены — тогда `permissions` в ответе RPC не
+ * будет вовсе. Прав он не расширяет: baseline матрицы воспроизводит
+ * `ROLE_PERMISSIONS` один в один, поэтому запасной путь даёт тот же ответ,
+ * что и основной. Настоящая граница доступа к данным в любом случае не
+ * здесь, а в политиках RLS.
+ */
+export function canViewSection(session: PortalSession, section: PortalPage): boolean {
+  const permission = session.user.permissions?.[section];
+  if (!permission) return canAccess(session.user.role, section);
+  return permission.can_view;
 }
