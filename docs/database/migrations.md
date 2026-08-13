@@ -17,6 +17,18 @@
    (`if not exists`, `on conflict do nothing`).
 7. Миграция применяется к боевой базе **только по прямой команде** — у проекта
    один Supabase-контур, отдельного dev-стенда нет.
+8. **Новая таблица = RLS + политики + явный `GRANT`.** Три части, не две.
+   До SEC-3 (`20260813110000`) права выдавала платформа сама, и схема молча
+   на это опиралась; теперь автовыдача отключена и в CI, и в модели прав.
+   Забытый грант выглядит как работающая защита: PostgREST отвечает
+   `403`/`42501` — тем же кодом, что и при отказе RLS. Ловит это
+   `scripts/verify-grants.sql`, который CI выполняет до тестов; новая
+   таблица данных без строки в его списке роняет проверку намеренно.
+
+   Ориентир по составу: выдавать ровно то, что разрешают политики таблицы
+   (`select`-политика → `grant select`, и так далее). `TRUNCATE`,
+   `REFERENCES`, `TRIGGER`, `MAINTAIN` не выдаются никому; `anon` не
+   получает ничего — политик для него нет ни на одной таблице.
 
 ## Порядок применения
 
@@ -108,6 +120,8 @@ npx supabase db query --linked "select conname, pg_get_constraintdef(oid) from p
 | `20260813100000_audit_action_permissions.sql` | **Не применена.** Фаза D: два значения enum `portal_audit_action` — `section_permission_changed`, `user_projects_changed`. Отдельной миграцией: новое значение enum нельзя использовать в транзакции, которая его создала |
 | `20260813100100_permission_payload.sql` | **Не применена.** Фаза D: ограничение `portal_users_projects_not_empty` ослаблено до `all_projects or cardinality(projects) > 0`; новая `portal_role_permissions(role)` — матрица роли как jsonb; `portal_user_json()` расширена полями `all_projects` и `permissions`, из-за чего их автоматически получают `portal_login` и `portal_session_context` — переписывать `portal_login` (там живёт лимит входа C-3/C-4) не потребовалось. `portal_admin_list_users()` пересоздана отдельно (`drop`+`create`, состав колонок у `returns table` не меняется через `create or replace`): она объявлена явным списком колонок и `portal_user_json` не использует |
 | `20260813100200_permission_admin_rpc.sql` | **Не применена.** Фаза D: `portal_admin_list_section_permissions()`, `portal_admin_set_section_permission(...)`, `portal_admin_set_user_projects(...)` — все под `portal_require_admin()` (роль head) и с записью «было → стало» в `portal_audit_log`. Плюс `portal_admin_update_user` согласована с «Все проекты»: пустой список проектов допустим, если у учётки поднят `all_projects` |
+
+| `20260813110000_explicit_table_grants.sql` | **Не применена.** SEC-3: явные табличные `GRANT`'ы вместо неявной автовыдачи платформы. Отзывает всё у `anon` и `authenticated` на всех таблицах и последовательностях `public` (циклом — чтобы не пропустить таблицу), затем выдаёт `authenticated` ровно то, что разрешают политики каждой таблицы, и подтверждает минимум для `service_role`. `anon` не получает ничего; `TRUNCATE`/`REFERENCES`/`TRIGGER`/`MAINTAIN` не выдаются. Заодно закрывает `portal_login_attempts_id_seq`, доступную `anon`/`authenticated` с `20260801100000`. Политики RLS и функции не трогаются |
 
 ### Фаза D — статус
 

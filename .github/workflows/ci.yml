@@ -110,30 +110,21 @@ jobs:
       - name: Temporarily enable auth for this ephemeral checkout only
         run: sed -i '/^\[auth\]$/,/^\[auth\./ s/^enabled = false$/enabled = true/' supabase/config.toml
 
-      # The project's migrations contain no table-level GRANTs at all — only
-      # REVOKEs on the portal_* tables. Production works because Supabase
-      # Cloud auto-exposed those tables to anon/authenticated/service_role
-      # when they were created (the legacy behaviour). The local CLI defaults
-      # to the *new* always-revoked behaviour, so without this the tables
-      # exist but no Data API role can touch them — which would make these
-      # tests worse than useless: "recruiter can't write to another project"
-      # would pass with 42501 because of a *missing grant*, not because RLS
-      # rejected it. Same error code, completely different reason.
-      #
-      # Turning this on reproduces production's actual grant state, letting
-      # RLS be the only thing standing between a role and a row — which is
-      # the entire point of these tests. The portal_auth migration then
-      # revokes anon/authenticated from portal_* on top, exactly as in prod,
-      # leaving service_role able to manage fixtures.
-      #
-      # NOTE: this flag is removed from the CLI on 2026-10-30. See
-      # docs/ROLLOUT-rls-tests.md — the project needs explicit grants in
-      # migrations before then regardless of these tests.
-      - name: Reproduce production's table grants in this ephemeral checkout
-        run: sed -i 's/^# auto_expose_new_tables = true$/auto_expose_new_tables = true/' supabase/config.toml
-
       # Applies every migration under supabase/migrations/ to a fresh,
       # disposable local Postgres — never touches the production project.
+      #
+      # NOTE: there used to be a step here flipping `auto_expose_new_tables`
+      # on, because the project's migrations contained no table-level GRANTs
+      # and relied on Supabase Cloud's legacy auto-exposure instead. That
+      # made these tests worse than useless: without grants PostgREST answers
+      # 403/42501 — the same code RLS uses to reject a row — so "recruiter
+      # can't write to another project" would have passed because of a
+      # *missing grant*, not because a policy rejected it.
+      #
+      # SEC-3 (migration 20260813110000) made the grants explicit, so the
+      # ephemeral database is now built from migrations alone. That is the
+      # point: a green run here proves the grants are complete. The flag is
+      # removed from the CLI on 2026-10-30 anyway — this job no longer cares.
       - run: npx supabase start
 
       # Maps supabase status's own key names onto RLS_TEST_* (src/testing/rls/env.ts)
@@ -147,20 +138,18 @@ jobs:
       - name: Export local Supabase connection details
         run: npx supabase status -o env | node scripts/rls-env-from-supabase-status.mjs
 
-      # portal_users is the one table the migrations actively REVOKE
-      # (20260728120000: `revoke all ... from anon, authenticated` — service_role
-      # is untouched, so auto_expose above already covers it). Kept as an
-      # explicit belt-and-braces grant anyway: fixtures must be able to seed
-      # test users directly, since portal_admin_create_user needs an existing
-      # head caller to authorise it — a chicken-and-egg problem for the very
-      # first fixture in an empty database. Scoped to exactly what
-      # src/testing/rls/client.ts does, on this ephemeral database only.
+      # SEC-3: proves the grants come from migrations, not from the platform.
+      # Runs before the tests on purpose — a missing grant would otherwise
+      # surface as a 403/42501 inside some scenario test, indistinguishable
+      # from an RLS rejection and far harder to read than this check's
+      # explicit "expected [...] / actual [...]" message.
       #
-      # (An earlier version of this comment claimed candidates/rate_cards/rates
-      # needed no equivalent grant. That was wrong — they need grants too, but
-      # via auto_expose_new_tables above, not one-off statements here.)
-      - name: Grant service_role access to portal_users for fixtures only
-        run: npx supabase db query --local "grant select, insert, delete on public.portal_users to service_role;"
+      # This also replaces the one-off `grant ... on portal_users to
+      # service_role` that used to live here: migration 20260813110000 grants
+      # it, so the fixtures' direct access to portal_users is now part of the
+      # schema rather than a CI-only patch.
+      - name: Verify grant model (SEC-3)
+        run: npx supabase db query --local -f scripts/verify-grants.sql
 
       - run: npm run test:rls
 
