@@ -117,24 +117,42 @@ npx supabase db query --linked "select conname, pg_get_constraintdef(oid) from p
 | `20260811110200_rls_view_edit_vacancies.sql` | **Применена 11 августа 2026.** Фаза C3: 16 политик на пяти `vacancy_*` + три `SECURITY DEFINER`-функции (`portal_save_vacancy_project_tree`, `portal_duplicate_vacancy_project`, `search_vacancy_projects`). Связка `vacancies + settings` растворена в `portal_can_edit_section('vacancies')` — различие уже несёт baseline. Поведение не меняется |
 | `20260811110300_rls_import_tables_project_scope.sql` | **Применена 11 августа 2026. Единственная миграция фазы C, меняющая поведение.** `project_import_configs` (`for all` разбита на insert/update/delete) и `staffing_demand_imports` получают `portal_has_project(project)` — закрытие пробела H-6. Координатор перестаёт видеть импорты чужих проектов; `head` не затронут |
 
-| `20260813100000_audit_action_permissions.sql` | **Не применена.** Фаза D: два значения enum `portal_audit_action` — `section_permission_changed`, `user_projects_changed`. Отдельной миграцией: новое значение enum нельзя использовать в транзакции, которая его создала |
-| `20260813100100_permission_payload.sql` | **Не применена.** Фаза D: ограничение `portal_users_projects_not_empty` ослаблено до `all_projects or cardinality(projects) > 0`; новая `portal_role_permissions(role)` — матрица роли как jsonb; `portal_user_json()` расширена полями `all_projects` и `permissions`, из-за чего их автоматически получают `portal_login` и `portal_session_context` — переписывать `portal_login` (там живёт лимит входа C-3/C-4) не потребовалось. `portal_admin_list_users()` пересоздана отдельно (`drop`+`create`, состав колонок у `returns table` не меняется через `create or replace`): она объявлена явным списком колонок и `portal_user_json` не использует |
-| `20260813100200_permission_admin_rpc.sql` | **Не применена.** Фаза D: `portal_admin_list_section_permissions()`, `portal_admin_set_section_permission(...)`, `portal_admin_set_user_projects(...)` — все под `portal_require_admin()` (роль head) и с записью «было → стало» в `portal_audit_log`. Плюс `portal_admin_update_user` согласована с «Все проекты»: пустой список проектов допустим, если у учётки поднят `all_projects` |
+| `20260813100000_audit_action_permissions.sql` | **Применена 13 августа 2026.** Фаза D: два значения enum `portal_audit_action` — `section_permission_changed`, `user_projects_changed`. Отдельной миграцией: новое значение enum нельзя использовать в транзакции, которая его создала |
+| `20260813100100_permission_payload.sql` | **Применена 13 августа 2026.** Фаза D: ограничение `portal_users_projects_not_empty` ослаблено до `all_projects or cardinality(projects) > 0`; новая `portal_role_permissions(role)` — матрица роли как jsonb; `portal_user_json()` расширена полями `all_projects` и `permissions`, из-за чего их автоматически получают `portal_login` и `portal_session_context` — переписывать `portal_login` (там живёт лимит входа C-3/C-4) не потребовалось. `portal_admin_list_users()` пересоздана отдельно (`drop`+`create`, состав колонок у `returns table` не меняется через `create or replace`): она объявлена явным списком колонок и `portal_user_json` не использует |
+| `20260813100200_permission_admin_rpc.sql` | **Применена 13 августа 2026.** Фаза D: `portal_admin_list_section_permissions()`, `portal_admin_set_section_permission(...)`, `portal_admin_set_user_projects(...)` — все под `portal_require_admin()` (роль head) и с записью «было → стало» в `portal_audit_log`. Плюс `portal_admin_update_user` согласована с «Все проекты»: пустой список проектов допустим, если у учётки поднят `all_projects` |
 
-| `20260813110000_explicit_table_grants.sql` | **Не применена.** SEC-3: явные табличные `GRANT`'ы вместо неявной автовыдачи платформы. Отзывает всё у `anon` и `authenticated` на всех таблицах и последовательностях `public` (циклом — чтобы не пропустить таблицу), затем выдаёт `authenticated` ровно то, что разрешают политики каждой таблицы, и подтверждает минимум для `service_role`. `anon` не получает ничего; `TRUNCATE`/`REFERENCES`/`TRIGGER`/`MAINTAIN` не выдаются. Заодно закрывает `portal_login_attempts_id_seq`, доступную `anon`/`authenticated` с `20260801100000`. Политики RLS и функции не трогаются |
+| `20260813110000_explicit_table_grants.sql` | **Применена 14 августа 2026.** SEC-3: явные табличные `GRANT`'ы вместо неявной автовыдачи платформы. Отзывает всё у `anon` и `authenticated` на всех таблицах и последовательностях `public` (циклом — чтобы не пропустить таблицу), затем выдаёт `authenticated` ровно то, что разрешают политики каждой таблицы, и подтверждает минимум для `service_role`. `anon` не получает ничего; `TRUNCATE`/`REFERENCES`/`TRIGGER`/`MAINTAIN` не выдаются. Заодно закрывает `portal_login_attempts_id_seq`, доступную `anon`/`authenticated` с `20260801100000`. Политики RLS и функции не трогаются |
 
-### Фаза D — статус
+### Фаза D — применена к бою 13 августа 2026
 
-Три миграции выше **написаны, но не применялись**. Порядок обязателен:
-`20260813100000` создаёт значения enum, `20260813100200` их использует —
-между ними должна пройти граница транзакции, поэтому применять по одному
-файлу, а не одним куском.
+Три миграции применены по одной, с проверкой после каждой. Порядок был
+обязателен: `20260813100000` создаёт значения enum, `20260813100200` их
+использует — между ними должна пройти граница транзакции, поэтому по
+одному файлу, а не одним куском.
 
-`20260813100100` меняет `portal_user_json()`, то есть форму ответа трёх
-RPC сразу. Код фазы D к этому готов (`PortalUser` получил `all_projects` и
-`permissions`), но **выкатывать код нужно после миграций**: до них
-`permissions` в ответе не будет. Middleware это переживёт — у него есть
-запасной путь на `roles.ts`, дающий тот же ответ, что и baseline матрицы.
+Проверено после применения: enum `portal_audit_action` — 11 значений,
+ограничение `portal_users_projects_not_empty` ослаблено до
+`all_projects or cardinality(projects) > 0`, `portal_role_permissions()`
+отдаёт 11 ключей, `portal_admin_list_users()` пересоздана с
+`all_projects`/`permissions`, три админские RPC на месте и
+`security definer`.
+
+Порядок выката кода и миграций: код фазы D уехал на Vercel автодеплоем
+**раньше** миграций (сразу по push). Сломать это не могло — у middleware
+есть запасной путь на `roles.ts`, дающий тот же ответ, что и baseline
+матрицы, — но правильный порядок обратный: сначала миграции, потом код.
+
+### SEC-3 — применена к бою 14 августа 2026
+
+`20260813110000` перевела права с неявной автовыдачи платформы на явные
+`GRANT` в миграции. Приёмка: `scripts/verify-grants.sql` прошёл против
+боевой базы без единого нарушения (накануне тот же скрипт отвергал
+состояние со 128 замечаниями). `anon` — ноль привилегий, `authenticated` —
+16 таблиц и 52 привилегии ровно по составу политик, `service_role` —
+полный набор сохранён, последовательность закрыта.
+
+Осталась незакрытой проверка портала под живой учётной записью — см.
+`tasks/backlog.md`, SEC-3.
 
 ### Фазы A и C новой модели доступа — применены к бою
 
