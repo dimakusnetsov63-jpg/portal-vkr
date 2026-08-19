@@ -39,6 +39,12 @@ describe("RLS: контроль качества — доступ, проект�
   let secondScoredItemId: string;
   let reviewInB: { id: string };
 
+  // Отдельная учётка с уникальным ФИО: автосвязка ставится только при
+  // единственном совпадении, а `createTestPortalUser` даёт всем
+  // координаторам одинаковое имя «RLS Test coordinator».
+  const employeeFullName = `${marker} Сотрудник Портала`;
+  let employeeUser: { id: string };
+
   async function callSave(userId: string, body: Record<string, unknown>): Promise<Response> {
     return asUserFetch(userId, "/rpc/portal_save_quality_review", {
       method: "POST",
@@ -99,6 +105,15 @@ describe("RLS: контроль качества — доступ, проект�
       sort_order: 3,
     });
     secondScoredItemId = second.id;
+
+    employeeUser = await insertTestRow<{ id: string }>("portal_users", {
+      full_name: employeeFullName,
+      login: `${marker}emp`.toLowerCase().slice(0, 32),
+      password_hash: "rls-test-fixture-not-a-real-hash",
+      role: "recruiter",
+      projects: [projectA],
+      is_active: true,
+    });
 
     // Проверка чужого проекта — цель попыток доступа ниже.
     reviewInB = await insertTestRow<{ id: string }>("quality_reviews", {
@@ -373,6 +388,84 @@ describe("RLS: контроль качества — доступ, проект�
 
     const untouched = await readRowAsServiceRole<{ title: string }>("quality_checklist_items", scoredItemId);
     expect(untouched?.title).toBe("Пункт с баллом");
+  });
+
+  // --- Личность сотрудника (B4) ------------------------------------------
+
+  it("B4: имя сотрудника нормализуется — края обрезаются, пробелы внутри схлопываются", async () => {
+    // Ровно тот случай, который расщеплял статистику: «Иванов  Иван» и
+    // «Иванов Иван» попадали в отчёт как два разных человека.
+    const response = await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555012,
+        project: projectA,
+        employee_name: "  Иванов   Иван  ",
+        status: "draft",
+        scores: [{ item_id: gateItemId, value: 1, is_na: false }],
+      },
+    });
+    expect(response.ok).toBe(true);
+    const saved = (await response.json()) as { id: string; employee_name: string };
+    expect(saved.employee_name).toBe("Иванов Иван");
+
+    const stored = await readRowAsServiceRole<{ employee_name: string }>("quality_reviews", saved.id);
+    expect(stored?.employee_name).toBe("Иванов Иван");
+  });
+
+  it("B4: employee_user_id проставляется сам при совпадении ФИО с активной учёткой", async () => {
+    const response = await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555013,
+        project: projectA,
+        // ФИО ровно как у заведённой ниже учётной записи, но с лишними
+        // пробелами — связка обязана сработать после нормализации.
+        employee_name: `  ${employeeFullName}  `,
+        status: "draft",
+        scores: [{ item_id: gateItemId, value: 1, is_na: false }],
+      },
+    });
+    expect(response.ok).toBe(true);
+    const saved = (await response.json()) as { id: string; employee_user_id: string | null };
+    expect(saved.employee_user_id).toBe(employeeUser.id);
+  });
+
+  it("B4: сотрудник без учётной записи сохраняется без связки, а не с ошибкой", async () => {
+    // Учётки нет у большинства сотрудников КЦ — это норма, а не сбой.
+    const response = await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555014,
+        project: projectA,
+        employee_name: `${marker} Без учётки`,
+        status: "draft",
+        scores: [{ item_id: gateItemId, value: 1, is_na: false }],
+      },
+    });
+    expect(response.ok).toBe(true);
+    const saved = (await response.json()) as { employee_user_id: string | null };
+    expect(saved.employee_user_id).toBeNull();
+  });
+
+  it("B4: пустое имя сотрудника отвергается", async () => {
+    const response = await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555015,
+        project: projectA,
+        employee_name: "   ",
+        status: "draft",
+        scores: [],
+      },
+    });
+    expect(response.ok).toBe(false);
+    const body = (await response.json()) as { code: string };
+    expect(body.code).toBe("P0001");
   });
 
   it("SEC-03: слишком длинное значение отвергается ограничением базы", async () => {

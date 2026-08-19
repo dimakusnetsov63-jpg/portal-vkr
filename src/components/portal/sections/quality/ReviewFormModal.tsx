@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePortal } from "@/components/portal/context/PortalContext";
 import { Badge } from "@/components/portal/ui/Badge";
 import { Button } from "@/components/portal/ui/Button";
+import { Combobox } from "@/components/portal/ui/Combobox";
 import { Modal } from "@/components/portal/ui/Modal";
 import { SkeletonLines } from "@/components/portal/ui/StateViews";
 import { activeListOptions } from "@/lib/portal/candidateOptions";
@@ -104,6 +105,12 @@ export function ReviewFormModal({
   const cityOptions = useMemo(() => activeListOptions(listOptions, "city").map((option) => option.value), [listOptions]);
   const objectionOptions = useMemo(
     () => activeListOptions(listOptions, "qc_objection").map((option) => option.value),
+    [listOptions],
+  );
+  // Сотрудники КЦ — тот же справочник, что «Рекрутер» у кандидатов: это
+  // одни и те же люди, отдельного списка раздел не заводит (B4 аудита).
+  const employeeOptions = useMemo(
+    () => activeListOptions(listOptions, "recruiter").map((option) => option.value),
     [listOptions],
   );
   const violationOptions = useMemo(
@@ -391,11 +398,20 @@ export function ReviewFormModal({
 
         <label className={primitives.field}>
           <span>Сотрудник</span>
-          <input
+          {/*
+            Combobox, а не свободный input: по этому полю группируется вся
+            отчётность раздела, и опечатка расщепляет статистику человека на
+            двух разных людей. Список — общий справочник «Рекрутеры»
+            (candidate_list_options), тот же, что у кандидатов. Свободный
+            ввод при этом остаётся: новый сотрудник не должен упираться в
+            то, что его ещё не завели в Настройках. Пробелы схлопывает база.
+          */}
+          <Combobox
             value={form.employeeName}
-            maxLength={200}
+            onChange={(value) => setField("employeeName", value)}
+            options={employeeOptions}
             placeholder="Фамилия Имя"
-            onChange={(event) => setField("employeeName", event.target.value)}
+            emptyHint="Список пуст — добавьте сотрудников в Настройки → Списки → Рекрутеры."
           />
         </label>
       </div>
