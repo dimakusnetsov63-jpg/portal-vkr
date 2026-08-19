@@ -1684,6 +1684,7 @@ export type Database = {
           employee_name: string
           project: string
           reviews_count: number
+          scored_count: number
         }[]
       }
       portal_require_admin: {

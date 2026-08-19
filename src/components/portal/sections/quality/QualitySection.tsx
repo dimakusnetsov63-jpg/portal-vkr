@@ -24,6 +24,7 @@ import { ReviewDrawer } from "./ReviewDrawer";
 import { ReviewFormModal } from "./ReviewFormModal";
 import { ReviewsTable } from "./ReviewsTable";
 import { KIND_LABELS, QUALITY_KINDS, formatPercent } from "./qualityOptions";
+import { summarizeReport } from "./qualityReport";
 
 const PAGE_SIZE = 25;
 
@@ -164,24 +165,7 @@ export function QualitySection() {
     };
   }
 
-  const stats = useMemo(() => {
-    const reviews = report.reduce((sum, row) => sum + Number(row.reviews_count), 0);
-    const cases = report.reduce((sum, row) => sum + Number(row.cases_count), 0);
-    const critical = report.reduce((sum, row) => sum + Number(row.critical_count), 0);
-    const weighted = report.reduce(
-      (sum, row) => (row.avg_total === null ? sum : sum + Number(row.avg_total) * Number(row.reviews_count)),
-      0,
-    );
-    const scored = report.reduce((sum, row) => (row.avg_total === null ? sum : sum + Number(row.reviews_count)), 0);
-
-    return {
-      reviews,
-      employees: new Set(report.map((row) => row.employee_name)).size,
-      average: scored === 0 ? null : Math.round((weighted / scored) * 100) / 100,
-      cases,
-      critical,
-    };
-  }, [report]);
+  const stats = useMemo(() => summarizeReport(report), [report]);
 
   function resetFilters() {
     setPage(0);
@@ -204,7 +188,12 @@ export function QualitySection() {
         <div className={styles.statGrid}>
           <StatCard icon="shield" value={stats.reviews} label="Проверок за период" />
           <StatCard icon="users" value={stats.employees} label="Сотрудников проверено" />
-          <StatCard icon="bar" value={formatPercent(stats.average)} label="Средний итог" />
+          <StatCard
+            icon="bar"
+            value={formatPercent(stats.average)}
+            sublabel={stats.scored < stats.reviews ? `по ${stats.scored} из ${stats.reviews}` : undefined}
+            label="Средний итог"
+          />
           <StatCard icon="heart" value={stats.cases} label="Кейсов в аудиотеку" />
           <StatCard icon="alert" value={stats.critical} label="Критических ошибок" />
         </div>

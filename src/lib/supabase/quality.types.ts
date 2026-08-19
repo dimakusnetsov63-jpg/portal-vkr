@@ -102,6 +102,13 @@ export interface QualityReportRow {
   employee_name: string;
   project: string;
   reviews_count: number;
+  /**
+   * Сколько из них дали числовой итог. Отличается от `reviews_count`, когда
+   * у проверки нечего было считать (все пункты «н/д» либо блок выключен
+   * переключателем). Это знаменатель среднего — взвешивать на
+   * `reviews_count` нельзя, см. qualityReport.ts.
+   */
+  scored_count: number;
   avg_total: number | null;
   cases_count: number;
   critical_count: number;

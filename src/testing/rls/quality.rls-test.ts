@@ -370,6 +370,110 @@ describe("RLS: контроль качества — доступ, проект�
     expect(body.code).toBe("P0001");
   });
 
+  // --- Сводка -------------------------------------------------------------
+
+  it("C1: сводка отдаёт scored_count отдельно от reviews_count", async () => {
+    // Две завершённые проверки одного сотрудника: одна с баллами, вторая
+    // целиком «не применимо» — у неё итога нет вовсе (считать не из чего).
+    // Именно на таком сочетании средний и уезжал, пока взвешивали на
+    // reviews_count.
+    const employee = `${marker} Отчётный`;
+
+    const scored = await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555020,
+        project: projectA,
+        employee_name: employee,
+        status: "completed",
+        scores: fullScores(),
+      },
+    });
+    expect(scored.ok).toBe(true);
+    expect(Number(((await scored.json()) as { total_score: number }).total_score)).toBe(75);
+
+    const unscored = await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555021,
+        project: projectA,
+        employee_name: employee,
+        status: "completed",
+        scores: [
+          { item_id: gateItemId, value: 1, is_na: false },
+          { item_id: scoredItemId, value: null, is_na: true },
+          { item_id: secondScoredItemId, value: null, is_na: true },
+        ],
+      },
+    });
+    expect(unscored.ok).toBe(true);
+    expect(((await unscored.json()) as { total_score: number | null }).total_score).toBeNull();
+
+    const report = await asUserFetch(coordinatorA.id, "/rpc/portal_quality_report", {
+      method: "POST",
+      body: JSON.stringify({ p_from: "2020-01-01", p_to: "2100-01-01", p_project: projectA }),
+    });
+    expect(report.ok).toBe(true);
+
+    const rows = (await report.json()) as {
+      employee_name: string;
+      reviews_count: number;
+      scored_count: number;
+      avg_total: number | null;
+    }[];
+    const mine = rows.find((r) => r.employee_name === employee);
+
+    expect(mine).toBeDefined();
+    expect(Number(mine?.reviews_count)).toBe(2);
+    expect(Number(mine?.scored_count)).toBe(1);
+    expect(Number(mine?.avg_total)).toBe(75);
+  });
+
+  it("черновики в сводку не попадают", async () => {
+    const employee = `${marker} Черновиковый`;
+
+    const draft = await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555022,
+        project: projectA,
+        employee_name: employee,
+        status: "draft",
+        scores: fullScores(),
+      },
+    });
+    expect(draft.ok).toBe(true);
+
+    const report = await asUserFetch(coordinatorA.id, "/rpc/portal_quality_report", {
+      method: "POST",
+      body: JSON.stringify({ p_from: "2020-01-01", p_to: "2100-01-01", p_project: projectA }),
+    });
+    const rows = (await report.json()) as { employee_name: string }[];
+    expect(rows.some((r) => r.employee_name === employee)).toBe(false);
+  });
+
+  it("менеджер видит сводку — раздел ему открыт на чтение", async () => {
+    const report = await asUserFetch(managerA.id, "/rpc/portal_quality_report", {
+      method: "POST",
+      body: JSON.stringify({ p_from: "2020-01-01", p_to: "2100-01-01", p_project: projectA }),
+    });
+    expect(report.ok).toBe(true);
+  });
+
+  it("рекрутёр не получает из сводки ничего — раздела у него нет", async () => {
+    const report = await asUserFetch(recruiterA.id, "/rpc/portal_quality_report", {
+      method: "POST",
+      body: JSON.stringify({ p_from: "2020-01-01", p_to: "2100-01-01" }),
+    });
+    // Функция SECURITY DEFINER и проверяет право внутри запроса: отказа не
+    // будет, но и строк тоже.
+    expect(report.ok).toBe(true);
+    expect((await report.json()) as unknown[]).toHaveLength(0);
+  });
+
   // --- Шаблоны -----------------------------------------------------------
 
   it("менеджер не может править шаблон проверки", async () => {
