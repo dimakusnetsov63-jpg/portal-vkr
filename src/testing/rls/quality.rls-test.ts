@@ -362,8 +362,14 @@ describe("RLS: контроль качества — доступ, проект�
       method: "PATCH",
       body: JSON.stringify({ title: "Переписано менеджером" }),
     });
-    // Политика UPDATE требует can_edit('quality'); у manager его нет.
-    expect([403, 404]).toContain(response.status);
+
+    // Грант UPDATE у роли есть, поэтому отказа по привилегиям не будет:
+    // политика с can_edit('quality') просто не пропускает ни одной строки,
+    // и PostgREST отвечает 200 с пустым списком. Тот же приём, что в
+    // viewEditPolicies.rls-test.ts — проверяем не код ответа, а то, что
+    // строка не изменилась.
+    expect(response.status).toBe(200);
+    expect((await response.json()) as unknown[]).toHaveLength(0);
 
     const untouched = await readRowAsServiceRole<{ title: string }>("quality_checklist_items", scoredItemId);
     expect(untouched?.title).toBe("Пункт с баллом");

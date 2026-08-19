@@ -1,6 +1,19 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { PortalRole } from "@/lib/auth/roles";
+import { PORTAL_ROLES, permissionsForRole, type PortalRole } from "@/lib/auth/roles";
 import { asUserFetch, cleanupTestFixtures, createTestPortalUser, testMarker } from "./client";
+
+/**
+ * Сколько всего прав в матрице — выводится из `roles.ts`, а не пишется
+ * числом. У роли `head` есть все разделы плюс `users`, поэтому длина её
+ * списка и есть размер строки матрицы.
+ *
+ * Раньше здесь стояли литералы 44 и 11. Добавление раздела «Контроль
+ * качества» (TASK-013) сделало их неверными, и CI краснел три коммита
+ * подряд, хотя ошибки в самой матрице не было: unit-тесты, которые
+ * сверяются с `roles.ts`, прошли, а эти два числа никто не обновил.
+ */
+const PERMISSION_COUNT = permissionsForRole("head").length;
+const MATRIX_ROWS = PORTAL_ROLES.length * PERMISSION_COUNT;
 
 /**
  * Админские RPC фазы D: чтение и правка матрицы прав, выдача проектов.
@@ -91,11 +104,11 @@ describe("гейт: матрицу правит только head", () => {
     expect(response.status).toBe(403);
   });
 
-  it("head читает матрицу: 44 строки", async () => {
+  it("head читает матрицу целиком: строка на каждую пару «роль × право»", async () => {
     const response = await rpc(head.id, "portal_admin_list_section_permissions");
     expect(response.status).toBe(200);
     const rows = (await response.json()) as unknown[];
-    expect(rows).toHaveLength(44);
+    expect(rows).toHaveLength(MATRIX_ROWS);
   });
 });
 
@@ -236,8 +249,8 @@ describe("payload пользователя", () => {
 
     const sample = users[0];
     expect(typeof sample.all_projects).toBe("boolean");
-    // Ключи есть для всех 11 прав, включая недоступные роли.
-    expect(Object.keys(sample.permissions)).toHaveLength(11);
+    // Ключи есть для всех прав, включая недоступные роли.
+    expect(Object.keys(sample.permissions)).toHaveLength(PERMISSION_COUNT);
     expect(sample.permissions.candidates).toHaveProperty("can_edit");
   });
 });
