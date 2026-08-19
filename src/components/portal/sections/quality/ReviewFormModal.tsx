@@ -25,7 +25,7 @@ import primitives from "@/components/portal/ui/primitives.module.css";
 import styles from "./QualitySection.module.css";
 import { ChecklistFields } from "./ChecklistFields";
 import { CALL_TYPES, CALL_TYPE_LABELS, KIND_LABELS, QUALITY_KINDS, formatPercent, leadUrl, scoreTone } from "./qualityOptions";
-import { calculateReviewScore, parseLeadId, type AnswerMap, type ScoreGroup } from "./qualityScore";
+import { calculateReviewScore, countUnanswered, parseLeadId, type AnswerMap, type ScoreGroup } from "./qualityScore";
 
 interface FormState {
   kind: QualityKind;
@@ -204,6 +204,18 @@ export function ReviewFormModal({
 
   const score = useMemo(() => calculateReviewScore(scoreGroups, answers), [scoreGroups, answers]);
 
+  /**
+   * Сколько пунктов осталось без ответа. Завершить проверку с пропусками
+   * нельзя: процент считается по отвеченным пунктам, поэтому три удачных
+   * ответа из тридцати пяти дали бы 100%. Отвергает такое сохранение база
+   * (`portal_save_quality_review`), здесь — чтобы человек увидел это до
+   * нажатия, а не в виде ошибки после.
+   */
+  const unanswered = useMemo(
+    () => scoreGroups.reduce((sum, group) => sum + countUnanswered(group, answers), 0),
+    [scoreGroups, answers],
+  );
+
   const leadId = parseLeadId(form.leadInput);
 
   // Предупреждение о повторной проверке лида. Не запрет: в рабочих таблицах
@@ -317,6 +329,7 @@ export function ReviewFormModal({
           <div className={styles.formTotal}>
             Итог: <Badge color={scoreTone(score.total)}>{formatPercent(score.total)}</Badge>
             {score.hasCritical && <span className={styles.criticalNote}>критическая ошибка</span>}
+            {unanswered > 0 && <span className={primitives.muted}>не заполнено пунктов: {unanswered}</span>}
           </div>
           <div className={primitives.spacer} />
           <Button onClick={onClose} disabled={saving}>
@@ -325,7 +338,12 @@ export function ReviewFormModal({
           <Button onClick={() => void submit("draft")} disabled={saving}>
             Сохранить черновик
           </Button>
-          <Button variant="primary" onClick={() => void submit("completed")} disabled={saving}>
+          <Button
+            variant="primary"
+            onClick={() => void submit("completed")}
+            disabled={saving || unanswered > 0}
+            title={unanswered > 0 ? "Заполните все пункты или сохраните черновик" : undefined}
+          >
             {saving ? "Сохранение…" : "Сохранить"}
           </Button>
         </>
@@ -365,6 +383,7 @@ export function ReviewFormModal({
           <span>Лид (номер или ссылка)</span>
           <input
             value={form.leadInput}
+            maxLength={200}
             placeholder="3660718"
             onChange={(event) => setField("leadInput", event.target.value)}
           />
@@ -374,6 +393,7 @@ export function ReviewFormModal({
           <span>Сотрудник</span>
           <input
             value={form.employeeName}
+            maxLength={200}
             placeholder="Фамилия Имя"
             onChange={(event) => setField("employeeName", event.target.value)}
           />
@@ -457,6 +477,7 @@ export function ReviewFormModal({
           <label className={primitives.field}>
             <span>Скорость обработки</span>
             <input
+              maxLength={200}
               value={form.handlingSpeed}
               onChange={(event) => setField("handlingSpeed", event.target.value)}
             />
@@ -478,6 +499,7 @@ export function ReviewFormModal({
           <span>Комментарий рекрутёра в CRM</span>
           <textarea
             rows={2}
+            maxLength={4000}
             value={form.crmComment}
             onChange={(event) => setField("crmComment", event.target.value)}
           />
@@ -524,6 +546,7 @@ export function ReviewFormModal({
         <span>Рекомендации и комментарии</span>
         <textarea
           rows={3}
+          maxLength={4000}
           value={form.recommendations}
           onChange={(event) => setField("recommendations", event.target.value)}
         />
@@ -534,6 +557,7 @@ export function ReviewFormModal({
           <span>Почему это кейс</span>
           <textarea
             rows={2}
+            maxLength={4000}
             value={form.caseComment}
             onChange={(event) => setField("caseComment", event.target.value)}
           />

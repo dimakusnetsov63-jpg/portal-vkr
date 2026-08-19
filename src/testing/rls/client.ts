@@ -137,4 +137,9 @@ export async function cleanupTestFixtures(marker: string): Promise<void> {
   await serviceRoleFetch(`/addresses?project=like.${marker}*`, { method: "DELETE" });
   await serviceRoleFetch(`/staffing_demand?project=like.${marker}*`, { method: "DELETE" });
   await serviceRoleFetch(`/staffing_demand_imports?project=like.${marker}*`, { method: "DELETE" });
+  // Порядок важен: quality_reviews ссылается на quality_checklists с
+  // `on delete restrict`, поэтому проверки удаляются раньше шаблонов.
+  // Ответы по пунктам уходят каскадом вместе с проверкой.
+  await serviceRoleFetch(`/quality_reviews?project=like.${marker}*`, { method: "DELETE" });
+  await serviceRoleFetch(`/quality_checklists?project=like.${marker}*`, { method: "DELETE" });
 }
