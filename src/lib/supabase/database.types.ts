@@ -576,6 +576,336 @@ export type Database = {
         }
         Relationships: []
       }
+      quality_checklist_groups: {
+        Row: {
+          archived_at: string | null
+          checklist_id: string
+          counts_in_total: boolean
+          created_at: string
+          id: string
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          checklist_id: string
+          counts_in_total?: boolean
+          created_at?: string
+          id?: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          checklist_id?: string
+          counts_in_total?: boolean
+          created_at?: string
+          id?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quality_checklist_groups_checklist_id_fkey"
+            columns: ["checklist_id"]
+            isOneToOne: false
+            referencedRelation: "quality_checklists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quality_checklist_items: {
+        Row: {
+          allow_na: boolean
+          archived_at: string | null
+          created_at: string
+          group_id: string
+          id: string
+          is_critical: boolean
+          scale: string
+          sort_order: number
+          title: string
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          allow_na?: boolean
+          archived_at?: string | null
+          created_at?: string
+          group_id: string
+          id?: string
+          is_critical?: boolean
+          scale: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+          weight?: number
+        }
+        Update: {
+          allow_na?: boolean
+          archived_at?: string | null
+          created_at?: string
+          group_id?: string
+          id?: string
+          is_critical?: boolean
+          scale?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quality_checklist_items_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "quality_checklist_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quality_checklists: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          created_by: string | null
+          created_by_login: string | null
+          id: string
+          kind: string
+          project: string | null
+          title: string
+          updated_at: string
+          updated_by: string | null
+          updated_by_login: string | null
+          version: number
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_login?: string | null
+          id?: string
+          kind: string
+          project?: string | null
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_login?: string | null
+          version?: number
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_login?: string | null
+          id?: string
+          kind?: string
+          project?: string | null
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_login?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quality_checklists_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quality_checklists_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quality_review_scores: {
+        Row: {
+          is_na: boolean
+          item_id: string
+          note: string | null
+          review_id: string
+          value: number | null
+        }
+        Insert: {
+          is_na?: boolean
+          item_id: string
+          note?: string | null
+          review_id: string
+          value?: number | null
+        }
+        Update: {
+          is_na?: boolean
+          item_id?: string
+          note?: string | null
+          review_id?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quality_review_scores_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "quality_checklist_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quality_review_scores_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "quality_reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quality_reviews: {
+        Row: {
+          call_date: string | null
+          call_type: string | null
+          case_comment: string | null
+          checklist_id: string
+          checklist_version: number
+          city: string | null
+          created_at: string
+          created_by: string | null
+          created_by_login: string | null
+          crm_comment: string | null
+          crm_lead_id: number
+          employee_name: string
+          employee_user_id: string | null
+          group_scores: Json
+          handling_speed: string | null
+          has_critical: boolean
+          id: string
+          import_id: string | null
+          is_case: boolean
+          is_target: boolean | null
+          kind: string
+          objection: string | null
+          outbound_calls: number | null
+          position: string | null
+          project: string
+          recommendations: string | null
+          review_date: string
+          reviewer_name: string
+          status: string
+          total_score: number | null
+          updated_at: string
+          updated_by: string | null
+          updated_by_login: string | null
+          violation: string | null
+        }
+        Insert: {
+          call_date?: string | null
+          call_type?: string | null
+          case_comment?: string | null
+          checklist_id: string
+          checklist_version: number
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_login?: string | null
+          crm_comment?: string | null
+          crm_lead_id: number
+          employee_name: string
+          employee_user_id?: string | null
+          group_scores?: Json
+          handling_speed?: string | null
+          has_critical?: boolean
+          id?: string
+          import_id?: string | null
+          is_case?: boolean
+          is_target?: boolean | null
+          kind: string
+          objection?: string | null
+          outbound_calls?: number | null
+          position?: string | null
+          project: string
+          recommendations?: string | null
+          review_date?: string
+          reviewer_name: string
+          status?: string
+          total_score?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_login?: string | null
+          violation?: string | null
+        }
+        Update: {
+          call_date?: string | null
+          call_type?: string | null
+          case_comment?: string | null
+          checklist_id?: string
+          checklist_version?: number
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_login?: string | null
+          crm_comment?: string | null
+          crm_lead_id?: number
+          employee_name?: string
+          employee_user_id?: string | null
+          group_scores?: Json
+          handling_speed?: string | null
+          has_critical?: boolean
+          id?: string
+          import_id?: string | null
+          is_case?: boolean
+          is_target?: boolean | null
+          kind?: string
+          objection?: string | null
+          outbound_calls?: number | null
+          position?: string | null
+          project?: string
+          recommendations?: string | null
+          review_date?: string
+          reviewer_name?: string
+          status?: string
+          total_score?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_login?: string | null
+          violation?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quality_reviews_checklist_id_fkey"
+            columns: ["checklist_id"]
+            isOneToOne: false
+            referencedRelation: "quality_checklists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quality_reviews_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quality_reviews_employee_user_id_fkey"
+            columns: ["employee_user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quality_reviews_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rate_cards: {
         Row: {
           bonuses: string | null
@@ -1247,15 +1577,18 @@ export type Database = {
           target_login: string
         }[]
       }
+      portal_admin_list_section_permissions: { Args: never; Returns: Json }
       portal_admin_list_users: {
         Args: never
         Returns: {
+          all_projects: boolean
           created_at: string
           full_name: string
           id: string
           is_active: boolean
           last_login_at: string
           login: string
+          permissions: Json
           projects: string[]
           role: Database["public"]["Enums"]["portal_user_role"]
           updated_at: string
@@ -1269,8 +1602,26 @@ export type Database = {
         Args: { p_password: string; p_user_id: string }
         Returns: Json
       }
+      portal_admin_set_section_permission: {
+        Args: {
+          p_can_edit: boolean
+          p_can_view: boolean
+          p_role: Database["public"]["Enums"]["portal_user_role"]
+          p_section: string
+          p_visible: boolean
+        }
+        Returns: Json
+      }
       portal_admin_set_user_active: {
         Args: { p_is_active: boolean; p_user_id: string }
+        Returns: Json
+      }
+      portal_admin_set_user_projects: {
+        Args: {
+          p_all_projects: boolean
+          p_projects: string[]
+          p_user_id: string
+        }
         Returns: Json
       }
       portal_admin_update_user: {
@@ -1319,6 +1670,22 @@ export type Database = {
         Args: { p_keep?: string }
         Returns: number
       }
+      portal_quality_report: {
+        Args: {
+          p_from: string
+          p_kind?: string
+          p_project?: string
+          p_to: string
+        }
+        Returns: {
+          avg_total: number
+          cases_count: number
+          critical_count: number
+          employee_name: string
+          project: string
+          reviews_count: number
+        }[]
+      }
       portal_require_admin: {
         Args: never
         Returns: {
@@ -1341,9 +1708,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      portal_role_permissions: {
+        Args: { p_role: Database["public"]["Enums"]["portal_user_role"] }
+        Returns: Json
+      }
       portal_role_sections: {
         Args: { p_role: Database["public"]["Enums"]["portal_user_role"] }
         Returns: string[]
+      }
+      portal_save_quality_review: {
+        Args: { p_payload: Json; p_review_id: string }
+        Returns: Json
       }
       portal_save_vacancy_project_tree: {
         Args: {
@@ -1391,6 +1766,8 @@ export type Database = {
         | "vacancy_category"
         | "termination_reason"
         | "return_reason"
+        | "qc_objection"
+        | "qc_violation"
       candidate_project:
         | "Самокат"
         | "Купер"
@@ -1420,6 +1797,8 @@ export type Database = {
         | "login_success"
         | "login_failed"
         | "logout"
+        | "section_permission_changed"
+        | "user_projects_changed"
       portal_user_role: "head" | "coordinator" | "manager" | "recruiter"
       staffing_demand_history_action: "insert" | "update" | "delete"
     }
@@ -1563,6 +1942,8 @@ export const Constants = {
         "vacancy_category",
         "termination_reason",
         "return_reason",
+        "qc_objection",
+        "qc_violation",
       ],
       candidate_project: [
         "Самокат",
@@ -1595,6 +1976,8 @@ export const Constants = {
         "login_success",
         "login_failed",
         "logout",
+        "section_permission_changed",
+        "user_projects_changed",
       ],
       portal_user_role: ["head", "coordinator", "manager", "recruiter"],
       staffing_demand_history_action: ["insert", "update", "delete"],

@@ -17,12 +17,24 @@ describe("canAccess — минимальные права из ТЗ", () => {
       "candidates",
       "vacancies",
       "rates",
+      "quality",
       "marketing",
       "analytics",
       "notifications",
       "settings",
     ]);
     expect(canAccess("head", "users")).toBe(true);
+  });
+
+  it("даёт «Контроль качества» всем, кроме рекрутёра", () => {
+    // Разделение «менеджер читает, но не редактирует» живёт в
+    // portal_section_permissions, а не здесь: ROLE_PERMISSIONS отражает
+    // только can_view. У рекрутёра раздела нет вовсе — см. комментарий к
+    // ROLE_PERMISSIONS и TASK-013.
+    expect(canAccess("head", "quality")).toBe(true);
+    expect(canAccess("coordinator", "quality")).toBe(true);
+    expect(canAccess("manager", "quality")).toBe(true);
+    expect(canAccess("recruiter", "quality")).toBe(false);
   });
 
   it("закрывает координатору управление пользователями, оставляя настройки", () => {

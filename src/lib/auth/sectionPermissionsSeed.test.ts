@@ -23,11 +23,26 @@ import { PORTAL_ROLES, allowedSections, permissionsForRole, type PortalRole } fr
  * он разошёлся с roles.ts, не получится — сломается сборка.
  */
 
-const MIGRATION_PATH = fileURLToPath(
-  new URL("../../../supabase/migrations/20260811100000_portal_section_permissions.sql", import.meta.url),
+/**
+ * Матрица собирается не из одного файла: baseline завёл её целиком, а
+ * каждый новый раздел портала дописывает свои четыре строки и заново
+ * объявляет portal_section_order(). Список идёт в порядке применения —
+ * побеждает последнее определение порядка разделов, как и в самой базе.
+ *
+ * Новый раздел = новая миграция + строка в этом массиве. Забыть про него
+ * не выйдет: без строки здесь тест увидит матрицу без раздела и упадёт на
+ * сверке с roles.ts.
+ */
+const MIGRATION_FILES = [
+  "20260811100000_portal_section_permissions.sql",
+  "20260818100500_quality_section_permissions.sql",
+];
+
+const migrationSources = MIGRATION_FILES.map((name) =>
+  readFileSync(fileURLToPath(new URL(`../../../supabase/migrations/${name}`, import.meta.url)), "utf8"),
 );
 
-const migrationSql = readFileSync(MIGRATION_PATH, "utf8");
+const migrationSql = migrationSources.join("\n");
 
 interface SeedRow {
   role: PortalRole;
@@ -53,11 +68,20 @@ function parseSeed(sql: string): SeedRow[] {
   }));
 }
 
-/** Разбирает канонический порядок разделов из portal_section_order(). */
-function parseSectionOrder(sql: string): string[] {
-  const body = /create function public\.portal_section_order\(\)[\s\S]*?select array\[([\s\S]*?)\];/.exec(sql);
-  if (!body) throw new Error("Не найдено определение portal_section_order() в миграции");
-  return [...body[1].matchAll(/'([a-z_]+)'/g)].map((match) => match[1]);
+/**
+ * Разбирает канонический порядок разделов из portal_section_order().
+ * Берётся последнее определение по порядку миграций: `create or replace`
+ * в более поздней миграции переопределяет функцию, и база видит именно его.
+ */
+function parseSectionOrder(sources: string[]): string[] {
+  const pattern = /create (?:or replace )?function public\.portal_section_order\(\)[\s\S]*?select array\[([\s\S]*?)\];/;
+
+  for (const sql of [...sources].reverse()) {
+    const body = pattern.exec(sql);
+    if (body) return [...body[1].matchAll(/'([a-z_]+)'/g)].map((match) => match[1]);
+  }
+
+  throw new Error("Не найдено определение portal_section_order() ни в одной миграции");
 }
 
 /**
@@ -72,7 +96,7 @@ function simulateRoleSections(seed: SeedRow[], order: string[], role: PortalRole
 }
 
 const seed = parseSeed(migrationSql);
-const sectionOrder = parseSectionOrder(migrationSql);
+const sectionOrder = parseSectionOrder(migrationSources);
 
 function rowFor(role: PortalRole, section: string): SeedRow {
   const row = seed.find((item) => item.role === role && item.section === section && item.project === null);
@@ -166,6 +190,19 @@ describe("исключения, которые нельзя потерять п�
     expect(rowFor("coordinator", "settings").canEdit).toBe(true);
     expect(rowFor("manager", "settings").canEdit).toBe(false);
     expect(rowFor("recruiter", "settings").canEdit).toBe(false);
+  });
+
+  it("quality: manager читает, но не редактирует; recruiter не видит вовсе", () => {
+    // Раздел заводит TASK-013. Права выданы стартовые: заполняют проверки
+    // head и coordinator, руководитель группы только смотрит, а рекрутёру
+    // раздел закрыт целиком — доступ к своим проверкам требует политики
+    // «своя строка», которой в портале нет.
+    expect(rowFor("head", "quality").canEdit).toBe(true);
+    expect(rowFor("coordinator", "quality").canEdit).toBe(true);
+    expect(rowFor("manager", "quality").canView).toBe(true);
+    expect(rowFor("manager", "quality").canEdit).toBe(false);
+    expect(rowFor("recruiter", "quality").visible).toBe(false);
+    expect(rowFor("recruiter", "quality").canView).toBe(false);
   });
 
   it("users: право есть только у head", () => {

@@ -44,6 +44,7 @@
 | [`candidates.md`](requirements/candidates.md) | Кандидаты: модель, стадии, правила метрик |
 | [`vacancies.md`](requirements/vacancies.md) | Описание вакансий (статические данные) |
 | [`rates.md`](requirements/rates.md) | Ставки: тарифы по проекту/городу/юр. лицу/должности, доход за смену/неделю/месяц |
+| [`quality.md`](requirements/quality.md) | Контроль качества: чек-листы, шкалы, расчёт процентов, права |
 | [`analytics.md`](requirements/analytics.md) | Аналитика (демонстрационный раздел) |
 
 ### Архитектура — [`architecture/`](architecture/)
@@ -62,6 +63,7 @@
 - [`ADR-003-state-management.md`](architecture/decisions/ADR-003-state-management.md) — единый React Context
 - [`ADR-004-portal-auth.md`](architecture/decisions/ADR-004-portal-auth.md) — собственная авторизация портала, роли и права
 - [`ADR-005-access-control-v2.md`](architecture/decisions/ADR-005-access-control-v2.md) — права разделов в базе: VISIBLE / VIEW / EDIT *(реализована фаза A, к БД не применялась)*
+- [`ADR-006-quality-score.md`](architecture/decisions/ADR-006-quality-score.md) — оценку проверки качества считает база, интерфейс только показывает
 
 ### База данных — [`database/`](database/)
 
@@ -80,6 +82,7 @@
 | [`TASK-007-bulk-clear.md`](tasks/TASK-007-bulk-clear.md) | Массовая очистка потребности |
 | [`TASK-008-rates.md`](tasks/TASK-008-rates.md) | Раздел «Ставки»: тарифы по проекту/городу/юр. лицу/должности |
 | [`TASK-009-unify-projects.md`](tasks/TASK-009-unify-projects.md) | Единый список проектов на весь портал |
+| [`TASK-013-quality-control.md`](tasks/TASK-013-quality-control.md) | Раздел «Контроль качества»: чек-листы по проектам и проверка самоотказов |
 | [`backlog.md`](tasks/backlog.md) | Отложенное, с приоритетами и оценками |
 | [`completed.md`](tasks/completed.md) | Завершённое, с коммитами |
 | [`TEMPLATE.md`](tasks/TEMPLATE.md) | Шаблон технического задания |
@@ -113,7 +116,8 @@
 [`sections/addresses/README.md`](../src/components/portal/sections/addresses/README.md),
 [`sections/candidates/README.md`](../src/components/portal/sections/candidates/README.md),
 [`sections/rates/README.md`](../src/components/portal/sections/rates/README.md),
-[`sections/settings/README.md`](../src/components/portal/sections/settings/README.md).
+[`sections/settings/README.md`](../src/components/portal/sections/settings/README.md),
+[`sections/quality/README.md`](../src/components/portal/sections/quality/README.md).
 
 ## Текущее состояние проекта
 

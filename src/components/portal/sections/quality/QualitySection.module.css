@@ -1,0 +1,163 @@
+/* Раздел «Контроль качества». Все числа — из токенов portal-tokens.css;
+   литералов здесь быть не должно (правило 7.1 CLAUDE.md). */
+
+/* Дашборд: 5 показателей за выбранный период. */
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
+}
+@media (max-width: 1280px) {
+  .statGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .statGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Таблица: структура — в primitives, здесь только ширина. */
+.table {
+  min-width: 1100px;
+}
+
+.pagerButtons {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.draftNote,
+.criticalNote,
+.groupNote {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  margin-left: var(--sp-2);
+}
+.criticalNote {
+  color: var(--red);
+}
+
+/* Чек-лист: блоки с пунктами и процентом блока в шапке. */
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.checklistGroup {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  overflow: hidden;
+}
+
+.checklistGroupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+.checklistGroupHead h4 {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+}
+
+.groupScore {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.checklistItems {
+  display: flex;
+  flex-direction: column;
+}
+
+.checklistItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+}
+.checklistItem:last-child {
+  border-bottom: none;
+}
+/* Пункт выключенного блока: остаётся видимым, но перестаёт читаться как
+   активный — проверяющий должен понимать, что заполнять его не нужно. */
+.checklistItem[data-locked="true"] {
+  background: var(--surface-2);
+  color: var(--text-3);
+}
+
+.checklistItemTitle {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-base);
+}
+
+.checklistItemControls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex: none;
+}
+
+.formTotal {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+
+.blockTitle {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  margin-bottom: var(--sp-2);
+}
+
+/* Дровер: шапка и футер закреплены, прокручивается середина — как в
+   AddressDrawer/RateDrawer. */
+.drawerHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+.drawerHead h3 {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+}
+.drawerHead p {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+  margin-top: var(--sp-1);
+}
+
+.drawerBody {
+  padding: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.drawerFoot {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  padding: var(--sp-5);
+  border-top: 1px solid var(--border);
+  flex: none;
+}

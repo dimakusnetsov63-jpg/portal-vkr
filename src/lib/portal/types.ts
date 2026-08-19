@@ -22,6 +22,7 @@ export type PortalPage =
   | "candidates"
   | "vacancies"
   | "rates"
+  | "quality"
   | "marketing"
   | "analytics"
   | "notifications"

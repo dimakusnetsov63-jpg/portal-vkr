@@ -636,6 +636,73 @@ payload)` — одна транзакция на insert/update/delete всех
 substring-поиск id вакансий по названию проекта/раздела/подписи или
 значения поля (без ранжирования по релевантности).
 
+### `public.quality_checklists`, `quality_checklist_groups`, `quality_checklist_items`
+
+Шаблоны раздела «Контроль качества» (TASK-013): чек-лист звонка по проекту
+(`kind = call`) или проверка самоотказа (`kind = refusal`). Три уровня —
+шаблон → блок → пункт, оба вложенных с `on delete cascade`.
+
+**`quality_checklists`:** `title`, `kind` (text + CHECK: `call`/`refusal`),
+`project` (nullable — NULL означает общий шаблон вида, применяемый когда у
+проекта нет своего), `version`, `archived_at`, снимок аудита
+`created_by*`/`updated_by*`. Два частичных уникальных индекса: один
+действующий шаблон на пару (вид, проект) и один общий на вид — обычное
+`unique` пропустило бы два общих шаблона, потому что NULL не конфликтует с
+NULL.
+
+**`quality_checklist_groups`:** `title`, `sort_order`, `counts_in_total`
+(false у блока «Возражения» — воспроизводит формулу исходного Excel, где
+итог считается как среднее по остальным блокам), `archived_at`,
+`unique (checklist_id, title)`.
+
+**`quality_checklist_items`:** `title`, `scale` (text + CHECK: `0-1-2` /
+`0-2` / `yes_no`), `weight`, `allow_na`, `is_critical`, `sort_order`,
+`archived_at`. `yes_no` — пункт-переключатель: баллов не даёт, при ответе
+«Нет» выключает свой блок. CHECK запрещает критический переключатель.
+
+**Триггеры:** `set_quality_checklists_audit_fields` (кто/когда),
+`bump_quality_checklist_version` на блоках и пунктах — любая правка состава
+поднимает версию шаблона.
+
+### `public.quality_reviews`, `quality_review_scores`
+
+Заполненные проверки и ответы по пунктам.
+
+| Поле `quality_reviews` | Тип | Null | Примечание |
+|------|-----|------|-----------|
+| `checklist_id` | uuid | **not null** | FK на шаблон, `on delete restrict` — история не уносится вместе с шаблоном |
+| `checklist_version` | integer | **not null** | Версия шаблона на момент заполнения; при правке проверки не переписывается |
+| `kind` | text | **not null** | CHECK `call`/`refusal` |
+| `crm_lead_id` | bigint | **not null** | Номер лида. **Не уникален**: повторная проверка законна, интерфейс лишь предупреждает |
+| `project` | text | **not null** | Свободный текст, справочник `candidate_list_options` (`list_type = project`) |
+| `employee_name` | text | **not null** | Проверяемый сотрудник. Текст, а не FK: учётки в портале у большинства сотрудников КЦ нет |
+| `employee_user_id` | uuid | nullable | Необязательная привязка к `portal_users` |
+| `reviewer_name` | text | **not null** | Проверяющий отдельным полем: при импорте истории строки создаёт скрипт, а проверяющий в файле свой |
+| `review_date` / `call_date` | date | not null / nullable | Дата проверки (по умолчанию сегодня) и дата звонка |
+| `call_type` | text | nullable | CHECK `incoming`/`outgoing`/`no_answer` |
+| `position`, `city`, `objection`, `crm_comment`, `handling_speed`, `outbound_calls`, `is_target`, `violation`, `recommendations` | — | nullable | Переносятся из CRM руками; у самоотказов заполнена одна часть, у чек-листов другая |
+| `is_case`, `case_comment` | boolean / text | not null / nullable | «Кейс в аудиотеку» — вкладка «Аудиотека» это фильтр по флагу |
+| `status` | text | **not null** | CHECK `draft`/`completed`; черновики не идут в сводки |
+| `total_score` | numeric(5,2) | nullable | Итог. NULL — «считать было не из чего», это **не** ноль |
+| `group_scores` | jsonb | **not null** | Снимок процентов по блокам: `{"<group_id>": 85.71 \| null}` |
+| `has_critical` | boolean | **not null** | Был ноль по критическому пункту — итог обнулён |
+| `import_id` | uuid | nullable | Пакет импорта истории; откат = удаление по этому полю |
+
+**`quality_review_scores`:** `pk (review_id, item_id)`, `value` smallint
+(0/1/2; у переключателя 1 = «Да»), `is_na`, `note`. FK на пункт —
+`on delete restrict`. CHECK запрещает «н/д» с проставленным баллом.
+Нормализованная таблица, а не jsonb в проверке: отчёт «какой пункт чаще
+всего проваливают» должен быть обычным `group by`.
+
+**Индексы:** `(review_date desc)`, `(project, review_date desc)`,
+`(employee_name, review_date desc)`, `(crm_lead_id)`, `(checklist_id)`,
+частичные по `is_case` и `import_id`, плюс `(item_id)` у ответов.
+
+**Денормализация намеренная:** `total_score`/`group_scores` хранятся, а не
+выводятся. Правка шаблона не должна менять уже полученную оценку, а реестр
+на тысячи строк — пересобирать проценты на каждый запрос. Считает их
+`portal_save_quality_review`, см. [ADR-006](../architecture/decisions/ADR-006-quality-score.md).
+
 ### `public.portal_users`
 
 Учётные записи портала. Создаются только через интерфейс («Настройки →
@@ -785,7 +852,7 @@ unique (role, section, project) where project is not null
 | Enum | Значения |
 |------|----------|
 | `candidate_stage` | Прибыл на проект, Отработал 1 смену, Отработал 10 смен, Завершил вахту, Уволился (5) — 5-е значение с `20260808100000_add_stage_terminated.sql` |
-| `candidate_list_type` | recruiter, manager, coordinator, city, position, project, legal_entity, vacancy_category, termination_reason, return_reason (10) — последние два с `20260808100100_add_termination_list_types.sql` |
+| `candidate_list_type` | recruiter, manager, coordinator, city, position, project, legal_entity, vacancy_category, termination_reason, return_reason, qc_objection, qc_violation (12) — два последних с `20260818100000_quality_list_types.sql` (TASK-013), до них `termination_reason`/`return_reason` с `20260808100100_add_termination_list_types.sql` |
 | `staffing_demand_history_action` | insert, update, delete (3) |
 | `portal_user_role` | head, coordinator, manager, recruiter (4) |
 | `portal_audit_action` | user_created, user_updated, user_role_changed, user_password_changed, user_activated, user_deactivated, login_success, login_failed, logout (9) |

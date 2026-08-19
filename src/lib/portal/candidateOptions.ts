@@ -25,6 +25,8 @@ export const LIST_TYPE_LABELS: Record<CandidateListType, string> = {
   vacancy_category: "Категории вакансий",
   termination_reason: "Причины увольнения",
   return_reason: "Причины возвращения",
+  qc_objection: "Возражения кандидата (Контроль качества)",
+  qc_violation: "Нарушения (Контроль качества)",
 };
 
 const STAGE_COLORS: Record<CandidateStage, BadgeColor> = {

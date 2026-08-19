@@ -12,6 +12,7 @@ import { AddressesSection, AddressDrawer } from "@/components/portal/sections/ad
 import { CandidatesSection, RealCandidateDrawer } from "@/components/portal/sections/candidates";
 import { VacanciesSection } from "@/components/portal/sections/vacancies";
 import { RatesSection, RateDrawer } from "@/components/portal/sections/rates";
+import { QualitySection } from "@/components/portal/sections/quality";
 import { MarketingSection } from "@/components/portal/sections/MarketingSection";
 import { AnalyticsSection } from "@/components/portal/sections/AnalyticsSection";
 import { NotificationsSection } from "@/components/portal/sections/NotificationsSection";
@@ -51,6 +52,8 @@ function ActiveSection() {
       return <VacanciesSection />;
     case "rates":
       return <RatesSection />;
+    case "quality":
+      return <QualitySection />;
     case "marketing":
       return <MarketingSection />;
     case "analytics":

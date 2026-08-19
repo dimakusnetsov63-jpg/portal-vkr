@@ -23,14 +23,24 @@ declare
   v_expected constant jsonb := jsonb_build_object(
     'staffing_demand_history', 'SELECT',
     'vacancy_history',         'SELECT',
+    -- Проверки качества: только чтение. Пишет их
+    -- portal_save_quality_review (SECURITY DEFINER) — прямая запись
+    -- позволила бы прислать любой total_score мимо баллов (ADR-006).
+    'quality_reviews',         'SELECT',
+    'quality_review_scores',   'SELECT',
     'addresses',               'INSERT,SELECT,UPDATE',
     'candidates',              'INSERT,SELECT,UPDATE',
     'candidate_list_options',  'INSERT,SELECT,UPDATE',
     'staffing_demand_rows',    'INSERT,SELECT,UPDATE',
     'staffing_demand_imports', 'INSERT,SELECT,UPDATE',
     'vacancy_projects',        'INSERT,SELECT,UPDATE',
+    -- Шаблон проверки архивируется, а не удаляется — на него ссылаются
+    -- заполненные проверки; у блоков и пунктов delete есть.
+    'quality_checklists',      'INSERT,SELECT,UPDATE',
     'address_demand_history',  'DELETE,INSERT,SELECT,UPDATE',
     'project_import_configs',  'DELETE,INSERT,SELECT,UPDATE',
+    'quality_checklist_groups','DELETE,INSERT,SELECT,UPDATE',
+    'quality_checklist_items', 'DELETE,INSERT,SELECT,UPDATE',
     'rate_cards',              'DELETE,INSERT,SELECT,UPDATE',
     'rates',                   'DELETE,INSERT,SELECT,UPDATE',
     'staffing_demand',         'DELETE,INSERT,SELECT,UPDATE',

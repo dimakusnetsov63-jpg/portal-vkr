@@ -30,6 +30,20 @@
    `REFERENCES`, `TRIGGER`, `MAINTAIN` не выдаются никому; `anon` не
    получает ничего — политик для него нет ни на одной таблице.
 
+   **Начинать с `REVOKE`, а не с `GRANT`.** Проверено на бою 19 августа
+   2026 (TASK-013): legacy-триггер платформы `auto_expose_new_tables` на
+   боевом проекте **всё ещё включён** и выдаёт `anon`/`authenticated`
+   полный набор прав при каждом `CREATE TABLE`. Явные гранты его не
+   отменяют — `GRANT` только добавляет. Отдельно опасен `TRUNCATE`: он
+   табличный, и **RLS его не проверяет**, то есть забытый отзыв оставляет
+   роли публикуемого ключа право стереть таблицу целиком. Образец —
+   `20260818100800_quality_revoke_auto_grants.sql`.
+
+   Проверять фактическое состояние после применения обязательно:
+   `npx supabase db query --linked -f scripts/verify-grants.sql` (только
+   чтение каталогов, безопасно для прода). Новая таблица требует и строки
+   в `v_expected` этого скрипта — иначе проверка №5 упадёт намеренно.
+
 ## Порядок применения
 
 ```bash
@@ -122,6 +136,60 @@ npx supabase db query --linked "select conname, pg_get_constraintdef(oid) from p
 | `20260813100200_permission_admin_rpc.sql` | **Применена 13 августа 2026.** Фаза D: `portal_admin_list_section_permissions()`, `portal_admin_set_section_permission(...)`, `portal_admin_set_user_projects(...)` — все под `portal_require_admin()` (роль head) и с записью «было → стало» в `portal_audit_log`. Плюс `portal_admin_update_user` согласована с «Все проекты»: пустой список проектов допустим, если у учётки поднят `all_projects` |
 
 | `20260813110000_explicit_table_grants.sql` | **Применена 14 августа 2026.** SEC-3: явные табличные `GRANT`'ы вместо неявной автовыдачи платформы. Отзывает всё у `anon` и `authenticated` на всех таблицах и последовательностях `public` (циклом — чтобы не пропустить таблицу), затем выдаёт `authenticated` ровно то, что разрешают политики каждой таблицы, и подтверждает минимум для `service_role`. `anon` не получает ничего; `TRUNCATE`/`REFERENCES`/`TRIGGER`/`MAINTAIN` не выдаются. Заодно закрывает `portal_login_attempts_id_seq`, доступную `anon`/`authenticated` с `20260801100000`. Политики RLS и функции не трогаются |
+| `20260818100000_quality_list_types.sql` | **Применена 19 августа 2026.** TASK-013: `qc_objection` и `qc_violation` в enum `candidate_list_type`. Отдельным файлом — новое значение enum нельзя использовать в создавшей его транзакции |
+| `20260818100100_create_quality_checklists.sql` | **Применена 19 августа 2026.** Шаблоны: `quality_checklists`/`quality_checklist_groups`/`quality_checklist_items`, триггер аудита и `bump_quality_checklist_version` (правка состава поднимает версию шаблона). RLS включён, политик нет — они в `20260818100300` |
+| `20260818100200_create_quality_reviews.sql` | **Применена 19 августа 2026.** Проверки: `quality_reviews` + `quality_review_scores`, семь индексов, триггер аудита. `total_score`/`group_scores` хранятся, а не выводятся — см. ADR-006 |
+| `20260818100300_quality_rls_policies.sql` | **Применена 19 августа 2026.** Политики на `portal_can_view_section('quality')` / `portal_can_edit_section('quality')` + `portal_has_project(project)` у проверок. У `quality_reviews`/`quality_review_scores` **только SELECT**: запись идёт через RPC, гранты на запись не выдаются (правило SEC-3 соблюдено — гранты явные и поимённые) |
+| `20260818100400_quality_rpc.sql` | **Применена 19 августа 2026.** `portal_save_quality_review(uuid, jsonb)` — атомарное сохранение с пересчётом процентов; `portal_quality_report(date, date, text, text)` — сводка по сотруднику и проекту. Обе `security definer`, право проверяют в теле |
+| `20260818100500_quality_section_permissions.sql` | **Применена 19 августа 2026.** `'quality'` в `portal_section_order()` (после `rates`) и четыре строки в `portal_section_permissions`: head/coordinator — view+edit, manager — только view, recruiter — нет. `portal_role_sections()` не трогается: с `20260811100200` она читает таблицу |
+| `20260818100600_seed_quality_checklists.sql` | **Применена 19 августа 2026.** Девять шаблонов из рабочих Excel: проверка самоотказа (4 критерия) и восемь чек-листов проектов (35–40 пунктов в 9 блоках). Сгенерирована из файлов программно; в конце возвращает `version = 1` — иначе триггер версии оставил бы свежим шаблонам номера вида 46 |
+| `20260818100700_seed_quality_objections.sql` | **Применена 19 августа 2026.** 25 значений справочника `qc_objection`. `qc_violation` намеренно пуст: в исходных листах эта колонка заполнена бессистемно |
+| `20260818100800_quality_revoke_auto_grants.sql` | **Применена 19 августа 2026.** Отзывает у `anon`/`authenticated` всё, что выдал legacy-триггер платформы при создании пяти таблиц, и заново выдаёт ровно разрешённое политиками. Заведена по факту находки при применении — см. ниже |
+
+### TASK-013 «Контроль качества» — применена к бою 19 августа 2026
+
+Девять миграций. Применены **не** через `db push`: он в этой среде до базы
+не доходит — процесс висит клиентски (пять минут, ~1.7 с CPU, ни одной
+сессии в `pg_stat_activity`), а в тех запусках, где всё же подключался,
+падал с `LegacyDbPushApplyError`. Один такой запуск оставил на сервере
+backend в состоянии `idle in transaction` с незакрытой вставкой в
+`schema_migrations`; он держал `RowExclusiveLock`, и следующая попытка
+упала уже с `lock timeout (55P03)`. Backend снят
+`pg_terminate_backend`, незакоммиченная транзакция откатилась.
+
+Рабочий путь — `npx supabase db query --linked -f <файл>` по одному файлу
+(идёт через Management API, а не через прямое подключение), с проверкой
+после каждого. Версии дописаны в `supabase_migrations.schema_migrations`
+вручную: этот способ историю не пишет. После дозаписи
+`db push --linked --dry-run` отвечает `Remote database is up to date`.
+
+**Находка, из-за которой появилась девятая миграция.** Сразу после
+`20260818100300` фактические права на пяти новых таблицах оказались не
+теми, что выданы поимённо: у `anon` **и** `authenticated` — полный набор
+`SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER`. Причина —
+legacy-поведение `auto_expose_new_tables` на боевом проекте: оно
+**всё ещё включено** и выдаёт права на каждый `CREATE TABLE`. Явный `GRANT`
+это не отменяет — GRANT только добавляет, а выданное было надмножеством.
+
+Почему это существенно: RLS закрывает четыре обычные операции (политик для
+`anon` нет вовсе), но **`TRUNCATE` мимо RLS проходит** — это табличная
+привилегия, политики к ней не применяются. То есть право стереть таблицу
+целиком было выдано роли публикуемого ключа. Устранено миграцией
+`20260818100800`; после неё `scripts/verify-grants.sql`, выполненный против
+боевой базы, отработал без исключений.
+
+**Практический вывод в правило 8 выше:** миграция, создающая таблицу,
+обязана начинаться с `REVOKE`, а не сразу с `GRANT`, и проверка
+фактических прав после применения — обязательный шаг. SEC-3 вычистил права
+у существовавших тогда таблиц, но сам триггер платформы не отключал.
+
+**Типы регенерированы** штатной командой и сверены с ручной правкой: по
+`quality_*` и обеим RPC расхождений нет ни одного. Заодно вскрылось, что
+файл отставал от фазы D (TASK-012) — в нём не было
+`portal_admin_list_section_permissions`, `portal_admin_set_section_permission`,
+`portal_admin_set_user_projects`, `portal_role_permissions`, полей
+`all_projects`/`permissions` у `portal_admin_list_users` и двух значений
+enum `portal_audit_action`. Регенерация это исправила.
 
 ### Фаза D — применена к бою 13 августа 2026
 

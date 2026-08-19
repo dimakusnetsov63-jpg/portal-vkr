@@ -54,6 +54,7 @@ const SECTION_ORDER: PortalPage[] = [
   "candidates",
   "vacancies",
   "rates",
+  "quality",
   "marketing",
   "analytics",
   "notifications",
@@ -65,6 +66,13 @@ const SECTION_ORDER: PortalPage[] = [
 // рекрутёру нужно называть кандидату актуальную ставку так же, как
 // координатору и менеджеру — сверять её с условиями клиента. См.
 // docs/requirements/addresses.md и docs/requirements/rates.md.
+//
+// "Контроль качества" (TASK-013) — обратный случай: раздела нет у
+// recruiter, а у manager он только на чтение (в этой матрице отражается
+// лишь can_view, разделение VIEW/EDIT живёт в portal_section_permissions).
+// Причина не в секретности оценок, а в отсутствующей возможности: доступ
+// рекрутёра к СВОИМ проверкам требует политики «своя строка», которой в
+// портале нет — изоляция работает по проектам. См. docs/requirements/quality.md.
 const ROLE_PERMISSIONS: Record<PortalRole, readonly PortalPermission[]> = {
   head: [...SECTION_ORDER, "users"],
   coordinator: [
@@ -74,12 +82,13 @@ const ROLE_PERMISSIONS: Record<PortalRole, readonly PortalPermission[]> = {
     "candidates",
     "vacancies",
     "rates",
+    "quality",
     "marketing",
     "analytics",
     "notifications",
     "settings",
   ],
-  manager: ["overview", "demand", "addresses", "candidates", "vacancies", "rates", "notifications"],
+  manager: ["overview", "demand", "addresses", "candidates", "vacancies", "rates", "quality", "notifications"],
   recruiter: ["addresses", "candidates", "vacancies", "rates", "notifications"],
 };
 
