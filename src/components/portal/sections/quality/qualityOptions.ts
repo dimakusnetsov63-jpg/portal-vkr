@@ -4,9 +4,14 @@ import type { QualityCallType, QualityItemScale, QualityKind } from "@/lib/supab
 
 export const QUALITY_KINDS: QualityKind[] = ["call", "refusal"];
 
+/**
+ * Названия видов проверки — те, которыми пользуется команда: «прослушка КЦ»
+ * и «прослушка самоотказов». Внутренние коды (`call`/`refusal`) остаются
+ * прежними: переименовывать значения в базе ради подписи незачем.
+ */
 export const KIND_LABELS: Record<QualityKind, string> = {
-  call: "Чек-лист звонка",
-  refusal: "Проверка самоотказа",
+  call: "Прослушка КЦ",
+  refusal: "Прослушка самоотказов",
 };
 
 export const CALL_TYPES: QualityCallType[] = ["outgoing", "incoming", "no_answer"];
