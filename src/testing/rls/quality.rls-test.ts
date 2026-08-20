@@ -455,6 +455,116 @@ describe("RLS: контроль качества — доступ, проект�
     expect(rows.some((r) => r.employee_name === employee)).toBe(false);
   });
 
+  it("G1: разрез по блокам даёт средний процент на блок", async () => {
+    // Тот самый отчёт, который в Excel назывался «Сводная по рекрутерам».
+    const employee = `${marker} Блочный`;
+
+    // Первая: 2 и 1 из двух пунктов по 2 → (2+1)/4 = 75%.
+    await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555040,
+        project: projectA,
+        employee_name: employee,
+        status: "completed",
+        scores: fullScores(),
+      },
+    });
+
+    // Вторая: 0 и 1 → (0+1)/4 = 25%. Средний по блоку должен стать 50%.
+    await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555041,
+        project: projectA,
+        employee_name: employee,
+        status: "completed",
+        scores: [
+          { item_id: gateItemId, value: 1, is_na: false },
+          { item_id: scoredItemId, value: 0, is_na: false },
+          { item_id: secondScoredItemId, value: 1, is_na: false },
+        ],
+      },
+    });
+
+    const response = await asUserFetch(coordinatorA.id, "/rpc/portal_quality_report_by_group", {
+      method: "POST",
+      body: JSON.stringify({
+        p_from: "2020-01-01",
+        p_to: "2100-01-01",
+        p_project: projectA,
+        p_employee: employee,
+      }),
+    });
+    expect(response.ok).toBe(true);
+
+    const rows = (await response.json()) as {
+      group_title: string;
+      reviews_count: number;
+      scored_count: number;
+      avg_percent: number | null;
+    }[];
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].group_title).toBe("Блок");
+    expect(Number(rows[0].reviews_count)).toBe(2);
+    expect(Number(rows[0].scored_count)).toBe(2);
+    expect(Number(rows[0].avg_percent)).toBe(50);
+  });
+
+  it("G1: блок без числа остаётся в выдаче с пустым процентом", async () => {
+    // Все пункты «не применимо» — считать нечего, но блок из отчёта
+    // исчезать не должен: «оценок нет» и «блока нет» — разные вещи.
+    const employee = `${marker} Пустоблочный`;
+
+    await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555042,
+        project: projectA,
+        employee_name: employee,
+        status: "completed",
+        scores: [
+          { item_id: gateItemId, value: 1, is_na: false },
+          { item_id: scoredItemId, value: null, is_na: true },
+          { item_id: secondScoredItemId, value: null, is_na: true },
+        ],
+      },
+    });
+
+    const response = await asUserFetch(coordinatorA.id, "/rpc/portal_quality_report_by_group", {
+      method: "POST",
+      body: JSON.stringify({
+        p_from: "2020-01-01",
+        p_to: "2100-01-01",
+        p_project: projectA,
+        p_employee: employee,
+      }),
+    });
+    const rows = (await response.json()) as {
+      reviews_count: number;
+      scored_count: number;
+      avg_percent: number | null;
+    }[];
+
+    expect(rows).toHaveLength(1);
+    expect(Number(rows[0].reviews_count)).toBe(1);
+    expect(Number(rows[0].scored_count)).toBe(0);
+    expect(rows[0].avg_percent).toBeNull();
+  });
+
+  it("G1: рекрутёр не получает из разреза по блокам ничего", async () => {
+    const response = await asUserFetch(recruiterA.id, "/rpc/portal_quality_report_by_group", {
+      method: "POST",
+      body: JSON.stringify({ p_from: "2020-01-01", p_to: "2100-01-01" }),
+    });
+    expect(response.ok).toBe(true);
+    expect((await response.json()) as unknown[]).toHaveLength(0);
+  });
+
   it("менеджер видит сводку — раздел ему открыт на чтение", async () => {
     const report = await asUserFetch(managerA.id, "/rpc/portal_quality_report", {
       method: "POST",

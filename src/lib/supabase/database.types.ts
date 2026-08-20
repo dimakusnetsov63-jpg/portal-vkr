@@ -1670,6 +1670,25 @@ export type Database = {
         Args: { p_keep?: string }
         Returns: number
       }
+      portal_quality_report_by_group: {
+        Args: {
+          p_employee?: string
+          p_from: string
+          p_kind?: string
+          p_project?: string
+          p_to: string
+        }
+        Returns: {
+          avg_percent: number
+          counts_in_total: boolean
+          employee_name: string
+          group_id: string
+          group_sort_order: number
+          group_title: string
+          reviews_count: number
+          scored_count: number
+        }[]
+      }
       portal_quality_report: {
         Args: {
           p_from: string

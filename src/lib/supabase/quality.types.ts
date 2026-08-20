@@ -97,6 +97,26 @@ export interface QualityReviewFilters {
   search?: string;
 }
 
+/**
+ * Строка разреза по блокам из `portal_quality_report_by_group` — того
+ * самого отчёта, который в Excel назывался «Сводная по рекрутерам».
+ *
+ * `avg_percent = null` при `scored_count = 0` — законное состояние: по
+ * этому блоку ни одна проверка не дала числа (все пункты «не применимо»
+ * либо блок был выключен переключателем). Блок при этом из выдачи не
+ * исчезает: «оценок нет» и «блока не существует» — разные вещи.
+ */
+export interface QualityGroupReportRow {
+  employee_name: string;
+  group_id: string;
+  group_title: string;
+  group_sort_order: number;
+  counts_in_total: boolean;
+  reviews_count: number;
+  scored_count: number;
+  avg_percent: number | null;
+}
+
 /** Строка сводки из `portal_quality_report`. */
 export interface QualityReportRow {
   employee_name: string;

@@ -1,6 +1,7 @@
 import { createClient } from "./client";
 import type {
   QualityAnswer,
+  QualityGroupReportRow,
   QualityChecklistRow,
   QualityChecklistTree,
   QualityGroupRow,
@@ -269,4 +270,30 @@ export async function loadReport(
   } as never);
   if (error) throw error;
   return (data ?? []) as unknown as QualityReportRow[];
+}
+
+/**
+ * Разрез сводки по блокам чек-листа — «Сводная по рекрутерам» из Excel.
+ *
+ * Отдельный агрегат, а не разбор `group_scores` на клиенте: раскрывать
+ * jsonb в браузере пришлось бы по всем строкам периода, то есть сначала
+ * загрузить их все — ровно то, чего раздел избегает серверной пагинацией.
+ */
+export async function loadReportByGroup(
+  from: string,
+  to: string,
+  project?: string,
+  kind?: QualityKind,
+  employeeName?: string,
+): Promise<QualityGroupReportRow[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("portal_quality_report_by_group", {
+    p_from: from,
+    p_to: to,
+    p_project: project ?? undefined,
+    p_kind: kind ?? undefined,
+    p_employee: employeeName ?? undefined,
+  } as never);
+  if (error) throw error;
+  return (data ?? []) as unknown as QualityGroupReportRow[];
 }
