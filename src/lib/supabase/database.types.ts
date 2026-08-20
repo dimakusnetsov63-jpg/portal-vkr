@@ -729,22 +729,37 @@ export type Database = {
       }
       quality_review_scores: {
         Row: {
+          group_id: string
+          group_sort_order: number
+          group_title: string
           is_na: boolean
           item_id: string
+          item_sort_order: number
+          item_title: string
           note: string | null
           review_id: string
           value: number | null
         }
         Insert: {
+          group_id: string
+          group_sort_order: number
+          group_title: string
           is_na?: boolean
           item_id: string
+          item_sort_order: number
+          item_title: string
           note?: string | null
           review_id: string
           value?: number | null
         }
         Update: {
+          group_id?: string
+          group_sort_order?: number
+          group_title?: string
           is_na?: boolean
           item_id?: string
+          item_sort_order?: number
+          item_title?: string
           note?: string | null
           review_id?: string
           value?: number | null
@@ -1670,6 +1685,23 @@ export type Database = {
         Args: { p_keep?: string }
         Returns: number
       }
+      portal_quality_report: {
+        Args: {
+          p_from: string
+          p_kind?: string
+          p_project?: string
+          p_to: string
+        }
+        Returns: {
+          avg_total: number
+          cases_count: number
+          critical_count: number
+          employee_name: string
+          project: string
+          reviews_count: number
+          scored_count: number
+        }[]
+      }
       portal_quality_report_by_group: {
         Args: {
           p_employee?: string
@@ -1685,23 +1717,6 @@ export type Database = {
           group_id: string
           group_sort_order: number
           group_title: string
-          reviews_count: number
-          scored_count: number
-        }[]
-      }
-      portal_quality_report: {
-        Args: {
-          p_from: string
-          p_kind?: string
-          p_project?: string
-          p_to: string
-        }
-        Returns: {
-          avg_total: number
-          cases_count: number
-          critical_count: number
-          employee_name: string
-          project: string
           reviews_count: number
           scored_count: number
         }[]
@@ -1819,6 +1834,8 @@ export type Database = {
         | "logout"
         | "section_permission_changed"
         | "user_projects_changed"
+        | "quality_review_created"
+        | "quality_review_updated"
       portal_user_role: "head" | "coordinator" | "manager" | "recruiter"
       staffing_demand_history_action: "insert" | "update" | "delete"
     }
@@ -1998,6 +2015,8 @@ export const Constants = {
         "logout",
         "section_permission_changed",
         "user_projects_changed",
+        "quality_review_created",
+        "quality_review_updated",
       ],
       portal_user_role: ["head", "coordinator", "manager", "recruiter"],
       staffing_demand_history_action: ["insert", "update", "delete"],

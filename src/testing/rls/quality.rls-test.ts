@@ -5,6 +5,7 @@ import {
   createTestPortalUser,
   insertTestRow,
   readRowAsServiceRole,
+  serviceRoleFetch,
   testMarker,
   type TestPortalUser,
 } from "./client";
@@ -714,6 +715,60 @@ describe("RLS: контроль качества — доступ, проект�
     const changes = entry?.details.scores ?? [];
     expect(changes).toContainEqual({ item: "Пункт с баллом", from: "2", to: "н/д" });
     expect(changes).toContainEqual({ item: "Было возражение?", from: "1", to: "—" });
+  });
+
+  // --- Снимок формулировок (B2) -------------------------------------------
+
+  it("B2: переименование пункта не меняет уже сохранённую проверку", async () => {
+    const employee = `${marker} Снимочный`;
+
+    // Отдельный пункт для этого теста: переименовывать общий нельзя, на нём
+    // держатся ожидания соседних сценариев.
+    const group = await insertTestRow<{ id: string }>("quality_checklist_groups", {
+      checklist_id: checklistId,
+      title: "Блок для снимка",
+      sort_order: 2,
+      counts_in_total: true,
+    });
+    const item = await insertTestRow<{ id: string }>("quality_checklist_items", {
+      group_id: group.id,
+      title: "Формулировка до правки",
+      scale: "0-2",
+      sort_order: 1,
+    });
+
+    const saved = await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555050,
+        project: projectA,
+        employee_name: employee,
+        status: "draft",
+        scores: [{ item_id: item.id, value: 2, is_na: false }],
+      },
+    });
+    expect(saved.ok).toBe(true);
+    const review = (await saved.json()) as { id: string };
+
+    // Бизнес поправил формулировку в шаблоне — и заодно заархивировал пункт.
+    await serviceRoleFetch(`/quality_checklist_items?id=eq.${item.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        title: "Формулировка после правки",
+        archived_at: new Date().toISOString(),
+      }),
+    });
+
+    const scores = await asUserFetch(
+      coordinatorA.id,
+      `/quality_review_scores?review_id=eq.${review.id}&item_id=eq.${item.id}&select=item_title,group_title`,
+    );
+    const rows = (await scores.json()) as { item_title: string; group_title: string }[];
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].item_title).toBe("Формулировка до правки");
+    expect(rows[0].group_title).toBe("Блок для снимка");
   });
 
   // --- Шаблоны -----------------------------------------------------------

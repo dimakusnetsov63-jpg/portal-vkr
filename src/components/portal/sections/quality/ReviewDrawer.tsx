@@ -7,20 +7,12 @@ import { Button } from "@/components/portal/ui/Button";
 import { Drawer } from "@/components/portal/ui/Drawer";
 import { ErrorState, SkeletonLines } from "@/components/portal/ui/StateViews";
 import { fmtDate } from "@/lib/portal/format";
-import { getChecklistTree, getReview } from "@/lib/supabase/qualityRepo";
-import type { QualityChecklistTree, QualityReviewWithScores } from "@/lib/supabase/quality.types";
+import { getReview } from "@/lib/supabase/qualityRepo";
+import type { QualityReviewWithScores } from "@/lib/supabase/quality.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import styles from "./QualitySection.module.css";
-import {
-  CALL_TYPE_LABELS,
-  KIND_LABELS,
-  STATUS_LABELS,
-  asItemScale,
-  formatPercent,
-  leadUrl,
-  scaleValueLabel,
-  scoreTone,
-} from "./qualityOptions";
+import { CALL_TYPE_LABELS, KIND_LABELS, STATUS_LABELS, formatPercent, leadUrl, scoreTone } from "./qualityOptions";
+import { buildReviewSnapshot, formatAnswer } from "./reviewSnapshot";
 
 /**
  * Карточка проверки — только чтение. Проценты берутся из строки
@@ -38,7 +30,6 @@ export function ReviewDrawer({
 }) {
   const { canEdit } = usePortal();
   const [data, setData] = useState<QualityReviewWithScores | null>(null);
-  const [tree, setTree] = useState<QualityChecklistTree | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
@@ -49,11 +40,8 @@ export function ReviewDrawer({
     setFailed(false);
 
     getReview(reviewId)
-      .then(async (loaded) => {
-        if (cancelled) return;
-        setData(loaded);
-        const loadedTree = await getChecklistTree(loaded.review.checklist_id);
-        if (!cancelled) setTree(loadedTree);
+      .then((loaded) => {
+        if (!cancelled) setData(loaded);
       })
       .catch(() => {
         if (!cancelled) setFailed(true);
@@ -68,7 +56,11 @@ export function ReviewDrawer({
   }, [reviewId]);
 
   const review = data?.review;
-  const answers = new Map((data?.scores ?? []).map((score) => [score.item_id, score]));
+
+  // Проверка рисуется из собственных ответов: каждый несёт снимок
+  // формулировки, блока и порядка на момент сохранения. К шаблону здесь
+  // обращаться нельзя — он мог измениться (B2).
+  const snapshot = data ? buildReviewSnapshot(data.scores, data.review.group_scores) : [];
 
   return (
     <Drawer open onClose={onClose} label="Карточка проверки качества">
@@ -146,44 +138,25 @@ export function ReviewDrawer({
               </div>
               <div className={primitives.kvRow}>
                 <dt>Версия шаблона</dt>
-                <dd className={primitives.muted}>
-                  {review.checklist_version}
-                  {tree && tree.checklist.version !== review.checklist_version && " (шаблон с тех пор менялся)"}
-                </dd>
+                <dd className={primitives.muted}>{review.checklist_version}</dd>
               </div>
             </dl>
 
-            {tree && (
+            {snapshot.length > 0 && (
               <div className={styles.checklist}>
-                {tree.groups.map(({ group, items }) => (
-                  <section key={group.id} className={styles.checklistGroup}>
+                {snapshot.map((group) => (
+                  <section key={group.groupId} className={styles.checklistGroup}>
                     <header className={styles.checklistGroupHead}>
-                      <h4>
-                        {group.title}
-                        {!group.counts_in_total && <span className={styles.groupNote}>не входит в итог</span>}
-                      </h4>
-                      <Badge color={scoreTone(review.group_scores[group.id] ?? null)}>
-                        {formatPercent(review.group_scores[group.id] ?? null)}
-                      </Badge>
+                      <h4>{group.title}</h4>
+                      <Badge color={scoreTone(group.percent)}>{formatPercent(group.percent)}</Badge>
                     </header>
                     <div className={styles.checklistItems}>
-                      {items.map((item) => {
-                        const answer = answers.get(item.id);
-                        return (
-                          <div key={item.id} className={styles.checklistItem}>
-                            <div className={styles.checklistItemTitle}>{item.title}</div>
-                            <div className={primitives.muted}>
-                              {!answer
-                                ? "—"
-                                : answer.is_na
-                                  ? "н/д"
-                                  : answer.value === null
-                                    ? "—"
-                                    : scaleValueLabel(asItemScale(item.scale), answer.value)}
-                            </div>
-                          </div>
-                        );
-                      })}
+                      {group.items.map((item) => (
+                        <div key={item.itemId} className={styles.checklistItem}>
+                          <div className={styles.checklistItemTitle}>{item.title}</div>
+                          <div className={primitives.muted}>{formatAnswer(item)}</div>
+                        </div>
+                      ))}
                     </div>
                   </section>
                 ))}

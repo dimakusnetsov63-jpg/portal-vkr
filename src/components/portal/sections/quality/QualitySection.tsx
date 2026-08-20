@@ -83,7 +83,6 @@ export function QualitySection() {
 
   const reload = useCallback(() => {
     let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- загрузка страницы реестра
     setLoading(true);
     setFailed(false);
 
