@@ -6,6 +6,7 @@
 
 Задача — [`../tasks/TASK-013-quality-control.md`](../tasks/TASK-013-quality-control.md).
 Расчёт оценки и его местоположение — [`ADR-006`](../architecture/decisions/ADR-006-quality-score.md).
+Показатели, их источники и границы разрезов — [`quality-analytics.md`](quality-analytics.md).
 
 ## Что проверяется
 

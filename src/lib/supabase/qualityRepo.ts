@@ -95,20 +95,6 @@ export async function getChecklistTree(checklistId: string): Promise<QualityChec
   };
 }
 
-/**
- * Подбор шаблона под проверку: сначала шаблон проекта, при его отсутствии —
- * общий шаблон вида (`project is null`). Это правило живёт здесь, а не в
- * базе: оно про удобство ввода, а не про целостность данных.
- */
-export function pickChecklist(
-  checklists: QualityChecklistRow[],
-  kind: QualityKind,
-  project: string,
-): QualityChecklistRow | null {
-  const ofKind = checklists.filter((item) => item.kind === kind);
-  return ofKind.find((item) => item.project === project) ?? ofKind.find((item) => item.project === null) ?? null;
-}
-
 export interface ReviewsPage {
   rows: QualityReviewRow[];
   total: number;

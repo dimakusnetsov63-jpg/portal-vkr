@@ -45,6 +45,7 @@
 | [`vacancies.md`](requirements/vacancies.md) | Описание вакансий (статические данные) |
 | [`rates.md`](requirements/rates.md) | Ставки: тарифы по проекту/городу/юр. лицу/должности, доход за смену/неделю/месяц |
 | [`quality.md`](requirements/quality.md) | Контроль качества: чек-листы, шкалы, расчёт процентов, права |
+| [`quality-analytics.md`](requirements/quality-analytics.md) | Контроль качества: показатели, их источники, возможные разрезы и чего в данных нет |
 | [`analytics.md`](requirements/analytics.md) | Аналитика (демонстрационный раздел) |
 
 ### Архитектура — [`architecture/`](architecture/)

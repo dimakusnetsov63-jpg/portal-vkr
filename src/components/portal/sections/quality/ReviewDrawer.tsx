@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { usePortal } from "@/components/portal/context/PortalContext";
 import { Badge } from "@/components/portal/ui/Badge";
 import { Button } from "@/components/portal/ui/Button";
@@ -37,9 +37,14 @@ export function ReviewDrawer({
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
-  useEffect(() => {
+  /**
+   * Загрузка карточки — отдельным колбэком, а не телом эффекта, чтобы её мог
+   * позвать и эффект, и кнопка «Повторить». Раньше `onRetry` сбрасывал
+   * `data` в null, но эффект зависел только от `reviewId`, который при этом
+   * не менялся: кнопка не делала ничего вовсе (BUG-06 аудита).
+   */
+  const load = useCallback(() => {
     let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- загрузка карточки проверки
     setLoading(true);
     setFailed(false);
 
@@ -58,6 +63,11 @@ export function ReviewDrawer({
       cancelled = true;
     };
   }, [reviewId]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- загрузка карточки проверки
+    return load();
+  }, [load]);
 
   async function toggleArchived() {
     if (!data) return;
@@ -99,7 +109,13 @@ export function ReviewDrawer({
 
       <div className={styles.drawerBody}>
         {loading && <SkeletonLines lines={10} />}
-        {!loading && failed && <ErrorState onRetry={() => setData(null)} />}
+        {!loading && failed && (
+          <ErrorState
+            onRetry={() => {
+              load();
+            }}
+          />
+        )}
 
         {!loading && review && (
           <>

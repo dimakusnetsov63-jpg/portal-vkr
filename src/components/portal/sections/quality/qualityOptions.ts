@@ -1,6 +1,11 @@
-import type { QualityCallType, QualityItemScale, QualityKind } from "@/lib/supabase/quality.types";
+import type {
+  QualityCallType,
+  QualityChecklistRow,
+  QualityItemScale,
+  QualityKind,
+} from "@/lib/supabase/quality.types";
 
-/** Подписи и мелкие форматтеры раздела «Контроль качества». */
+/** Подписи, форматтеры и правила показа раздела «Контроль качества». */
 
 export const QUALITY_KINDS: QualityKind[] = ["call", "refusal"];
 
@@ -77,4 +82,42 @@ export function scoreTone(value: number | null | undefined): "green" | "amber" |
   if (value >= 90) return "green";
   if (value >= 70) return "amber";
   return "red";
+}
+
+/**
+ * Варианты поля справочника вместе с уже сохранённым значением.
+ *
+ * Списки в форме собираются из **активных** записей справочника. Без этой
+ * добавки значение, которое с тех пор отключили, пропадает из `select` —
+ * браузер показывает пустое поле, и при следующем сохранении проверки оно
+ * молча стирается. Потерять так можно возражение, должность или город
+ * прошлой проверки, а по ним строится вся отчётность.
+ *
+ * Тот же разрыв есть и в других разделах портала; правится он там отдельно —
+ * здесь чинится только форма проверки.
+ */
+export function optionsWithCurrent(options: string[], current: string | null | undefined): string[] {
+  if (!current || options.includes(current)) return options;
+  return [current, ...options];
+}
+
+/**
+ * Подбор шаблона под проверку: сначала шаблон проекта, при его отсутствии —
+ * общий шаблон вида (`project is null`). Правило про удобство ввода, а не
+ * про целостность данных, поэтому живёт здесь, а не в базе.
+ *
+ * Архивные шаблоны отбрасываются явно, хотя `listChecklists` их и так не
+ * отдаёт. Это не перестраховка: 19 августа восемь проектных шаблонов
+ * заархивировали в пользу одного общего, и просочись такой шаблон в список
+ * — он выиграл бы у общего, потому что совпадение по проекту точнее.
+ * Проверка заполнялась бы по составу, от которого отказались, и заметить
+ * это можно было бы только по числу пунктов.
+ */
+export function pickChecklist(
+  checklists: QualityChecklistRow[],
+  kind: QualityKind,
+  project: string,
+): QualityChecklistRow | null {
+  const ofKind = checklists.filter((item) => item.kind === kind && item.archived_at === null);
+  return ofKind.find((item) => item.project === project) ?? ofKind.find((item) => item.project === null) ?? null;
 }

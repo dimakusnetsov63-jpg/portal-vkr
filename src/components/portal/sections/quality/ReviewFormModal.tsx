@@ -12,7 +12,6 @@ import { fmtDate } from "@/lib/portal/format";
 import {
   getChecklistTree,
   findReviewsByLead,
-  pickChecklist,
   QualityVersionConflictError,
   saveReview,
   type SaveReviewInput,
@@ -26,7 +25,17 @@ import type {
 import primitives from "@/components/portal/ui/primitives.module.css";
 import styles from "./QualitySection.module.css";
 import { ChecklistFields } from "./ChecklistFields";
-import { CALL_TYPES, CALL_TYPE_LABELS, KIND_LABELS, QUALITY_KINDS, formatPercent, leadUrl, scoreTone } from "./qualityOptions";
+import {
+  CALL_TYPES,
+  CALL_TYPE_LABELS,
+  KIND_LABELS,
+  QUALITY_KINDS,
+  formatPercent,
+  leadUrl,
+  optionsWithCurrent,
+  pickChecklist,
+  scoreTone,
+} from "./qualityOptions";
 import { calculateReviewScore, countUnanswered, parseLeadId, type AnswerMap, type ScoreGroup } from "./qualityScore";
 import { todayIso } from "./qualityFilters";
 import { validateReviewForm } from "./reviewForm";
@@ -400,7 +409,7 @@ export function ReviewFormModal({
           <span>Проект</span>
           <select value={form.project} onChange={(event) => setField("project", event.target.value)}>
             <option value="">—</option>
-            {projectOptions.map((project) => (
+            {optionsWithCurrent(projectOptions, form.project).map((project) => (
               <option key={project} value={project}>
                 {project}
               </option>
@@ -471,7 +480,7 @@ export function ReviewFormModal({
           <span>Должность</span>
           <select value={form.position} onChange={(event) => setField("position", event.target.value)}>
             <option value="">—</option>
-            {positionOptions.map((position) => (
+            {optionsWithCurrent(positionOptions, form.position).map((position) => (
               <option key={position} value={position}>
                 {position}
               </option>
@@ -482,7 +491,7 @@ export function ReviewFormModal({
           <span>Город</span>
           <select value={form.city} onChange={(event) => setField("city", event.target.value)}>
             <option value="">—</option>
-            {cityOptions.map((city) => (
+            {optionsWithCurrent(cityOptions, form.city).map((city) => (
               <option key={city} value={city}>
                 {city}
               </option>
@@ -497,7 +506,7 @@ export function ReviewFormModal({
             <span>Возражение кандидата</span>
             <select value={form.objection} onChange={(event) => setField("objection", event.target.value)}>
               <option value="">—</option>
-              {objectionOptions.map((objection) => (
+              {optionsWithCurrent(objectionOptions, form.objection).map((objection) => (
                 <option key={objection} value={objection}>
                   {objection}
                 </option>
@@ -567,12 +576,24 @@ export function ReviewFormModal({
           <span>Нарушение</span>
           <select value={form.violation} onChange={(event) => setField("violation", event.target.value)}>
             <option value="">—</option>
-            {violationOptions.map((violation) => (
+            {optionsWithCurrent(violationOptions, form.violation).map((violation) => (
               <option key={violation} value={violation}>
                 {violation}
               </option>
             ))}
           </select>
+          {/*
+            Справочник нарушений намеренно засеян пустым: в исходных таблицах
+            одноимённая колонка заполнялась бессистемно (числа на одном
+            проекте, текст рекомендаций на другом), словаря из неё не собрать
+            — его заводит бизнес. Без этой подсказки поле выглядит сломанным:
+            список из одного прочерка и никакого объяснения (TD-05 аудита).
+          */}
+          {violationOptions.length === 0 && (
+            <span className={styles.fieldNote}>
+              Список пуст — нарушения заводятся в «Настройки → Списки → Нарушения (Контроль качества)».
+            </span>
+          )}
         </label>
         <label className={primitives.checkLabel}>
           <input type="checkbox" checked={form.isCase} onChange={(event) => setField("isCase", event.target.checked)} />
