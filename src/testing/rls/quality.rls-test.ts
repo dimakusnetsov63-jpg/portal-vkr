@@ -38,6 +38,11 @@ describe("RLS: контроль качества — доступ, проект�
   const projectB = `${marker}-B`;
 
   let coordinatorA: TestPortalUser;
+  // Отдельный координатор для редактора: на пару «вид + проект» стоит
+  // уникальный индекс, поэтому каждому сценарию нужен свой проект, а доступ
+  // к ним — свой пользователь.
+  const editorProjects = [1, 2, 3, 4, 5].map((n) => `${marker}-E${n}`);
+  let coordinatorEditor: { id: string };
   let managerA: TestPortalUser;
   let recruiterA: TestPortalUser;
 
@@ -120,6 +125,15 @@ describe("RLS: контроль качества — доступ, проект�
       password_hash: "rls-test-fixture-not-a-real-hash",
       role: "recruiter",
       projects: [projectA],
+      is_active: true,
+    });
+
+    coordinatorEditor = await insertTestRow<{ id: string }>("portal_users", {
+      full_name: `${marker} Редактор шаблонов`,
+      login: `${marker}edit`.toLowerCase().slice(0, 32),
+      password_hash: "rls-test-fixture-not-a-real-hash",
+      role: "coordinator",
+      projects: [...editorProjects, projectA],
       is_active: true,
     });
 
@@ -1356,11 +1370,11 @@ describe("RLS: контроль качества — доступ, проект�
     });
   }
 
-  function treePayload(title: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
+  function treePayload(title: string, project: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
     return {
       title,
       kind: "call",
-      project: projectA,
+      project,
       groups: [
         {
           id: null,
@@ -1377,9 +1391,9 @@ describe("RLS: контроль качества — доступ, проект�
   }
 
   it("шаблон создаётся и сразу возвращает версию", async () => {
-    const response = await callSaveTree(coordinatorA.id, {
+    const response = await callSaveTree(coordinatorEditor.id, {
       p_checklist_id: null,
-      p_payload: treePayload(`${marker} Новый шаблон`),
+      p_payload: treePayload(`${marker} Новый шаблон`, editorProjects[0]),
     });
 
     expect(response.ok).toBe(true);
@@ -1391,36 +1405,36 @@ describe("RLS: контроль качества — доступ, проект�
   it("менеджер шаблон не создаёт и не правит", async () => {
     const response = await callSaveTree(managerA.id, {
       p_checklist_id: null,
-      p_payload: treePayload(`${marker} Менеджерский`),
+      p_payload: treePayload(`${marker} Менеджерский`, editorProjects[0]),
     });
 
     expect(response.ok).toBe(false);
   });
 
   it("правка без версии и с чужой версией отвергается", async () => {
-    const created = await callSaveTree(coordinatorA.id, {
+    const created = await callSaveTree(coordinatorEditor.id, {
       p_checklist_id: null,
-      p_payload: treePayload(`${marker} Версионный`),
+      p_payload: treePayload(`${marker} Версионный`, editorProjects[1]),
     });
     const { id, version } = (await created.json()) as { id: string; version: number };
 
-    const noVersion = await callSaveTree(coordinatorA.id, {
+    const noVersion = await callSaveTree(coordinatorEditor.id, {
       p_checklist_id: id,
-      p_payload: treePayload(`${marker} Версионный (правка)`),
+      p_payload: treePayload(`${marker} Версионный (правка)`, editorProjects[1]),
     });
     expect(noVersion.ok).toBe(false);
 
-    const staleVersion = await callSaveTree(coordinatorA.id, {
+    const staleVersion = await callSaveTree(coordinatorEditor.id, {
       p_checklist_id: id,
       p_expected_version: Number(version) + 5,
-      p_payload: treePayload(`${marker} Версионный (правка)`),
+      p_payload: treePayload(`${marker} Версионный (правка)`, editorProjects[1]),
     });
     expect(staleVersion.ok).toBe(false);
 
-    const good = await callSaveTree(coordinatorA.id, {
+    const good = await callSaveTree(coordinatorEditor.id, {
       p_checklist_id: id,
       p_expected_version: version,
-      p_payload: treePayload(`${marker} Версионный (правка)`),
+      p_payload: treePayload(`${marker} Версионный (правка)`, editorProjects[1]),
     });
     expect(good.ok).toBe(true);
   });
@@ -1434,10 +1448,10 @@ describe("RLS: контроль качества — доступ, проект�
       project: projectB,
     });
 
-    const response = await callSaveTree(coordinatorA.id, {
+    const response = await callSaveTree(coordinatorEditor.id, {
       p_checklist_id: foreign.id,
       p_expected_version: foreign.version,
-      p_payload: treePayload(`${marker} Присвоенный`),
+      p_payload: treePayload(`${marker} Присвоенный`, editorProjects[0]),
     });
 
     expect(response.ok).toBe(false);
@@ -1478,9 +1492,9 @@ describe("RLS: контроль качества — доступ, проект�
   it("неоценённый пункт при удалении из шаблона исчезает совсем", async () => {
     // Пока на пункт никто не сослался, его удаление из свежего шаблона —
     // обычная правка, а не потеря истории.
-    const created = await callSaveTree(coordinatorA.id, {
+    const created = await callSaveTree(coordinatorEditor.id, {
       p_checklist_id: null,
-      p_payload: treePayload(`${marker} С лишним пунктом`, {
+      p_payload: treePayload(`${marker} С лишним пунктом`, editorProjects[2], {
         groups: [
           {
             id: null,
@@ -1505,10 +1519,10 @@ describe("RLS: контроль качества — доступ, проект�
     expect(keep).toBeDefined();
     expect(drop).toBeDefined();
 
-    const response = await callSaveTree(coordinatorA.id, {
+    const response = await callSaveTree(coordinatorEditor.id, {
       p_checklist_id: id,
       p_expected_version: await currentVersion(id),
-      p_payload: treePayload(`${marker} С лишним пунктом`, {
+      p_payload: treePayload(`${marker} С лишним пунктом`, editorProjects[2], {
         groups: [
           {
             // Идентификаторы блока и пункта сохраняются. Без них строки
@@ -1538,9 +1552,9 @@ describe("RLS: контроль качества — доступ, проект�
     // Удалить его значило бы потерять выставленную оценку. Это главное
     // правило редактора: прошлые проверки читаются тем составом, каким их
     // заполняли.
-    const created = await callSaveTree(coordinatorA.id, {
+    const created = await callSaveTree(coordinatorEditor.id, {
       p_checklist_id: null,
-      p_payload: treePayload(`${marker} С оценённым пунктом`, {
+      p_payload: treePayload(`${marker} С оценённым пунктом`, editorProjects[3], {
         groups: [
           {
             id: null,
@@ -1564,12 +1578,12 @@ describe("RLS: контроль качества — доступ, проект�
     expect(scored).toBeDefined();
 
     // Проверка по этому шаблону — она и делает пункт неудаляемым.
-    const review = await callSave(coordinatorA.id, {
+    const review = await callSave(coordinatorEditor.id, {
       p_review_id: null,
       p_payload: {
         checklist_id: id,
         crm_lead_id: 555070,
-        project: projectA,
+        project: editorProjects[3],
         employee_name: `${marker} Оценённый сотрудник`,
         status: "completed",
         scores: [
@@ -1580,10 +1594,10 @@ describe("RLS: контроль качества — доступ, проект�
     });
     expect(review.ok).toBe(true);
 
-    const response = await callSaveTree(coordinatorA.id, {
+    const response = await callSaveTree(coordinatorEditor.id, {
       p_checklist_id: id,
       p_expected_version: await currentVersion(id),
-      p_payload: treePayload(`${marker} С оценённым пунктом`, {
+      p_payload: treePayload(`${marker} С оценённым пунктом`, editorProjects[3], {
         groups: [
           {
             id: before.groups[0].id,
@@ -1608,15 +1622,15 @@ describe("RLS: контроль качества — доступ, проект�
   });
 
   it("шаблон без названия, с неизвестной шкалой и с нулевым весом не сохраняется", async () => {
-    const noTitle = await callSaveTree(coordinatorA.id, {
+    const noTitle = await callSaveTree(coordinatorEditor.id, {
       p_checklist_id: null,
-      p_payload: treePayload("   "),
+      p_payload: treePayload("   ", editorProjects[4]),
     });
     expect(noTitle.ok).toBe(false);
 
-    const badScale = await callSaveTree(coordinatorA.id, {
+    const badScale = await callSaveTree(coordinatorEditor.id, {
       p_checklist_id: null,
-      p_payload: treePayload(`${marker} Шкала`, {
+      p_payload: treePayload(`${marker} Шкала`, editorProjects[4], {
         groups: [
           {
             id: null,
@@ -1630,9 +1644,9 @@ describe("RLS: контроль качества — доступ, проект�
     });
     expect(badScale.ok).toBe(false);
 
-    const badWeight = await callSaveTree(coordinatorA.id, {
+    const badWeight = await callSaveTree(coordinatorEditor.id, {
       p_checklist_id: null,
-      p_payload: treePayload(`${marker} Вес`, {
+      p_payload: treePayload(`${marker} Вес`, editorProjects[4], {
         groups: [
           {
             id: null,
@@ -1647,10 +1661,40 @@ describe("RLS: контроль качества — доступ, проект�
     expect(badWeight.ok).toBe(false);
   });
 
-  it("вид проверки ограничен известными значениями", async () => {
-    const response = await callSaveTree(coordinatorA.id, {
+  it("второй действующий шаблон на ту же пару «вид + проект» не заводится", async () => {
+    // Ограничение стоит с самого начала (частичный уникальный индекс), но до
+    // редактора нарушить его было неоткуда — шаблоны заводились миграциями.
+    // Проверяем и то, что отказ приходит с читаемым текстом, а не сырым
+    // сообщением про duplicate key: это рядовая ошибка пользователя.
+    const first = await callSaveTree(coordinatorEditor.id, {
       p_checklist_id: null,
-      p_payload: treePayload(`${marker} Вид`, { kind: "выдуманный" }),
+      p_payload: treePayload(`${marker} Первый`, editorProjects[4]),
+    });
+    expect(first.ok).toBe(true);
+
+    const second = await callSaveTree(coordinatorEditor.id, {
+      p_checklist_id: null,
+      p_payload: treePayload(`${marker} Второй`, editorProjects[4]),
+    });
+    expect(second.ok).toBe(false);
+    const body = (await second.json()) as { message?: string };
+    expect(body.message).toContain("уже есть действующий шаблон");
+
+    // Правка самого шаблона на месте под запрет не попадает — иначе
+    // отредактировать существующий было бы нельзя вовсе.
+    const { id, version } = (await first.json()) as { id: string; version: number };
+    const edit = await callSaveTree(coordinatorEditor.id, {
+      p_checklist_id: id,
+      p_expected_version: version,
+      p_payload: treePayload(`${marker} Первый (правка)`, editorProjects[4]),
+    });
+    expect(edit.ok).toBe(true);
+  });
+
+  it("вид проверки ограничен известными значениями", async () => {
+    const response = await callSaveTree(coordinatorEditor.id, {
+      p_checklist_id: null,
+      p_payload: treePayload(`${marker} Вид`, editorProjects[4], { kind: "выдуманный" }),
     });
 
     expect(response.ok).toBe(false);
