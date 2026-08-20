@@ -17,6 +17,7 @@ import { MarketingSection } from "@/components/portal/sections/MarketingSection"
 import { AnalyticsSection } from "@/components/portal/sections/AnalyticsSection";
 import { NotificationsSection } from "@/components/portal/sections/NotificationsSection";
 import { SettingsSection } from "@/components/portal/sections/settings";
+import { SectionErrorBoundary } from "@/components/portal/ui/SectionErrorBoundary";
 import type { PortalUser } from "@/lib/supabase/portalAuth.types";
 import styles from "./PortalApp.module.css";
 
@@ -74,8 +75,16 @@ function PortalShell() {
       <Sidebar />
       <div className={styles.main}>
         <Topbar />
+        {/*
+          `key={activePage}` уже пересоздаёт поддерево при смене раздела —
+          значит, и граница ошибок сбрасывается сама, без ручного сброса
+          состояния. Уйти из сломанного раздела достаточно, чтобы вернуться
+          к рабочему.
+        */}
         <main className={styles.content} key={activePage}>
-          <ActiveSection />
+          <SectionErrorBoundary>
+            <ActiveSection />
+          </SectionErrorBoundary>
         </main>
       </div>
       <MobileTabBar />

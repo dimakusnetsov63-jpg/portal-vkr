@@ -47,6 +47,25 @@ export function EmptyState({ title, text, onReset }: { title: string; text: stri
   );
 }
 
+/**
+ * Раздел упал при отрисовке — не «не загрузилось».
+ *
+ * Отдельно от `ErrorState`: тот говорит «проверьте соединение», а здесь
+ * соединение ни при чём и повтор запроса не поможет. Разные причины должны
+ * читаться по-разному, иначе человек будет чинить не то.
+ */
+export function CrashState({ onRetry }: { onRetry: () => void }) {
+  return (
+    <StateBlock
+      icon="alert"
+      error
+      title="Раздел не открылся"
+      text="Что-то пошло не так при отрисовке. Остальные разделы работают — перейдите в любой из них или попробуйте открыть этот заново."
+      action={{ label: "Попробовать снова", onClick: onRetry, primary: true }}
+    />
+  );
+}
+
 export function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <StateBlock
