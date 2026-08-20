@@ -606,11 +606,13 @@ describe("RLS: контроль качества — доступ, проект�
       },
     });
     expect(created.ok).toBe(true);
-    const review = (await created.json()) as { id: string };
+    const review = (await created.json()) as { id: string; version: number };
 
-    // Правка: балл поднят с 0 до 2, черновик завершён.
+    // Правка: балл поднят с 0 до 2, черновик завершён. Версия обязательна
+    // с B3 — без неё база отвергнет обновление.
     const updated = await callSave(coordinatorA.id, {
       p_review_id: review.id,
+      p_expected_version: review.version,
       p_payload: {
         checklist_id: checklistId,
         crm_lead_id: 555030,
@@ -681,12 +683,13 @@ describe("RLS: контроль качества — доступ, проект�
         ],
       },
     });
-    const review = (await created.json()) as { id: string };
+    const review = (await created.json()) as { id: string; version: number };
 
     // Балл заменён на «не применимо», ответ по второму пункту снят вовсе —
     // интерфейс просто не присылает его в наборе.
     await callSave(coordinatorA.id, {
       p_review_id: review.id,
+      p_expected_version: review.version,
       p_payload: {
         checklist_id: checklistId,
         crm_lead_id: 555031,
