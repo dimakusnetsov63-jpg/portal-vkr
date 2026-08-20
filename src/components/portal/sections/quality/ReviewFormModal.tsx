@@ -26,8 +26,6 @@ import primitives from "@/components/portal/ui/primitives.module.css";
 import styles from "./QualitySection.module.css";
 import { ChecklistFields } from "./ChecklistFields";
 import {
-  CALL_TYPES,
-  CALL_TYPE_LABELS,
   KIND_LABELS,
   QUALITY_KINDS,
   formatPercent,
@@ -40,6 +38,19 @@ import { calculateReviewScore, countUnanswered, parseLeadId, type AnswerMap, typ
 import { todayIso } from "./qualityFilters";
 import { validateReviewForm } from "./reviewForm";
 
+/**
+ * Состояние формы.
+ *
+ * Часть полей 20 августа убрана из интерфейса по просьбе команды КЦ: тип
+ * звонка, должность, город, а у самоотказов ещё целевой лид, скорость
+ * обработки, число исходящих и комментарий рекрутёра в CRM — их не
+ * заполняли при проверке, а время они отнимали.
+ *
+ * В состоянии они остались намеренно. Форма отправляет весь набор полей, и
+ * убери мы их отсюда — правка старой проверки затёрла бы записанные в ней
+ * значения нулями. Колонки в базе тоже сохранены: у трёх заведённых
+ * проверок эти данные есть, и терять их из-за правки интерфейса незачем.
+ */
 interface FormState {
   kind: QualityKind;
   project: string;
@@ -115,11 +126,6 @@ export function ReviewFormModal({
     () => activeListOptions(listOptions, "project").map((option) => option.value),
     [listOptions],
   );
-  const positionOptions = useMemo(
-    () => activeListOptions(listOptions, "position").map((option) => option.value),
-    [listOptions],
-  );
-  const cityOptions = useMemo(() => activeListOptions(listOptions, "city").map((option) => option.value), [listOptions]);
   const objectionOptions = useMemo(
     () => activeListOptions(listOptions, "qc_objection").map((option) => option.value),
     [listOptions],
@@ -226,7 +232,13 @@ export function ReviewFormModal({
     [tree],
   );
 
-  const score = useMemo(() => calculateReviewScore(scoreGroups, answers), [scoreGroups, answers]);
+  // Нарушение обнуляет звонок наравне с нулём по критическому пункту, но
+  // живёт не в чек-листе, а отдельным полем. Передаём его в расчёт, иначе
+  // предварительный итог в форме разошёлся бы с тем, что сохранит база.
+  const score = useMemo(
+    () => calculateReviewScore(scoreGroups, answers, form.violation !== ""),
+    [scoreGroups, answers, form.violation],
+  );
 
   /**
    * Сколько пунктов осталось без ответа. Завершить проверку с пропусками
@@ -367,6 +379,7 @@ export function ReviewFormModal({
           <div className={styles.formTotal}>
             Итог: <Badge color={scoreTone(score.total)}>{formatPercent(score.total)}</Badge>
             {score.hasCritical && <span className={styles.criticalNote}>критическая ошибка</span>}
+            {form.violation !== "" && <span className={styles.criticalNote}>нарушение: {form.violation}</span>}
             {unanswered > 0 && <span className={primitives.muted}>не заполнено пунктов: {unanswered}</span>}
           </div>
           <div className={primitives.spacer} />
@@ -465,39 +478,6 @@ export function ReviewFormModal({
           <span>Дата звонка</span>
           <input type="date" value={form.callDate} onChange={(event) => setField("callDate", event.target.value)} />
         </label>
-        <label className={primitives.field}>
-          <span>Тип звонка</span>
-          <select value={form.callType} onChange={(event) => setField("callType", event.target.value)}>
-            <option value="">—</option>
-            {CALL_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {CALL_TYPE_LABELS[type]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={primitives.field}>
-          <span>Должность</span>
-          <select value={form.position} onChange={(event) => setField("position", event.target.value)}>
-            <option value="">—</option>
-            {optionsWithCurrent(positionOptions, form.position).map((position) => (
-              <option key={position} value={position}>
-                {position}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={primitives.field}>
-          <span>Город</span>
-          <select value={form.city} onChange={(event) => setField("city", event.target.value)}>
-            <option value="">—</option>
-            {optionsWithCurrent(cityOptions, form.city).map((city) => (
-              <option key={city} value={city}>
-                {city}
-              </option>
-            ))}
-          </select>
-        </label>
       </div>
 
       {form.kind === "refusal" && (
@@ -513,44 +493,7 @@ export function ReviewFormModal({
               ))}
             </select>
           </label>
-          <label className={primitives.field}>
-            <span>Целевой лид</span>
-            <select value={form.isTarget} onChange={(event) => setField("isTarget", event.target.value)}>
-              <option value="">—</option>
-              <option value="true">Да</option>
-              <option value="false">Нет</option>
-            </select>
-          </label>
-          <label className={primitives.field}>
-            <span>Скорость обработки</span>
-            <input
-              maxLength={200}
-              value={form.handlingSpeed}
-              onChange={(event) => setField("handlingSpeed", event.target.value)}
-            />
-          </label>
-          <label className={primitives.field}>
-            <span>Исходящих звонков</span>
-            <input
-              type="number"
-              min={0}
-              value={form.outboundCalls}
-              onChange={(event) => setField("outboundCalls", event.target.value)}
-            />
-          </label>
         </div>
-      )}
-
-      {form.kind === "refusal" && (
-        <label className={primitives.field}>
-          <span>Комментарий рекрутёра в CRM</span>
-          <textarea
-            rows={2}
-            maxLength={4000}
-            value={form.crmComment}
-            onChange={(event) => setField("crmComment", event.target.value)}
-          />
-        </label>
       )}
 
       {treeLoading && <SkeletonLines lines={8} />}

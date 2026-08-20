@@ -17,7 +17,7 @@ import { ReviewDrawer } from "./ReviewDrawer";
 import { ReviewFormModal } from "./ReviewFormModal";
 import { ReviewsTable } from "./ReviewsTable";
 import { KIND_LABELS, QUALITY_KINDS, formatPercent } from "./qualityOptions";
-import type { QualityTab } from "./qualityFilters";
+import { activePreset, PERIOD_PRESETS, type QualityTab } from "./qualityFilters";
 import { useQualityReviews } from "./useQualityReviews";
 
 /**
@@ -85,6 +85,7 @@ export function QualitySection() {
   }, [setContextAction, editable]);
 
   const emptyState = EMPTY_STATE[filters.tab];
+  const current = activePreset(filters);
 
   return (
     <>
@@ -119,6 +120,28 @@ export function QualitySection() {
               onClick={() => setFilter("tab", item.id)}
             >
               {item.label}
+            </button>
+          ))}
+        </div>
+
+        {/*
+          Готовые периоды — просьба команды КЦ: они пришли из воронки
+          Битрикса и привыкли переключать период кнопкой, а не двумя
+          календарями. Календари остались рядом: произвольный диапазон
+          кнопками не выразить, и тогда ни одна из них не подсвечена.
+        */}
+        <div className={primitives.seg} style={{ marginBottom: "var(--sp-3)", width: "fit-content" }}>
+          {PERIOD_PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              className={`${primitives.segButton} ${current === preset.id ? primitives.segButtonActive : ""}`}
+              onClick={() => {
+                const range = preset.range();
+                registry.setPeriod(range.dateFrom, range.dateTo);
+              }}
+            >
+              {preset.label}
             </button>
           ))}
         </div>

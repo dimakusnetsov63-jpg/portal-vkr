@@ -46,6 +46,57 @@
   color: var(--text-3);
 }
 
+/* Выбранный ответ по пункту чек-листа.
+
+   Общий `primitives.segButtonActive` отмечает выбор сменой фона на полтона —
+   этого хватает переключателю вкладок, но не сорока пунктам подряд, где
+   проверяющий сверяется глазами: команда КЦ прямо попросила видеть, что уже
+   отмечено. Цвет здесь не украшение, а смысл: зелёный «да», охра «частично»,
+   красный «нет» — по колонке ответов сразу читается форма звонка.
+
+   Класс живёт в модуле раздела, а не в примитивах: сегментированный
+   переключатель используют и другие разделы, и там ответы не «да/нет». */
+.answerYes,
+.answerYes:hover {
+  background: var(--green-soft);
+  color: var(--green);
+}
+.answerPartial,
+.answerPartial:hover {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+.answerNo,
+.answerNo:hover {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+/* Шестерёнка настройки колонок над таблицей. */
+.tableTools {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 var(--sp-2) var(--sp-2);
+}
+.columnPicker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+}
+
+/* Комментарий проверяющего бывает длинным. В строке показывается начало —
+   целиком он читается в карточке, куда строка и открывается. */
+.commentCell {
+  display: block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-2);
+}
+
 /* Чек-лист: блоки с пунктами и процентом блока в шапке. */
 .checklist {
   display: flex;

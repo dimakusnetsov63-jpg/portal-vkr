@@ -39,6 +39,8 @@ export interface QualityReviewsState {
   filters: QualityFilterState;
   /** Меняет одно поле фильтра и возвращает на первую страницу. */
   setFilter: <K extends keyof QualityFilterState>(key: K, value: QualityFilterState[K]) => void;
+  /** Обе границы периода разом — для готовых периодов («Неделя», «Квартал», …). */
+  setPeriod: (dateFrom: string, dateTo: string) => void;
   resetFilters: () => void;
 
   rows: QualityReviewRow[];
@@ -81,6 +83,17 @@ export function useQualityReviews(): QualityReviewsState {
     },
     [],
   );
+
+  /**
+   * Обе границы периода разом. Через `setFilter` пришлось бы двумя вызовами,
+   * и между ними существовало бы состояние «начало от нового периода, конец
+   * от старого» — с ним уходил бы лишний запрос за заведомо неверной
+   * выборкой.
+   */
+  const setPeriod = useCallback((dateFrom: string, dateTo: string) => {
+    setFilters((prev) => ({ ...prev, dateFrom, dateTo }));
+    setPage(0);
+  }, []);
 
   const resetFilters = useCallback(() => {
     setFilters(defaultFilterState());
@@ -149,6 +162,7 @@ export function useQualityReviews(): QualityReviewsState {
   return {
     filters,
     setFilter,
+    setPeriod,
     resetFilters,
     rows,
     total,

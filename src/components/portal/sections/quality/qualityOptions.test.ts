@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { QualityChecklistRow } from "@/lib/supabase/quality.types";
 import {
+  answerTone,
   asItemScale,
   formatPercent,
   leadUrl,
@@ -118,6 +119,25 @@ describe("шкалы пунктов", () => {
     expect(scaleValueLabel("0-2", 0)).toBe("Нет");
     expect(scaleValueLabel("yes_no", 1)).toBe("Да");
     expect(scaleValueLabel("yes_no", 0)).toBe("Нет");
+  });
+});
+
+describe("answerTone", () => {
+  it("ноль — всегда «нет», на любой шкале", () => {
+    expect(answerTone("0-1-2", 0)).toBe("no");
+    expect(answerTone("0-2", 0)).toBe("no");
+    expect(answerTone("yes_no", 0)).toBe("no");
+  });
+
+  it("«частично» есть только у полной шкалы", () => {
+    // На шкале 0-2 единицы не бывает вовсе, а у переключателя 1 значит «да».
+    expect(answerTone("0-1-2", 1)).toBe("partial");
+    expect(answerTone("yes_no", 1)).toBe("yes");
+  });
+
+  it("максимум — «да» на любой шкале", () => {
+    expect(answerTone("0-1-2", 2)).toBe("yes");
+    expect(answerTone("0-2", 2)).toBe("yes");
   });
 });
 

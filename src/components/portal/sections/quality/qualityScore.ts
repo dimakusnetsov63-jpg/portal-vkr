@@ -54,6 +54,8 @@ export interface ReviewScore {
   /** Итог; `null` — ни один блок не дал числа. */
   total: number | null;
   hasCritical: boolean;
+  /** Итог обнулён — критическим пунктом, нарушением или обоими сразу. */
+  isZeroed: boolean;
 }
 
 /** Округление до сотых. Проценты неотрицательны, поэтому совпадает с `round(x, 2)` в Postgres. */
@@ -97,7 +99,24 @@ export function calculateGroupPercent(group: ScoreGroup, answers: AnswerMap): nu
   return raw === null ? null : round2(raw);
 }
 
-export function calculateReviewScore(groups: ScoreGroup[], answers: AnswerMap): ReviewScore {
+/**
+ * Итог проверки.
+ *
+ * `hasViolation` — зафиксировано ли нарушение (дезинформация, хамство, слив
+ * кандидата). Оно живёт не в чек-листе, а отдельным полем проверки, но
+ * обнуляет звонок так же, как ноль по критическому пункту: правил обнуления
+ * два, эффект один. Проценты блоков при этом настоящие — по ним видно, что
+ * сотрудник делал хорошо, и на них строится разрез по блокам.
+ *
+ * То же правило продублировано в `portal_save_quality_review` (ADR-006).
+ * Править нужно оба места: разойдутся — предварительный итог в форме
+ * перестанет совпадать с сохранённым.
+ */
+export function calculateReviewScore(
+  groups: ScoreGroup[],
+  answers: AnswerMap,
+  hasViolation = false,
+): ReviewScore {
   const groupScores: Record<string, number | null> = {};
   const counted: number[] = [];
 
@@ -114,13 +133,13 @@ export function calculateReviewScore(groups: ScoreGroup[], answers: AnswerMap): 
     }),
   );
 
-  if (hasCritical) {
-    return { groupScores, total: 0, hasCritical: true };
+  if (hasCritical || hasViolation) {
+    return { groupScores, total: 0, hasCritical, isZeroed: true };
   }
 
   const total = counted.length === 0 ? null : round2(counted.reduce((sum, value) => sum + value, 0) / counted.length);
 
-  return { groupScores, total, hasCritical: false };
+  return { groupScores, total, hasCritical: false, isZeroed: false };
 }
 
 /**

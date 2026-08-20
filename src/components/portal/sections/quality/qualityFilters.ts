@@ -48,6 +48,79 @@ export function todayIso(today = new Date()): string {
   return toIsoDate(today);
 }
 
+/**
+ * Готовые периоды — как в воронке Битрикса, откуда команда и пришла.
+ *
+ * Считаются от переданной даты и только из местных компонентов: конструктор
+ * `new Date(year, month, day)` сам разбирается с переходом через границу
+ * месяца и года, поэтому «прошлый месяц» в январе даёт декабрь прошлого
+ * года без отдельной ветки.
+ */
+export type PeriodPresetId = "week" | "month" | "prevMonth" | "quarter" | "year";
+
+export interface PeriodPreset {
+  id: PeriodPresetId;
+  label: string;
+  range: (today?: Date) => { dateFrom: string; dateTo: string };
+}
+
+/** Понедельник текущей недели: в России неделя начинается с него, а не с воскресенья. */
+function startOfWeek(today: Date): Date {
+  const shift = (today.getDay() + 6) % 7;
+  return new Date(today.getFullYear(), today.getMonth(), today.getDate() - shift);
+}
+
+export const PERIOD_PRESETS: PeriodPreset[] = [
+  {
+    id: "week",
+    label: "Неделя",
+    range: (today = new Date()) => ({ dateFrom: toIsoDate(startOfWeek(today)), dateTo: toIsoDate(today) }),
+  },
+  {
+    id: "month",
+    label: "Месяц",
+    range: (today = new Date()) => ({ dateFrom: startOfMonth(today), dateTo: toIsoDate(today) }),
+  },
+  {
+    id: "prevMonth",
+    label: "Прошлый месяц",
+    range: (today = new Date()) => ({
+      dateFrom: toIsoDate(new Date(today.getFullYear(), today.getMonth() - 1, 1)),
+      // Нулевой день следующего месяца — последний день предыдущего, без
+      // таблицы длин месяцев и без високосных лет.
+      dateTo: toIsoDate(new Date(today.getFullYear(), today.getMonth(), 0)),
+    }),
+  },
+  {
+    id: "quarter",
+    label: "Квартал",
+    range: (today = new Date()) => ({
+      dateFrom: toIsoDate(new Date(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3, 1)),
+      dateTo: toIsoDate(today),
+    }),
+  },
+  {
+    id: "year",
+    label: "Год",
+    range: (today = new Date()) => ({
+      dateFrom: toIsoDate(new Date(today.getFullYear(), 0, 1)),
+      dateTo: toIsoDate(today),
+    }),
+  },
+];
+
+/**
+ * Какой пресет соответствует текущему периоду. `null` — произвольный
+ * диапазон, выставленный руками: подсвечивать в этом случае нечего.
+ */
+export function activePreset(state: QualityFilterState, today = new Date()): PeriodPresetId | null {
+  for (const preset of PERIOD_PRESETS) {
+    const range = preset.range(today);
+    if (range.dateFrom === state.dateFrom && range.dateTo === state.dateTo) return preset.id;
+  }
+  return null;
+}
+
 export function defaultFilterState(): QualityFilterState {
   return {
     tab: "reviews",

@@ -1,11 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
+  activePreset,
   buildReviewFilters,
   defaultFilterState,
+  PERIOD_PRESETS,
   startOfMonth,
   todayIso,
+  type PeriodPresetId,
   type QualityFilterState,
 } from "./qualityFilters";
+
+function preset(id: PeriodPresetId) {
+  const found = PERIOD_PRESETS.find((item) => item.id === id);
+  if (!found) throw new Error(`нет пресета ${id}`);
+  return found;
+}
 
 function state(overrides: Partial<QualityFilterState> = {}): QualityFilterState {
   return { ...defaultFilterState(), ...overrides };
@@ -89,10 +98,94 @@ describe("период по умолчанию", () => {
   });
 
   it("состояние по умолчанию открывает текущий месяц на вкладке проверок", () => {
+
     const initial = defaultFilterState();
 
     expect(initial.tab).toBe("reviews");
     expect(initial.dateFrom).toBe(startOfMonth());
     expect(initial.project).toBe("");
+  });
+});
+
+describe("готовые периоды", () => {
+  // Четверг 20 августа 2026. Неделя началась в понедельник 17-го, квартал —
+  // 1 июля, прошлый месяц — весь июль.
+  const thursday = new Date(2026, 7, 20);
+
+  it("неделя считается от понедельника", () => {
+    expect(preset("week").range(thursday)).toEqual({ dateFrom: "2026-08-17", dateTo: "2026-08-20" });
+  });
+
+  it("в воскресенье неделя всё ещё начинается с прошедшего понедельника", () => {
+    // Самая частая ошибка недельных диапазонов: getDay() в воскресенье
+    // возвращает 0, и сдвиг без поправки уводит начало недели на неделю вперёд.
+    const sunday = new Date(2026, 7, 23);
+
+    expect(preset("week").range(sunday)).toEqual({ dateFrom: "2026-08-17", dateTo: "2026-08-23" });
+  });
+
+  it("в понедельник неделя начинается сегодня", () => {
+    const monday = new Date(2026, 7, 17);
+
+    expect(preset("week").range(monday).dateFrom).toBe("2026-08-17");
+  });
+
+  it("месяц — с первого числа по сегодня", () => {
+    expect(preset("month").range(thursday)).toEqual({ dateFrom: "2026-08-01", dateTo: "2026-08-20" });
+  });
+
+  it("прошлый месяц — целиком, включая последнее число", () => {
+    expect(preset("prevMonth").range(thursday)).toEqual({ dateFrom: "2026-07-01", dateTo: "2026-07-31" });
+  });
+
+  it("прошлый месяц в январе — декабрь прошлого года", () => {
+    expect(preset("prevMonth").range(new Date(2026, 0, 15))).toEqual({
+      dateFrom: "2025-12-01",
+      dateTo: "2025-12-31",
+    });
+  });
+
+  it("прошлый месяц в марте високосного года кончается 29 февраля", () => {
+    // Длина февраля не зашита: нулевой день марта её и даёт.
+    expect(preset("prevMonth").range(new Date(2028, 2, 10)).dateTo).toBe("2028-02-29");
+  });
+
+  it("квартал начинается с первого месяца своего квартала", () => {
+    expect(preset("quarter").range(thursday).dateFrom).toBe("2026-07-01");
+    expect(preset("quarter").range(new Date(2026, 0, 5)).dateFrom).toBe("2026-01-01");
+    expect(preset("quarter").range(new Date(2026, 11, 31)).dateFrom).toBe("2026-10-01");
+  });
+
+  it("год — с первого января по сегодня", () => {
+    expect(preset("year").range(thursday)).toEqual({ dateFrom: "2026-01-01", dateTo: "2026-08-20" });
+  });
+
+  it("ни один пресет не даёт период задом наперёд", () => {
+    for (const item of PERIOD_PRESETS) {
+      const range = item.range(thursday);
+      expect(range.dateFrom <= range.dateTo).toBe(true);
+    }
+  });
+});
+
+describe("activePreset", () => {
+  const thursday = new Date(2026, 7, 20);
+
+  it("узнаёт период, выставленный кнопкой", () => {
+    const range = preset("quarter").range(thursday);
+
+    expect(activePreset({ ...defaultFilterState(), ...range }, thursday)).toBe("quarter");
+  });
+
+  it("произвольный диапазон не подсвечивает ни одну кнопку", () => {
+    const state = { ...defaultFilterState(), dateFrom: "2026-08-03", dateTo: "2026-08-11" };
+
+    expect(activePreset(state, thursday)).toBeNull();
+  });
+
+  it("совпадение только по одной границе не считается", () => {
+    const state = { ...defaultFilterState(), dateFrom: "2026-08-01", dateTo: "2026-08-19" };
+
+    expect(activePreset(state, thursday)).toBeNull();
   });
 });

@@ -122,6 +122,53 @@ describe("итог проверки", () => {
     expect(result.total).toBe(100);
   });
 
+  describe("нарушение обнуляет звонок", () => {
+    const groups = [group("a", [scored("a1"), scored("a2")])];
+
+    it("итог 0, проценты блоков настоящие", () => {
+      // Решение 20 августа: обнуляется итог, но не блоки. Обнули мы и блоки
+      // — сводка по блокам просела бы от одного нарушения, и понять, где
+      // именно был провал, стало бы нельзя.
+      const result = calculateReviewScore(groups, answers({ a1: 2, a2: 2 }), true);
+
+      expect(result.total).toBe(0);
+      expect(result.groupScores.a).toBe(100);
+      expect(result.isZeroed).toBe(true);
+    });
+
+    it("нарушение — не то же самое, что критический пункт", () => {
+      // Причины обнуления две и они независимы: hasCritical говорит про
+      // чек-лист, нарушение — про поле проверки. Смешать их значило бы
+      // показать баннер «критическая ошибка» там, где её не было.
+      const result = calculateReviewScore(groups, answers({ a1: 2, a2: 2 }), true);
+
+      expect(result.hasCritical).toBe(false);
+    });
+
+    it("обнуляет и заполненную наполовину проверку, и пустую", () => {
+      expect(calculateReviewScore(groups, answers({ a1: 1 }), true).total).toBe(0);
+      // Без нарушения пустая проверка дала бы null: считать было не из чего.
+      expect(calculateReviewScore(groups, {}, false).total).toBeNull();
+      expect(calculateReviewScore(groups, {}, true).total).toBe(0);
+    });
+
+    it("без нарушения ничего не меняется", () => {
+      const result = calculateReviewScore(groups, answers({ a1: 2, a2: 2 }), false);
+
+      expect(result.total).toBe(100);
+      expect(result.isZeroed).toBe(false);
+    });
+
+    it("критический пункт и нарушение вместе не спорят", () => {
+      const withCritical = [group("a", [scored("a1"), scored("a2", "0-2", true)])];
+      const result = calculateReviewScore(withCritical, answers({ a1: 2, a2: 0 }), true);
+
+      expect(result.total).toBe(0);
+      expect(result.hasCritical).toBe(true);
+      expect(result.isZeroed).toBe(true);
+    });
+  });
+
   it("усредняет неокруглённые проценты блоков", () => {
     // 7 пунктов из 7 по 1 баллу = 50%, второй блок 100%. Если округлять
     // проценты блоков до усреднения, итог поедет в третьем знаке — именно

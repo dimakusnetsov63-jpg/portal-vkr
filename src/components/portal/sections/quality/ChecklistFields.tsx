@@ -4,8 +4,14 @@ import { Badge } from "@/components/portal/ui/Badge";
 import type { QualityChecklistTree } from "@/lib/supabase/quality.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import styles from "./QualitySection.module.css";
-import { asItemScale, formatPercent, scaleValueLabel, scaleValues, scoreTone } from "./qualityOptions";
+import { answerTone, asItemScale, formatPercent, scaleValueLabel, scaleValues, scoreTone } from "./qualityOptions";
 import { calculateGroupPercent, countUnanswered, type AnswerMap, type ScoreGroup } from "./qualityScore";
+
+const ANSWER_CLASS: Record<"yes" | "partial" | "no", string> = {
+  yes: styles.answerYes,
+  partial: styles.answerPartial,
+  no: styles.answerNo,
+};
 
 /**
  * Пункты чек-листа с проставлением баллов. Отдельный компонент, потому что
@@ -71,19 +77,27 @@ export function ChecklistFields({
 
                     <div className={styles.checklistItemControls}>
                       <div className={primitives.seg}>
-                        {scaleValues(asItemScale(item.scale)).map((value) => (
-                          <button
-                            key={value}
-                            type="button"
-                            disabled={locked}
-                            className={`${primitives.segButton} ${
-                              answer && !answer.isNa && answer.value === value ? primitives.segButtonActive : ""
-                            }`}
-                            onClick={() => onChange(item.id, value, false)}
-                          >
-                            {scaleValueLabel(asItemScale(item.scale), value)}
-                          </button>
-                        ))}
+                        {scaleValues(asItemScale(item.scale)).map((value) => {
+                          const selected = Boolean(answer) && !answer?.isNa && answer?.value === value;
+                          // Выбранный ответ красится по смыслу: зелёный «да»,
+                          // охра «частично», красный «нет». Общий
+                          // `segButtonActive` отмечает выбор сменой фона на
+                          // полтона — на сорока пунктах подряд этого не видно.
+                          const tone = selected ? ANSWER_CLASS[answerTone(asItemScale(item.scale), value)] : "";
+
+                          return (
+                            <button
+                              key={value}
+                              type="button"
+                              disabled={locked}
+                              aria-pressed={selected}
+                              className={`${primitives.segButton} ${selected ? primitives.segButtonActive : ""} ${tone}`}
+                              onClick={() => onChange(item.id, value, false)}
+                            >
+                              {scaleValueLabel(asItemScale(item.scale), value)}
+                            </button>
+                          );
+                        })}
                       </div>
 
                       {item.allow_na && !isGate && (

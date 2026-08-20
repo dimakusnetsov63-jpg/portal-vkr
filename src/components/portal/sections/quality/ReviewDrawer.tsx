@@ -131,6 +131,17 @@ export function ReviewDrawer({
               </div>
             )}
 
+            {/*
+              Нарушение обнуляет итог так же, как критический пункт, но это
+              разные причины: без отдельного баннера человек видел бы итог 0
+              и ни одного объяснения рядом.
+            */}
+            {review.violation && (
+              <div className={`${primitives.banner} ${primitives.bannerCritical}`}>
+                Нарушение: {review.violation}. Итог обнулён независимо от остальных баллов.
+              </div>
+            )}
+
             <dl className={primitives.kvList}>
               <div className={primitives.kvRow}>
                 <dt>Лид</dt>
@@ -148,31 +159,44 @@ export function ReviewDrawer({
                 <dt>Дата звонка</dt>
                 <dd>{review.call_date ? fmtDate(new Date(review.call_date)) : "—"}</dd>
               </div>
-              <div className={primitives.kvRow}>
-                <dt>Тип звонка</dt>
-                <dd>{review.call_type ? CALL_TYPE_LABELS[review.call_type as "incoming"] : "—"}</dd>
-              </div>
-              <div className={primitives.kvRow}>
-                <dt>Должность / город</dt>
-                <dd>
-                  {review.position || "—"} / {review.city || "—"}
-                </dd>
-              </div>
+              {/*
+                Тип звонка, должность, город, целевой лид и число исходящих
+                20 августа убраны из формы: команда КЦ их не заполняла.
+                Строки в карточке показываются только когда значение есть —
+                у трёх заведённых до этого проверок оно записано, и прятать
+                его не за что. У новых проверок этих строк просто не будет.
+              */}
+              {review.call_type && (
+                <div className={primitives.kvRow}>
+                  <dt>Тип звонка</dt>
+                  <dd>{CALL_TYPE_LABELS[review.call_type as "incoming"]}</dd>
+                </div>
+              )}
+              {(review.position || review.city) && (
+                <div className={primitives.kvRow}>
+                  <dt>Должность / город</dt>
+                  <dd>
+                    {review.position || "—"} / {review.city || "—"}
+                  </dd>
+                </div>
+              )}
               {review.kind === "refusal" && (
-                <>
-                  <div className={primitives.kvRow}>
-                    <dt>Возражение</dt>
-                    <dd>{review.objection || "—"}</dd>
-                  </div>
-                  <div className={primitives.kvRow}>
-                    <dt>Целевой лид</dt>
-                    <dd>{review.is_target === null ? "—" : review.is_target ? "Да" : "Нет"}</dd>
-                  </div>
-                  <div className={primitives.kvRow}>
-                    <dt>Исходящих звонков</dt>
-                    <dd>{review.outbound_calls ?? "—"}</dd>
-                  </div>
-                </>
+                <div className={primitives.kvRow}>
+                  <dt>Возражение</dt>
+                  <dd>{review.objection || "—"}</dd>
+                </div>
+              )}
+              {review.is_target !== null && (
+                <div className={primitives.kvRow}>
+                  <dt>Целевой лид</dt>
+                  <dd>{review.is_target ? "Да" : "Нет"}</dd>
+                </div>
+              )}
+              {review.outbound_calls !== null && (
+                <div className={primitives.kvRow}>
+                  <dt>Исходящих звонков</dt>
+                  <dd>{review.outbound_calls}</dd>
+                </div>
               )}
               <div className={primitives.kvRow}>
                 <dt>Статус</dt>
@@ -217,6 +241,19 @@ export function ReviewDrawer({
                 <h4 className={styles.blockTitle}>Кейс в аудиотеку</h4>
                 <p>{review.case_comment || "Комментарий не заполнен."}</p>
               </div>
+            )}
+
+            {/*
+              Команда просила «право удалять проверку, чтобы не искажала
+              результат». Архив это уже делает, но по кнопке «В архив» видно
+              только слово «архив» — что проверка при этом исчезает из
+              отчётности, приходилось угадывать. Теперь написано.
+            */}
+            {canEdit("quality") && !review.archived_at && (
+              <p className={styles.fieldNote}>
+                Ошиблись при оценке? Уберите проверку в архив — она перестанет попадать в реестр и в сводки, а
+                результат сотрудника перестанет её учитывать. Данные сохранятся, вернуть можно той же кнопкой.
+              </p>
             )}
           </>
         )}

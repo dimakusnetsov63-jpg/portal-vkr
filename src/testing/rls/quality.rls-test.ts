@@ -378,6 +378,92 @@ describe("RLS: контроль качества — доступ, проект�
     expect(body.code).toBe("P0001");
   });
 
+  // --- Обнуление по нарушению ----------------------------------------------
+
+  it("нарушение обнуляет итог, но не проценты блоков", async () => {
+    // Обратная связь команды КЦ 20 августа: дезинформация, хамство и слив
+    // кандидата обнуляют звонок. Проценты блоков при этом остаются
+    // настоящими — на них строится разрез по блокам, и обнули мы их тоже,
+    // сводка за месяц просела бы от одного нарушения.
+    const clean = await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555060,
+        project: projectA,
+        employee_name: `${marker} Нарушитель`,
+        status: "completed",
+        scores: fullScores(),
+      },
+    });
+    expect(clean.ok).toBe(true);
+    const cleanBody = (await clean.json()) as { total_score: number; group_scores: Record<string, number | null> };
+    expect(Number(cleanBody.total_score)).toBe(75);
+
+    const violated = await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555061,
+        project: projectA,
+        employee_name: `${marker} Нарушитель`,
+        status: "completed",
+        violation: "Хамство",
+        scores: fullScores(),
+      },
+    });
+    expect(violated.ok).toBe(true);
+    const body = (await violated.json()) as {
+      total_score: number;
+      group_scores: Record<string, number | null>;
+      has_critical: boolean;
+    };
+
+    expect(Number(body.total_score)).toBe(0);
+    // Те же ответы без нарушения дали 75 — блоки должны совпасть до знака.
+    expect(body.group_scores).toEqual(cleanBody.group_scores);
+    // Нарушение — не критический пункт: причины обнуления разные, и
+    // смешать их значило бы показать баннер «критическая ошибка» там, где
+    // её не было.
+    expect(body.has_critical).toBe(false);
+  });
+
+  it("снятое нарушение возвращает настоящий итог", async () => {
+    // Проверяющий может ошибиться и проставить нарушение не тому звонку.
+    // Обнуление не должно оставаться навсегда.
+    const created = await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555062,
+        project: projectA,
+        employee_name: `${marker} Ошибочный`,
+        status: "completed",
+        violation: "Дезинформация",
+        scores: fullScores(),
+      },
+    });
+    expect(created.ok).toBe(true);
+    const createdBody = (await created.json()) as { id: string; total_score: number; version: number };
+    expect(Number(createdBody.total_score)).toBe(0);
+
+    const fixed = await callSave(coordinatorA.id, {
+      p_review_id: createdBody.id,
+      p_expected_version: createdBody.version,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555062,
+        project: projectA,
+        employee_name: `${marker} Ошибочный`,
+        status: "completed",
+        violation: "",
+        scores: fullScores(),
+      },
+    });
+    expect(fixed.ok).toBe(true);
+    expect(Number(((await fixed.json()) as { total_score: number }).total_score)).toBe(75);
+  });
+
   // --- Сводка -------------------------------------------------------------
 
   it("C1: сводка отдаёт scored_count отдельно от reviews_count", async () => {
