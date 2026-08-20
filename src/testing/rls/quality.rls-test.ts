@@ -1,4 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+// Чистая половина формулы — та самая, что считает превью в форме. Тест D2
+// сверяет её с расчётом базы на одних и тех же входах (долг ADR-006).
+import {
+  calculateReviewScore,
+  type AnswerMap,
+  type ScoreGroup,
+} from "@/components/portal/sections/quality/qualityScore";
 import {
   asUserFetch,
   cleanupTestFixtures,
@@ -965,6 +972,180 @@ describe("RLS: контроль качества — доступ, проект�
     expect(rows).toHaveLength(1);
     expect(rows[0].item_title).toBe("Формулировка до правки");
     expect(rows[0].group_title).toBe("Блок для снимка");
+  });
+
+  // --- Паритет двух реализаций формулы (D2) --------------------------------
+
+  it("D2: SQL и TypeScript считают итог одинаково на всех граничных случаях", async () => {
+    // Долг ADR-006. Формула живёт в двух местах: база считает то, что
+    // сохраняется, интерфейс — то, что видно во время заполнения. До этого
+    // теста их согласие держалось на внимательности при правках.
+    //
+    // Шаблон специально сложнее рабочего: два блока, один вне итога, разные
+    // шкалы, вес, переключатель и критический пункт — то есть все ветки
+    // расчёта разом.
+    const parityChecklist = await insertTestRow<{ id: string }>("quality_checklists", {
+      title: `${marker} паритет`,
+      kind: "call",
+      project: `${projectA}-parity`,
+    });
+
+    const groupMain = await insertTestRow<{ id: string }>("quality_checklist_groups", {
+      checklist_id: parityChecklist.id,
+      title: "Основной",
+      sort_order: 1,
+      counts_in_total: true,
+    });
+    const groupAside = await insertTestRow<{ id: string }>("quality_checklist_groups", {
+      checklist_id: parityChecklist.id,
+      title: "Возражения",
+      sort_order: 2,
+      counts_in_total: false,
+    });
+
+    const heavy = await insertTestRow<{ id: string }>("quality_checklist_items", {
+      group_id: groupMain.id,
+      title: "Пункт с весом 3",
+      scale: "0-1-2",
+      weight: 3,
+      sort_order: 1,
+    });
+    const light = await insertTestRow<{ id: string }>("quality_checklist_items", {
+      group_id: groupMain.id,
+      title: "Обычный пункт",
+      scale: "0-2",
+      sort_order: 2,
+    });
+    const critical = await insertTestRow<{ id: string }>("quality_checklist_items", {
+      group_id: groupMain.id,
+      title: "Критический пункт",
+      scale: "0-2",
+      is_critical: true,
+      sort_order: 3,
+    });
+    const gate = await insertTestRow<{ id: string }>("quality_checklist_items", {
+      group_id: groupAside.id,
+      title: "Было возражение?",
+      scale: "yes_no",
+      sort_order: 1,
+    });
+    const asideItem = await insertTestRow<{ id: string }>("quality_checklist_items", {
+      group_id: groupAside.id,
+      title: "Аргументация",
+      scale: "0-1-2",
+      sort_order: 2,
+    });
+
+    // Тот же шаблон в терминах чистой функции.
+    const scoreGroups: ScoreGroup[] = [
+      {
+        id: groupMain.id,
+        countsInTotal: true,
+        items: [
+          { id: heavy.id, scale: "0-1-2", weight: 3, isCritical: false },
+          { id: light.id, scale: "0-2", weight: 1, isCritical: false },
+          { id: critical.id, scale: "0-2", weight: 1, isCritical: true },
+        ],
+      },
+      {
+        id: groupAside.id,
+        countsInTotal: false,
+        items: [
+          { id: gate.id, scale: "yes_no", weight: 1, isCritical: false },
+          { id: asideItem.id, scale: "0-1-2", weight: 1, isCritical: false },
+        ],
+      },
+    ];
+
+    type Answer = { item_id: string; value: number | null; is_na: boolean };
+
+    const cases: { name: string; scores: Answer[] }[] = [
+      {
+        name: "всё заполнено",
+        scores: [
+          { item_id: heavy.id, value: 2, is_na: false },
+          { item_id: light.id, value: 0, is_na: false },
+          { item_id: critical.id, value: 2, is_na: false },
+          { item_id: gate.id, value: 1, is_na: false },
+          { item_id: asideItem.id, value: 1, is_na: false },
+        ],
+      },
+      {
+        name: "«не применимо» уходит из знаменателя",
+        scores: [
+          { item_id: heavy.id, value: 2, is_na: false },
+          { item_id: light.id, value: null, is_na: true },
+          { item_id: critical.id, value: 2, is_na: false },
+          { item_id: gate.id, value: 1, is_na: false },
+          { item_id: asideItem.id, value: 2, is_na: false },
+        ],
+      },
+      {
+        name: "переключатель выключает блок",
+        scores: [
+          { item_id: heavy.id, value: 1, is_na: false },
+          { item_id: light.id, value: 2, is_na: false },
+          { item_id: critical.id, value: 2, is_na: false },
+          { item_id: gate.id, value: 0, is_na: false },
+        ],
+      },
+      {
+        name: "критическая ошибка обнуляет итог",
+        scores: [
+          { item_id: heavy.id, value: 2, is_na: false },
+          { item_id: light.id, value: 2, is_na: false },
+          { item_id: critical.id, value: 0, is_na: false },
+          { item_id: gate.id, value: 1, is_na: false },
+          { item_id: asideItem.id, value: 2, is_na: false },
+        ],
+      },
+      {
+        name: "считать нечего — итог пустой",
+        scores: [
+          { item_id: heavy.id, value: null, is_na: true },
+          { item_id: light.id, value: null, is_na: true },
+          { item_id: critical.id, value: null, is_na: true },
+          { item_id: gate.id, value: 0, is_na: false },
+        ],
+      },
+    ];
+
+    for (const [index, testCase] of cases.entries()) {
+      const response = await callSave(coordinatorA.id, {
+        p_review_id: null,
+        p_payload: {
+          checklist_id: parityChecklist.id,
+          crm_lead_id: 555100 + index,
+          project: projectA,
+          employee_name: `${marker} Паритет`,
+          status: "draft",
+          scores: testCase.scores,
+        },
+      });
+      expect(response.ok, testCase.name).toBe(true);
+
+      const saved = (await response.json()) as {
+        total_score: number | null;
+        group_scores: Record<string, number | null>;
+      };
+
+      const answers: AnswerMap = {};
+      for (const score of testCase.scores) {
+        answers[score.item_id] = { value: score.value, isNa: score.is_na };
+      }
+      const expected = calculateReviewScore(scoreGroups, answers);
+
+      const fromDb = saved.total_score === null ? null : Number(saved.total_score);
+      expect(fromDb, `итог: ${testCase.name}`).toBe(expected.total);
+
+      for (const group of scoreGroups) {
+        const dbPercent = saved.group_scores[group.id];
+        expect(
+          dbPercent === null || dbPercent === undefined ? null : Number(dbPercent),
+          `блок ${group.id}: ${testCase.name}`,
+        ).toBe(expected.groupScores[group.id]);
+      }
+    }
   });
 
   // --- Шаблоны -----------------------------------------------------------

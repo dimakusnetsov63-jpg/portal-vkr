@@ -28,6 +28,7 @@ import styles from "./QualitySection.module.css";
 import { ChecklistFields } from "./ChecklistFields";
 import { CALL_TYPES, CALL_TYPE_LABELS, KIND_LABELS, QUALITY_KINDS, formatPercent, leadUrl, scoreTone } from "./qualityOptions";
 import { calculateReviewScore, countUnanswered, parseLeadId, type AnswerMap, type ScoreGroup } from "./qualityScore";
+import { validateReviewForm } from "./reviewForm";
 
 interface FormState {
   kind: QualityKind;
@@ -49,6 +50,12 @@ interface FormState {
   isCase: boolean;
   caseComment: string;
 }
+
+/**
+ * Задержка перед поиском прошлых проверок лида. Достаточно, чтобы дописать
+ * номер до конца, и незаметно на глаз.
+ */
+const LEAD_LOOKUP_DELAY_MS = 400;
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -236,23 +243,31 @@ export function ReviewFormModal({
       return;
     }
     let cancelled = false;
-    findReviewsByLead(leadId, existing?.review.id)
-      .then((found) => {
-        if (cancelled) return;
-        const previous = found[0];
-        setDuplicateNote(
-          previous
-            ? `Этот лид уже проверяли ${fmtDate(new Date(previous.review_date))}, ${previous.reviewer_name}, итог ${formatPercent(previous.total_score)}.`
-            : null,
-        );
-      })
-      .catch(() => {
-        // Молча: подсказка полезная, но её отсутствие не должно мешать
-        // заполнять проверку.
-        if (!cancelled) setDuplicateNote(null);
-      });
+
+    // Пауза перед запросом: `leadId` пересчитывается на каждый символ, и без
+    // неё ввод семизначного номера отправлял бы семь запросов подряд — шесть
+    // из них про заведомо неполный номер (TD-04 аудита).
+    const timer = setTimeout(() => {
+      findReviewsByLead(leadId, existing?.review.id)
+        .then((found) => {
+          if (cancelled) return;
+          const previous = found[0];
+          setDuplicateNote(
+            previous
+              ? `Этот лид уже проверяли ${fmtDate(new Date(previous.review_date))}, ${previous.reviewer_name}, итог ${formatPercent(previous.total_score)}.`
+              : null,
+          );
+        })
+        .catch(() => {
+          // Молча: подсказка полезная, но её отсутствие не должно мешать
+          // заполнять проверку.
+          if (!cancelled) setDuplicateNote(null);
+        });
+    }, LEAD_LOOKUP_DELAY_MS);
+
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [leadId, existing?.review.id]);
 
@@ -261,31 +276,30 @@ export function ReviewFormModal({
   }, []);
 
   async function submit(status: "draft" | "completed") {
-    if (!checklist || !tree) {
-      setError("Не найден шаблон проверки для этого проекта и вида");
+    const validation = validateReviewForm(
+      {
+        project: form.project,
+        leadInput: form.leadInput,
+        employeeName: form.employeeName,
+        outboundCalls: form.outboundCalls,
+      },
+      { hasChecklist: Boolean(checklist && tree), unanswered, status },
+    );
+
+    if (!validation.ok) {
+      setError(validation.message);
       return;
     }
-    if (leadId === null) {
-      setError("Укажите номер лида или вставьте ссылку на него");
-      return;
-    }
-    if (!form.employeeName.trim()) {
-      setError("Укажите сотрудника, чью работу проверяли");
-      return;
-    }
-    if (!form.project) {
-      setError("Выберите проект");
-      return;
-    }
+    if (!checklist) return;
 
     const payload: SaveReviewInput = {
       reviewId: existing?.review.id ?? null,
       expectedVersion: existing?.review.version ?? null,
       checklistId: checklist.id,
       kind: form.kind,
-      crmLeadId: leadId,
+      crmLeadId: validation.leadId,
       project: form.project,
-      employeeName: form.employeeName.trim(),
+      employeeName: validation.employeeName,
       reviewerName: currentUser.full_name || currentUser.login,
       reviewDate: form.reviewDate || null,
       callDate: form.callDate || null,
