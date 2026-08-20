@@ -28,6 +28,7 @@ import styles from "./QualitySection.module.css";
 import { ChecklistFields } from "./ChecklistFields";
 import { CALL_TYPES, CALL_TYPE_LABELS, KIND_LABELS, QUALITY_KINDS, formatPercent, leadUrl, scoreTone } from "./qualityOptions";
 import { calculateReviewScore, countUnanswered, parseLeadId, type AnswerMap, type ScoreGroup } from "./qualityScore";
+import { todayIso } from "./qualityFilters";
 import { validateReviewForm } from "./reviewForm";
 
 interface FormState {
@@ -57,17 +58,16 @@ interface FormState {
  */
 const LEAD_LOOKUP_DELAY_MS = 400;
 
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function emptyForm(project: string): FormState {
   return {
     kind: "call",
     project,
     leadInput: "",
     employeeName: "",
-    reviewDate: today(),
+    // Дата по местному времени, а не через toISOString: у пользователя
+    // восточнее Гринвича проверка, заведённая после полуночи, получала
+    // вчерашнюю дату (BUG-07 аудита).
+    reviewDate: todayIso(),
     callDate: "",
     callType: "",
     position: "",
