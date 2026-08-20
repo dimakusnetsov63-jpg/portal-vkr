@@ -831,7 +831,7 @@ unique (role, section, project) where project is not null
 | Поле | Тип | Null | Примечание |
 |------|-----|------|-----------|
 | `id` | uuid | not null | PK |
-| `action` | enum `portal_audit_action` | **not null** | 9 значений, см. ниже |
+| `action` | enum `portal_audit_action` | **not null** | 13 значений, см. ниже |
 | `actor_id` | uuid | nullable | FK → `portal_users(id)`, `on delete set null` |
 | `actor_login` | text | nullable | Снимок логина на момент события |
 | `target_id` | uuid | nullable | FK → `portal_users(id)`, `on delete set null` |
@@ -855,7 +855,7 @@ unique (role, section, project) where project is not null
 | `candidate_list_type` | recruiter, manager, coordinator, city, position, project, legal_entity, vacancy_category, termination_reason, return_reason, qc_objection, qc_violation (12) — два последних с `20260818100000_quality_list_types.sql` (TASK-013), до них `termination_reason`/`return_reason` с `20260808100100_add_termination_list_types.sql` |
 | `staffing_demand_history_action` | insert, update, delete (3) |
 | `portal_user_role` | head, coordinator, manager, recruiter (4) |
-| `portal_audit_action` | user_created, user_updated, user_role_changed, user_password_changed, user_activated, user_deactivated, login_success, login_failed, logout (9) |
+| `portal_audit_action` | user_created, user_updated, user_role_changed, user_password_changed, user_activated, user_deactivated, login_success, login_failed, logout, section_permission_changed, user_projects_changed (с `20260813100000`), quality_review_created, quality_review_updated (с `20260820110000`) — 13 |
 
 Роли хранятся латинскими слагами; русские подписи («Руководитель»,
 «Координатор», «Менеджер», «Рекрутер») живут в `src/lib/auth/roles.ts`.

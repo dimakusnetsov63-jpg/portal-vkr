@@ -474,6 +474,138 @@ describe("RLS: контроль качества — доступ, проект�
     expect((await report.json()) as unknown[]).toHaveLength(0);
   });
 
+  // --- Журнал действий (C5) ----------------------------------------------
+
+  it("C5: создание и правка проверки пишутся в журнал с «было → стало»", async () => {
+    const employee = `${marker} Журнальный`;
+
+    const created = await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555030,
+        project: projectA,
+        employee_name: employee,
+        status: "draft",
+        scores: [
+          { item_id: gateItemId, value: 1, is_na: false },
+          { item_id: scoredItemId, value: 0, is_na: false },
+          { item_id: secondScoredItemId, value: 0, is_na: false },
+        ],
+      },
+    });
+    expect(created.ok).toBe(true);
+    const review = (await created.json()) as { id: string };
+
+    // Правка: балл поднят с 0 до 2, черновик завершён.
+    const updated = await callSave(coordinatorA.id, {
+      p_review_id: review.id,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555030,
+        project: projectA,
+        employee_name: employee,
+        status: "completed",
+        scores: [
+          { item_id: gateItemId, value: 1, is_na: false },
+          { item_id: scoredItemId, value: 2, is_na: false },
+          { item_id: secondScoredItemId, value: 0, is_na: false },
+        ],
+      },
+    });
+    expect(updated.ok).toBe(true);
+
+    // Журнал читает только head — заводим его специально для этой проверки.
+    const head = await createTestPortalUser("head", [projectA], `${marker}h`);
+    const log = await asUserFetch(head.id, "/rpc/portal_admin_list_audit", {
+      method: "POST",
+      body: JSON.stringify({ p_limit: 200 }),
+    });
+    expect(log.ok).toBe(true);
+
+    const entries = (await log.json()) as {
+      action: string;
+      details: {
+        review_id?: string;
+        employee_name?: string;
+        status?: { from: string; to: string };
+        total_score?: { from: number | null; to: number | null };
+        scores?: { item: string; from: string; to: string }[];
+      };
+    }[];
+
+    const createdEntry = entries.find(
+      (e) => e.action === "quality_review_created" && e.details.review_id === review.id,
+    );
+    expect(createdEntry, "запись о создании").toBeDefined();
+    expect(createdEntry?.details.employee_name).toBe(employee);
+
+    const updatedEntry = entries.find(
+      (e) => e.action === "quality_review_updated" && e.details.review_id === review.id,
+    );
+    expect(updatedEntry, "запись о правке").toBeDefined();
+    expect(updatedEntry?.details.status).toEqual({ from: "draft", to: "completed" });
+
+    // Изменился ровно один пункт — он и должен быть в журнале, с прежним и
+    // новым значением. Неизменившиеся пункты в запись не попадают.
+    expect(updatedEntry?.details.scores).toEqual([
+      { item: "Пункт с баллом", from: "0", to: "2" },
+    ]);
+  });
+
+  it("C5: «не применимо» и снятый ответ читаются в журнале, а не кодируются", async () => {
+    const employee = `${marker} Журнальный2`;
+
+    const created = await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555031,
+        project: projectA,
+        employee_name: employee,
+        status: "draft",
+        scores: [
+          { item_id: gateItemId, value: 1, is_na: false },
+          { item_id: scoredItemId, value: 2, is_na: false },
+        ],
+      },
+    });
+    const review = (await created.json()) as { id: string };
+
+    // Балл заменён на «не применимо», ответ по второму пункту снят вовсе —
+    // интерфейс просто не присылает его в наборе.
+    await callSave(coordinatorA.id, {
+      p_review_id: review.id,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555031,
+        project: projectA,
+        employee_name: employee,
+        status: "draft",
+        scores: [{ item_id: scoredItemId, value: null, is_na: true }],
+      },
+    });
+
+    const head = await createTestPortalUser("head", [projectA], `${marker}h2`);
+    const log = await asUserFetch(head.id, "/rpc/portal_admin_list_audit", {
+      method: "POST",
+      body: JSON.stringify({ p_limit: 200 }),
+    });
+    const entries = (await log.json()) as {
+      action: string;
+      details: { review_id?: string; scores?: { item: string; from: string; to: string }[] };
+    }[];
+
+    const entry = entries.find(
+      (e) => e.action === "quality_review_updated" && e.details.review_id === review.id,
+    );
+    expect(entry).toBeDefined();
+
+    const changes = entry?.details.scores ?? [];
+    expect(changes).toContainEqual({ item: "Пункт с баллом", from: "2", to: "н/д" });
+    expect(changes).toContainEqual({ item: "Было возражение?", from: "1", to: "—" });
+  });
+
   // --- Шаблоны -----------------------------------------------------------
 
   it("менеджер не может править шаблон проверки", async () => {

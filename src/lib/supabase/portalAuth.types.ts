@@ -79,7 +79,12 @@ export type PortalAuditAction =
   | "login_failed"
   | "logout"
   | "section_permission_changed"
-  | "user_projects_changed";
+  | "user_projects_changed"
+  // TASK-013, C5: раздел «Контроль качества» пишет в тот же журнал.
+  // Цели-пользователя у этих событий нет — опознавательные поля (лид,
+  // сотрудник, проект) и разница «было → стало» лежат в `details`.
+  | "quality_review_created"
+  | "quality_review_updated";
 
 export interface PortalAuditEntry {
   id: string;

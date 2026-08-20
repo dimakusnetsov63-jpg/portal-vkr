@@ -29,7 +29,62 @@ const ACTION_LABELS: Record<PortalAuditAction, string> = {
   logout: "вышел из портала",
   section_permission_changed: "изменил права роли",
   user_projects_changed: "изменил проекты пользователя",
+  quality_review_created: "создал проверку качества",
+  quality_review_updated: "изменил проверку качества",
 };
+
+/** Одна строка разницы по пункту чек-листа в записи журнала. */
+interface QualityScoreChange {
+  item: string;
+  from: string;
+  to: string;
+}
+
+/**
+ * Событие раздела «Контроль качества» описывается не через `target_login` —
+ * цели-пользователя у него нет, — а через опознавательные поля в `details`:
+ * лид, сотрудник, проект. У правки дополнительно показывается, что именно
+ * изменилось: переход статуса, сдвиг итога и первые изменённые пункты.
+ * Полный список остаётся в `details` — панель не должна разрастаться до
+ * тридцати пяти строк на одну запись.
+ */
+function describeQualityReview(entry: PortalAuditEntry, actor: string, action: string): string {
+  const lead = entry.details.crm_lead_id;
+  const employee = typeof entry.details.employee_name === "string" ? entry.details.employee_name : "—";
+  const head = `${actor} ${action}: лид ${lead ?? "—"}, ${employee}`;
+
+  const parts: string[] = [];
+
+  const status = entry.details.status as { from?: string; to?: string } | undefined;
+  if (status?.from && status.to) {
+    parts.push(`статус ${STATUS_TEXT[status.from] ?? status.from} → ${STATUS_TEXT[status.to] ?? status.to}`);
+  }
+
+  const total = entry.details.total_score as { from?: number | null; to?: number | null } | undefined;
+  if (total && "from" in total) {
+    parts.push(`итог ${formatScore(total.from)} → ${formatScore(total.to)}`);
+  }
+
+  const scores = Array.isArray(entry.details.scores) ? (entry.details.scores as QualityScoreChange[]) : [];
+  if (scores.length > 0) {
+    const shown = scores
+      .slice(0, 3)
+      .map((change) => `«${change.item}» ${change.from} → ${change.to}`)
+      .join("; ");
+    parts.push(scores.length > 3 ? `${shown} и ещё ${scores.length - 3}` : shown);
+  }
+
+  return parts.length > 0 ? `${head} — ${parts.join("; ")}` : head;
+}
+
+const STATUS_TEXT: Record<string, string> = {
+  draft: "черновик",
+  completed: "завершена",
+};
+
+function formatScore(value: number | null | undefined): string {
+  return value === null || value === undefined ? "—" : `${value}%`;
+}
 
 function formatMoment(iso: string): string {
   const date = new Date(iso);
@@ -53,6 +108,9 @@ function describe(entry: PortalAuditEntry): string {
   }
   if (entry.action === "user_role_changed") {
     return `${actor} ${action} @${entry.target_login}: ${entry.details.from} → ${entry.details.to}`;
+  }
+  if (entry.action === "quality_review_created" || entry.action === "quality_review_updated") {
+    return describeQualityReview(entry, actor, action);
   }
   return `${actor} ${action} @${entry.target_login ?? "—"}`;
 }
