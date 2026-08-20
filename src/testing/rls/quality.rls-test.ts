@@ -1396,7 +1396,7 @@ describe("RLS: контроль качества — доступ, проект�
       p_payload: treePayload(`${marker} Новый шаблон`, editorProjects[0]),
     });
 
-    expect(response.ok).toBe(true);
+    expect(response.ok, await response.clone().text()).toBe(true);
     const body = (await response.json()) as { id: string; version: number };
     expect(body.id).toBeTruthy();
     expect(Number(body.version)).toBeGreaterThanOrEqual(1);
@@ -1436,7 +1436,7 @@ describe("RLS: контроль качества — доступ, проект�
       p_expected_version: version,
       p_payload: treePayload(`${marker} Версионный (правка)`, editorProjects[1]),
     });
-    expect(good.ok).toBe(true);
+    expect(good.ok, await good.clone().text()).toBe(true);
   });
 
   it("шаблон чужого проекта не правится по известному id", async () => {
@@ -1509,7 +1509,7 @@ describe("RLS: контроль качества — доступ, проект�
         ],
       }),
     });
-    expect(created.ok).toBe(true);
+    expect(created.ok, await created.clone().text()).toBe(true);
     const { id } = (await created.json()) as { id: string };
 
     const before = await readTree(id);
@@ -1540,7 +1540,7 @@ describe("RLS: контроль качества — доступ, проект�
         ],
       }),
     });
-    expect(response.ok).toBe(true);
+    expect(response.ok, await response.clone().text()).toBe(true);
 
     const after = await readTree(id);
     expect(after.items).toHaveLength(1);
@@ -1569,7 +1569,7 @@ describe("RLS: контроль качества — доступ, проект�
         ],
       }),
     });
-    expect(created.ok).toBe(true);
+    expect(created.ok, await created.clone().text()).toBe(true);
     const { id } = (await created.json()) as { id: string };
 
     const before = await readTree(id);
@@ -1592,7 +1592,7 @@ describe("RLS: контроль качества — доступ, проект�
         ],
       },
     });
-    expect(review.ok).toBe(true);
+    expect(review.ok, await review.clone().text()).toBe(true);
 
     const response = await callSaveTree(coordinatorEditor.id, {
       p_checklist_id: id,
@@ -1611,7 +1611,7 @@ describe("RLS: контроль качества — доступ, проект�
         ],
       }),
     });
-    expect(response.ok).toBe(true);
+    expect(response.ok, await response.clone().text()).toBe(true);
 
     const survived = await readRowAsServiceRole<{ archived_at: string | null }>(
       "quality_checklist_items",
@@ -1670,7 +1670,7 @@ describe("RLS: контроль качества — доступ, проект�
       p_checklist_id: null,
       p_payload: treePayload(`${marker} Первый`, editorProjects[4]),
     });
-    expect(first.ok).toBe(true);
+    expect(first.ok, await first.clone().text()).toBe(true);
 
     const second = await callSaveTree(coordinatorEditor.id, {
       p_checklist_id: null,
@@ -1688,7 +1688,7 @@ describe("RLS: контроль качества — доступ, проект�
       p_expected_version: version,
       p_payload: treePayload(`${marker} Первый (правка)`, editorProjects[4]),
     });
-    expect(edit.ok).toBe(true);
+    expect(edit.ok, await edit.clone().text()).toBe(true);
   });
 
   it("вид проверки ограничен известными значениями", async () => {
