@@ -816,6 +816,7 @@ export type Database = {
           updated_at: string
           updated_by: string | null
           updated_by_login: string | null
+          version: number
           violation: string | null
         }
         Insert: {
@@ -852,6 +853,7 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           updated_by_login?: string | null
+          version?: number
           violation?: string | null
         }
         Update: {
@@ -888,6 +890,7 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           updated_by_login?: string | null
+          version?: number
           violation?: string | null
         }
         Relationships: [
@@ -1752,7 +1755,11 @@ export type Database = {
         Returns: string[]
       }
       portal_save_quality_review: {
-        Args: { p_payload: Json; p_review_id: string }
+        Args: {
+          p_expected_version?: number
+          p_payload: Json
+          p_review_id: string
+        }
         Returns: Json
       }
       portal_save_vacancy_project_tree: {

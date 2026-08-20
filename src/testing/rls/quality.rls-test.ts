@@ -717,6 +717,110 @@ describe("RLS: контроль качества — доступ, проект�
     expect(changes).toContainEqual({ item: "Было возражение?", from: "1", to: "—" });
   });
 
+  // --- Одновременное редактирование (B3) ----------------------------------
+
+  it("B3: второе сохранение с той же версией отвергается, а не затирает первое", async () => {
+    const employee = `${marker} Версионный`;
+
+    const created = await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555060,
+        project: projectA,
+        employee_name: employee,
+        status: "draft",
+        scores: [{ item_id: scoredItemId, value: 0, is_na: false }],
+      },
+    });
+    expect(created.ok).toBe(true);
+    const review = (await created.json()) as { id: string; version: number };
+    // Созданная проверка — первой версии: инкремент живёт в ветке
+    // обновления, пересчёт итога версию не двигает.
+    expect(review.version).toBe(1);
+
+    // Оба «проверяющих» открыли проверку и держат одну и ту же версию.
+    const openedVersion = review.version;
+
+    const first = await asUserFetch(coordinatorA.id, "/rpc/portal_save_quality_review", {
+      method: "POST",
+      body: JSON.stringify({
+        p_review_id: review.id,
+        p_expected_version: openedVersion,
+        p_payload: {
+          checklist_id: checklistId,
+          crm_lead_id: 555060,
+          project: projectA,
+          employee_name: employee,
+          status: "draft",
+          scores: [{ item_id: scoredItemId, value: 2, is_na: false }],
+        },
+      }),
+    });
+    expect(first.ok).toBe(true);
+
+    const second = await asUserFetch(coordinatorA.id, "/rpc/portal_save_quality_review", {
+      method: "POST",
+      body: JSON.stringify({
+        p_review_id: review.id,
+        p_expected_version: openedVersion,
+        p_payload: {
+          checklist_id: checklistId,
+          crm_lead_id: 555060,
+          project: projectA,
+          employee_name: employee,
+          status: "draft",
+          scores: [{ item_id: scoredItemId, value: 1, is_na: false }],
+        },
+      }),
+    });
+    expect(second.ok).toBe(false);
+    const body = (await second.json()) as { message: string };
+    expect(body.message).toContain("version_conflict");
+
+    // Правка первого на месте: балл 2, а не 1 от отклонённого сохранения.
+    const stored = await readRowAsServiceRole<{ version: number }>("quality_reviews", review.id);
+    expect(stored?.version).toBe(openedVersion + 1);
+
+    const scores = await asUserFetch(
+      coordinatorA.id,
+      `/quality_review_scores?review_id=eq.${review.id}&item_id=eq.${scoredItemId}&select=value`,
+    );
+    expect(((await scores.json()) as { value: number }[])[0].value).toBe(2);
+  });
+
+  it("B3: обновление без версии отвергается — молча перезаписывать нельзя", async () => {
+    const created = await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555061,
+        project: projectA,
+        employee_name: `${marker} Безверсионный`,
+        status: "draft",
+        scores: [{ item_id: scoredItemId, value: 2, is_na: false }],
+      },
+    });
+    const review = (await created.json()) as { id: string };
+
+    // Ровно тот вызов, каким сохраняли до B3 — без p_expected_version.
+    const response = await callSave(coordinatorA.id, {
+      p_review_id: review.id,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555061,
+        project: projectA,
+        employee_name: `${marker} Безверсионный`,
+        status: "draft",
+        scores: [{ item_id: scoredItemId, value: 0, is_na: false }],
+      },
+    });
+    expect(response.ok).toBe(false);
+    const body = (await response.json()) as { code: string; message: string };
+    expect(body.code).toBe("P0001");
+    expect(body.message).toContain("версия");
+  });
+
   // --- Снимок формулировок (B2) -------------------------------------------
 
   it("B2: переименование пункта не меняет уже сохранённую проверку", async () => {

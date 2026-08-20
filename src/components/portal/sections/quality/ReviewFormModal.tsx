@@ -13,6 +13,7 @@ import {
   getChecklistTree,
   findReviewsByLead,
   pickChecklist,
+  QualityVersionConflictError,
   saveReview,
   type SaveReviewInput,
 } from "@/lib/supabase/qualityRepo";
@@ -279,6 +280,7 @@ export function ReviewFormModal({
 
     const payload: SaveReviewInput = {
       reviewId: existing?.review.id ?? null,
+      expectedVersion: existing?.review.version ?? null,
       checklistId: checklist.id,
       kind: form.kind,
       crmLeadId: leadId,
@@ -319,7 +321,13 @@ export function ReviewFormModal({
       onSaved();
       onClose();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Не удалось сохранить проверку");
+      // Конфликт версий — не обычная ошибка: правку нельзя повторить
+      // вслепую, данные нужно перечитать. Тот же приём, что у вакансий.
+      if (saveError instanceof QualityVersionConflictError) {
+        setError(`${saveError.message} Закройте форму и откройте проверку заново.`);
+      } else {
+        setError(saveError instanceof Error ? saveError.message : "Не удалось сохранить проверку");
+      }
     } finally {
       setSaving(false);
     }

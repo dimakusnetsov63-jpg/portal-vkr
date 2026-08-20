@@ -175,8 +175,23 @@ export async function findReviewsByLead(crmLeadId: number, excludeReviewId?: str
   return (data ?? []).map(asReviewRow);
 }
 
+/**
+ * Ошибка одновременного редактирования: кто-то сохранил эту проверку,
+ * пока её держали открытой. Отдельный класс, а не разбор текста ошибки в
+ * компоненте — интерфейсу нужно предложить перечитать данные, а не просто
+ * показать сообщение. Тот же приём, что у вакансий.
+ */
+export class QualityVersionConflictError extends Error {
+  constructor() {
+    super("Кто-то уже изменил эту проверку. Обновите данные и повторите правку.");
+    this.name = "QualityVersionConflictError";
+  }
+}
+
 export interface SaveReviewInput {
   reviewId?: string | null;
+  /** Версия строки на момент открытия. Обязательна при правке — см. B3. */
+  expectedVersion?: number | null;
   checklistId: string;
   kind: QualityKind;
   crmLeadId: number;
@@ -204,6 +219,7 @@ export interface SaveReviewInput {
 
 export interface SaveReviewResult {
   id: string;
+  version: number;
   total_score: number | null;
   group_scores: Record<string, number | null>;
   has_critical: boolean;
@@ -218,6 +234,7 @@ export async function saveReview(input: SaveReviewInput): Promise<SaveReviewResu
   const supabase = createClient();
   const { data, error } = await supabase.rpc("portal_save_quality_review", {
     p_review_id: input.reviewId ?? null,
+    p_expected_version: input.expectedVersion ?? undefined,
     p_payload: {
       checklist_id: input.checklistId,
       kind: input.kind,
@@ -250,7 +267,10 @@ export async function saveReview(input: SaveReviewInput): Promise<SaveReviewResu
     },
   } as never);
 
-  if (error) throw error;
+  if (error) {
+    if (error.message?.includes("version_conflict")) throw new QualityVersionConflictError();
+    throw error;
+  }
   return data as unknown as SaveReviewResult;
 }
 
