@@ -10,7 +10,10 @@
     right: 0;
     bottom: 0;
     height: 60px;
-    background: rgba(255, 255, 255, 0.92);
+    /* Непрозрачный фон по той же причине, что у шапки: без размытия
+       полупрозрачная панель пропускает содержимое насквозь, а по ней
+       нажимают. */
+    background: var(--surface);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     border-top: 1px solid var(--border);
