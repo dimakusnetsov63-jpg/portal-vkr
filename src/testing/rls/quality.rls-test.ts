@@ -720,6 +720,95 @@ describe("RLS: контроль качества — доступ, проект�
     expect(changes).toContainEqual({ item: "Было возражение?", from: "1", to: "—" });
   });
 
+  // --- Архивация (B1) ------------------------------------------------------
+
+  async function callArchive(userId: string, reviewId: string, archived: boolean): Promise<Response> {
+    return asUserFetch(userId, "/rpc/portal_archive_quality_review", {
+      method: "POST",
+      body: JSON.stringify({ p_review_id: reviewId, p_archived: archived }),
+    });
+  }
+
+  it("B1: архивная проверка выпадает из реестра и из сводки", async () => {
+    // Главное в архивации — не колонка, а исключение из отчётности:
+    // ошибочная проверка не должна двигать средние.
+    const employee = `${marker} Архивный`;
+
+    const created = await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555070,
+        project: projectA,
+        employee_name: employee,
+        status: "completed",
+        scores: fullScores(),
+      },
+    });
+    const review = (await created.json()) as { id: string };
+
+    const inReportBefore = async () => {
+      const response = await asUserFetch(coordinatorA.id, "/rpc/portal_quality_report", {
+        method: "POST",
+        body: JSON.stringify({ p_from: "2020-01-01", p_to: "2100-01-01", p_project: projectA }),
+      });
+      const rows = (await response.json()) as { employee_name: string }[];
+      return rows.some((r) => r.employee_name === employee);
+    };
+
+    expect(await inReportBefore()).toBe(true);
+
+    const archived = await callArchive(coordinatorA.id, review.id, true);
+    expect(archived.ok).toBe(true);
+
+    // Из сводки исчезла.
+    expect(await inReportBefore()).toBe(false);
+
+    // Из разреза по блокам тоже.
+    const byGroup = await asUserFetch(coordinatorA.id, "/rpc/portal_quality_report_by_group", {
+      method: "POST",
+      body: JSON.stringify({ p_from: "2020-01-01", p_to: "2100-01-01", p_employee: employee }),
+    });
+    expect((await byGroup.json()) as unknown[]).toHaveLength(0);
+
+    // Но сама строка на месте и читается — это архив, а не удаление.
+    const stored = await readRowAsServiceRole<{ archived_at: string | null }>("quality_reviews", review.id);
+    expect(stored?.archived_at).not.toBeNull();
+
+    // И возвращается обратно.
+    const restored = await callArchive(coordinatorA.id, review.id, false);
+    expect(restored.ok).toBe(true);
+    expect(await inReportBefore()).toBe(true);
+  });
+
+  it("B1: менеджер не может архивировать — раздел у него только на чтение", async () => {
+    const created = await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: checklistId,
+        crm_lead_id: 555071,
+        project: projectA,
+        employee_name: `${marker} Чужой архив`,
+        status: "draft",
+        scores: [{ item_id: scoredItemId, value: 2, is_na: false }],
+      },
+    });
+    const review = (await created.json()) as { id: string };
+
+    const response = await callArchive(managerA.id, review.id, true);
+    expect(response.status).toBe(403);
+    expect(((await response.json()) as { code: string }).code).toBe("42501");
+  });
+
+  it("B1: архивировать проверку чужого проекта нельзя даже по известному id", async () => {
+    const response = await callArchive(coordinatorA.id, reviewInB.id, true);
+    expect(response.status).toBe(403);
+    expect(((await response.json()) as { code: string }).code).toBe("42501");
+
+    const untouched = await readRowAsServiceRole<{ archived_at: string | null }>("quality_reviews", reviewInB.id);
+    expect(untouched?.archived_at).toBeNull();
+  });
+
   // --- Одновременное редактирование (B3) ----------------------------------
 
   it("B3: второе сохранение с той же версией отвергается, а не затирает первое", async () => {

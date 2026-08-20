@@ -84,7 +84,11 @@ export type PortalAuditAction =
   // Цели-пользователя у этих событий нет — опознавательные поля (лид,
   // сотрудник, проект) и разница «было → стало» лежат в `details`.
   | "quality_review_created"
-  | "quality_review_updated";
+  | "quality_review_updated"
+  // B1: архивация — отдельные события, а не признак внутри «изменил».
+  // Строка журнала должна читаться сама по себе.
+  | "quality_review_archived"
+  | "quality_review_restored";
 
 export interface PortalAuditEntry {
   id: string;

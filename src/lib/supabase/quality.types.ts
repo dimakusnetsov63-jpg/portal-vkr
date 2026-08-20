@@ -94,6 +94,8 @@ export interface QualityReviewFilters {
   dateFrom?: string;
   dateTo?: string;
   onlyCases?: boolean;
+  /** Показывать архивные вместо активных. По умолчанию реестр их скрывает. */
+  showArchived?: boolean;
   search?: string;
 }
 

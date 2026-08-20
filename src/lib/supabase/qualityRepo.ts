@@ -130,6 +130,9 @@ export async function listReviews(
   if (filters.dateFrom) query = query.gte("review_date", filters.dateFrom);
   if (filters.dateTo) query = query.lte("review_date", filters.dateTo);
   if (filters.onlyCases) query = query.eq("is_case", true);
+  // Архивные скрыты по умолчанию: ошибочная проверка не должна попадаться
+  // на глаза в реестре, но и теряться совсем не должна.
+  query = filters.showArchived ? query.not("archived_at", "is", null) : query.is("archived_at", null);
   if (filters.search) {
     const term = filters.search.trim();
     // Числовой поиск — это номер лида; всё остальное ищется по сотруднику.
@@ -316,4 +319,20 @@ export async function loadReportByGroup(
   } as never);
   if (error) throw error;
   return (data ?? []) as unknown as QualityGroupReportRow[];
+}
+
+/**
+ * Убирает проверку из работы и из отчётности либо возвращает обратно.
+ *
+ * Отдельная RPC, а не UPDATE из браузера: у `quality_reviews` нет
+ * UPDATE-гранта вовсе, и появляться ему нельзя — иначе тем же путём можно
+ * было бы переписать `total_score` мимо расчёта (ADR-006).
+ */
+export async function setReviewArchived(reviewId: string, archived: boolean): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.rpc("portal_archive_quality_review", {
+    p_review_id: reviewId,
+    p_archived: archived,
+  } as never);
+  if (error) throw error;
 }

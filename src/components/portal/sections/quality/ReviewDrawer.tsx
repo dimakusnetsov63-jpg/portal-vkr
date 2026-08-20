@@ -7,7 +7,7 @@ import { Button } from "@/components/portal/ui/Button";
 import { Drawer } from "@/components/portal/ui/Drawer";
 import { ErrorState, SkeletonLines } from "@/components/portal/ui/StateViews";
 import { fmtDate } from "@/lib/portal/format";
-import { getReview } from "@/lib/supabase/qualityRepo";
+import { getReview, setReviewArchived } from "@/lib/supabase/qualityRepo";
 import type { QualityReviewWithScores } from "@/lib/supabase/quality.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import styles from "./QualitySection.module.css";
@@ -23,12 +23,16 @@ export function ReviewDrawer({
   reviewId,
   onClose,
   onEdit,
+  onChanged,
 }: {
   reviewId: string;
   onClose: () => void;
   onEdit: (review: QualityReviewWithScores) => void;
+  /** Перезагрузить реестр: архивация меняет состав выдачи. */
+  onChanged?: () => void;
 }) {
-  const { canEdit } = usePortal();
+  const { canEdit, pushToast } = usePortal();
+  const [archiving, setArchiving] = useState(false);
   const [data, setData] = useState<QualityReviewWithScores | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -54,6 +58,22 @@ export function ReviewDrawer({
       cancelled = true;
     };
   }, [reviewId]);
+
+  async function toggleArchived() {
+    if (!data) return;
+    const archived = data.review.archived_at === null;
+    setArchiving(true);
+    try {
+      await setReviewArchived(data.review.id, archived);
+      pushToast(archived ? "Проверка убрана в архив" : "Проверка возвращена в работу");
+      onChanged?.();
+      onClose();
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "Не удалось изменить состояние проверки", "error");
+    } finally {
+      setArchiving(false);
+    }
+  }
 
   const review = data?.review;
 
@@ -83,6 +103,12 @@ export function ReviewDrawer({
 
         {!loading && review && (
           <>
+            {review.archived_at && (
+              <div className={primitives.banner}>
+                Проверка в архиве: она не попадает ни в реестр, ни в сводки.
+              </div>
+            )}
+
             {review.has_critical && (
               <div className={`${primitives.banner} ${primitives.bannerCritical}`}>
                 Критическая ошибка — итог обнулён независимо от остальных баллов.
@@ -182,9 +208,16 @@ export function ReviewDrawer({
 
       <footer className={styles.drawerFoot}>
         {canEdit("quality") && data && (
-          <Button variant="primary" onClick={() => onEdit(data)}>
-            Редактировать
-          </Button>
+          <>
+            {!data.review.archived_at && (
+              <Button variant="primary" onClick={() => onEdit(data)}>
+                Редактировать
+              </Button>
+            )}
+            <Button danger disabled={archiving} onClick={() => void toggleArchived()}>
+              {data.review.archived_at ? "Вернуть в работу" : "В архив"}
+            </Button>
+          </>
         )}
         <Button onClick={onClose}>Закрыть</Button>
       </footer>

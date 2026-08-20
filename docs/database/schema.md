@@ -687,6 +687,8 @@ NULL.
 | `group_scores` | jsonb | **not null** | Снимок процентов по блокам: `{"<group_id>": 85.71 \| null}` |
 | `has_critical` | boolean | **not null** | Был ноль по критическому пункту — итог обнулён |
 | `import_id` | uuid | nullable | Пакет импорта истории; откат = удаление по этому полю |
+| `version` | integer | **not null** | Оптимистическая блокировка (B3): клиент возвращает версию при сохранении, несовпадение отвергается |
+| `archived_at` | timestamptz | nullable | Проверка убрана из работы и из отчётности (B1). Все агрегаты и реестр по умолчанию учитывают только `archived_at is null` |
 
 **`quality_review_scores`:** `pk (review_id, item_id)`, `value` smallint
 (0/1/2; у переключателя 1 = «Да»), `is_na`, `note`, плюс **снимок на момент

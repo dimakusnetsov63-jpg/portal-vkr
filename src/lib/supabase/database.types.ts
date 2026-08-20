@@ -783,6 +783,7 @@ export type Database = {
       }
       quality_reviews: {
         Row: {
+          archived_at: string | null
           call_date: string | null
           call_type: string | null
           case_comment: string | null
@@ -820,6 +821,7 @@ export type Database = {
           violation: string | null
         }
         Insert: {
+          archived_at?: string | null
           call_date?: string | null
           call_type?: string | null
           case_comment?: string | null
@@ -857,6 +859,7 @@ export type Database = {
           violation?: string | null
         }
         Update: {
+          archived_at?: string | null
           call_date?: string | null
           call_type?: string | null
           case_comment?: string | null
@@ -1651,6 +1654,10 @@ export type Database = {
         }
         Returns: Json
       }
+      portal_archive_quality_review: {
+        Args: { p_archived: boolean; p_review_id: string }
+        Returns: Json
+      }
       portal_assert_password: {
         Args: { p_password: string }
         Returns: undefined
@@ -1843,6 +1850,8 @@ export type Database = {
         | "user_projects_changed"
         | "quality_review_created"
         | "quality_review_updated"
+        | "quality_review_archived"
+        | "quality_review_restored"
       portal_user_role: "head" | "coordinator" | "manager" | "recruiter"
       staffing_demand_history_action: "insert" | "update" | "delete"
     }
@@ -2024,6 +2033,8 @@ export const Constants = {
         "user_projects_changed",
         "quality_review_created",
         "quality_review_updated",
+        "quality_review_archived",
+        "quality_review_restored",
       ],
       portal_user_role: ["head", "coordinator", "manager", "recruiter"],
       staffing_demand_history_action: ["insert", "update", "delete"],

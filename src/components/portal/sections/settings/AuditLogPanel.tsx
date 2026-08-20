@@ -31,6 +31,8 @@ const ACTION_LABELS: Record<PortalAuditAction, string> = {
   user_projects_changed: "изменил проекты пользователя",
   quality_review_created: "создал проверку качества",
   quality_review_updated: "изменил проверку качества",
+  quality_review_archived: "убрал проверку в архив",
+  quality_review_restored: "вернул проверку в работу",
 };
 
 /** Одна строка разницы по пункту чек-листа в записи журнала. */
@@ -109,7 +111,12 @@ function describe(entry: PortalAuditEntry): string {
   if (entry.action === "user_role_changed") {
     return `${actor} ${action} @${entry.target_login}: ${entry.details.from} → ${entry.details.to}`;
   }
-  if (entry.action === "quality_review_created" || entry.action === "quality_review_updated") {
+  if (
+    entry.action === "quality_review_created" ||
+    entry.action === "quality_review_updated" ||
+    entry.action === "quality_review_archived" ||
+    entry.action === "quality_review_restored"
+  ) {
     return describeQualityReview(entry, actor, action);
   }
   return `${actor} ${action} @${entry.target_login ?? "—"}`;

@@ -28,7 +28,7 @@ import { summarizeReport } from "./qualityReport";
 
 const PAGE_SIZE = 25;
 
-type Tab = "reviews" | "cases";
+type Tab = "reviews" | "cases" | "archived";
 
 /** Первое число месяца — период по умолчанию и для реестра, и для сводки. */
 function startOfMonth(): string {
@@ -77,6 +77,7 @@ export function QualitySection() {
       kind: kind || undefined,
       search: search.trim() || undefined,
       onlyCases: tab === "cases" || undefined,
+      showArchived: tab === "archived" || undefined,
     }),
     [dateFrom, dateTo, project, kind, search, tab],
   );
@@ -214,6 +215,13 @@ export function QualitySection() {
           >
             Аудиотека
           </button>
+          <button
+            type="button"
+            className={`${primitives.pillTabButton} ${tab === "archived" ? primitives.pillTabButtonActive : ""}`}
+            onClick={() => onFirstPage(setTab)("archived")}
+          >
+            Архив
+          </button>
         </div>
 
         <div className={primitives.toolbar}>
@@ -287,11 +295,13 @@ export function QualitySection() {
           !failed &&
           (rows.length === 0 ? (
             <EmptyState
-              title={tab === "cases" ? "Кейсов пока нет" : "Проверок не найдено"}
+              title={tab === "cases" ? "Кейсов пока нет" : tab === "archived" ? "Архив пуст" : "Проверок не найдено"}
               text={
                 tab === "cases"
                   ? "Отметьте удачный звонок как кейс в карточке проверки — он появится здесь."
-                  : "Измените период или фильтры, либо заведите первую проверку."
+                  : tab === "archived"
+                    ? "Сюда попадают проверки, убранные из работы: ошибочные, дубли, заведённые не на того сотрудника."
+                    : "Измените период или фильтры, либо заведите первую проверку."
               }
               onReset={resetFilters}
             />
@@ -322,6 +332,7 @@ export function QualitySection() {
       {openReviewId && (
         <ReviewDrawer
           reviewId={openReviewId}
+          onChanged={reload}
           onClose={() => setOpenReviewId(null)}
           onEdit={(review) => {
             setEditing(review);
