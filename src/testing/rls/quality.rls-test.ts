@@ -1346,4 +1346,313 @@ describe("RLS: контроль качества — доступ, проект�
     });
     expect(response.ok).toBe(false);
   });
+
+  // --- Редактор шаблонов (фаза 4) ------------------------------------------
+
+  async function callSaveTree(userId: string, body: Record<string, unknown>): Promise<Response> {
+    return asUserFetch(userId, "/rpc/portal_save_quality_checklist_tree", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  function treePayload(title: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      title,
+      kind: "call",
+      project: projectA,
+      groups: [
+        {
+          id: null,
+          title: "Блок",
+          counts_in_total: true,
+          sort_order: 1,
+          items: [
+            { id: null, title: "Пункт", scale: "0-1-2", weight: 1, allow_na: true, is_critical: false, sort_order: 1 },
+          ],
+        },
+      ],
+      ...extra,
+    };
+  }
+
+  it("шаблон создаётся и сразу возвращает версию", async () => {
+    const response = await callSaveTree(coordinatorA.id, {
+      p_checklist_id: null,
+      p_payload: treePayload(`${marker} Новый шаблон`),
+    });
+
+    expect(response.ok).toBe(true);
+    const body = (await response.json()) as { id: string; version: number };
+    expect(body.id).toBeTruthy();
+    expect(Number(body.version)).toBeGreaterThanOrEqual(1);
+  });
+
+  it("менеджер шаблон не создаёт и не правит", async () => {
+    const response = await callSaveTree(managerA.id, {
+      p_checklist_id: null,
+      p_payload: treePayload(`${marker} Менеджерский`),
+    });
+
+    expect(response.ok).toBe(false);
+  });
+
+  it("правка без версии и с чужой версией отвергается", async () => {
+    const created = await callSaveTree(coordinatorA.id, {
+      p_checklist_id: null,
+      p_payload: treePayload(`${marker} Версионный`),
+    });
+    const { id, version } = (await created.json()) as { id: string; version: number };
+
+    const noVersion = await callSaveTree(coordinatorA.id, {
+      p_checklist_id: id,
+      p_payload: treePayload(`${marker} Версионный (правка)`),
+    });
+    expect(noVersion.ok).toBe(false);
+
+    const staleVersion = await callSaveTree(coordinatorA.id, {
+      p_checklist_id: id,
+      p_expected_version: Number(version) + 5,
+      p_payload: treePayload(`${marker} Версионный (правка)`),
+    });
+    expect(staleVersion.ok).toBe(false);
+
+    const good = await callSaveTree(coordinatorA.id, {
+      p_checklist_id: id,
+      p_expected_version: version,
+      p_payload: treePayload(`${marker} Версионный (правка)`),
+    });
+    expect(good.ok).toBe(true);
+  });
+
+  it("шаблон чужого проекта не правится по известному id", async () => {
+    // Тот же класс дыры, что SEC-01 у проверок: проверять только проект из
+    // payload недостаточно — чужой шаблон можно было бы «перенести» к себе.
+    const foreign = await insertTestRow<{ id: string; version: number }>("quality_checklists", {
+      title: `${marker} Чужой шаблон`,
+      kind: "call",
+      project: projectB,
+    });
+
+    const response = await callSaveTree(coordinatorA.id, {
+      p_checklist_id: foreign.id,
+      p_expected_version: foreign.version,
+      p_payload: treePayload(`${marker} Присвоенный`),
+    });
+
+    expect(response.ok).toBe(false);
+    const untouched = await readRowAsServiceRole<{ title: string }>("quality_checklists", foreign.id);
+    expect(untouched?.title).toBe(`${marker} Чужой шаблон`);
+  });
+
+  /** Дерево шаблона глазами service_role: блоки и пункты с признаком архива. */
+  async function readTree(id: string) {
+    const groupsResponse = await serviceRoleFetch(
+      `/quality_checklist_groups?select=id,title,archived_at&checklist_id=eq.${id}&order=sort_order`,
+    );
+    const groups = (await groupsResponse.json()) as { id: string; title: string; archived_at: string | null }[];
+
+    const itemsResponse = await serviceRoleFetch(
+      `/quality_checklist_items?select=id,title,archived_at,group_id&group_id=in.(${groups.map((g) => g.id).join(",")})&order=sort_order`,
+    );
+    const items = (await itemsResponse.json()) as {
+      id: string;
+      title: string;
+      archived_at: string | null;
+      group_id: string;
+    }[];
+
+    return { groups, items };
+  }
+
+  /**
+   * Версию нужно читать, а не считать в уме: триггер поднимает её на каждую
+   * правку состава, и подставленная наугад единица дала бы отказ по версии —
+   * тест прошёл бы мимо того, что проверяет.
+   */
+  async function currentVersion(id: string): Promise<number> {
+    const row = await readRowAsServiceRole<{ version: number }>("quality_checklists", id);
+    return Number(row?.version);
+  }
+
+  it("неоценённый пункт при удалении из шаблона исчезает совсем", async () => {
+    // Пока на пункт никто не сослался, его удаление из свежего шаблона —
+    // обычная правка, а не потеря истории.
+    const created = await callSaveTree(coordinatorA.id, {
+      p_checklist_id: null,
+      p_payload: treePayload(`${marker} С лишним пунктом`, {
+        groups: [
+          {
+            id: null,
+            title: "Блок",
+            counts_in_total: true,
+            sort_order: 1,
+            items: [
+              { id: null, title: "Останется", scale: "0-1-2", weight: 1, allow_na: true, is_critical: false, sort_order: 1 },
+              { id: null, title: "Уйдёт", scale: "0-1-2", weight: 1, allow_na: true, is_critical: false, sort_order: 2 },
+            ],
+          },
+        ],
+      }),
+    });
+    expect(created.ok).toBe(true);
+    const { id } = (await created.json()) as { id: string };
+
+    const before = await readTree(id);
+    expect(before.items).toHaveLength(2);
+    const keep = before.items.find((item) => item.title === "Останется");
+    const drop = before.items.find((item) => item.title === "Уйдёт");
+    expect(keep).toBeDefined();
+    expect(drop).toBeDefined();
+
+    const response = await callSaveTree(coordinatorA.id, {
+      p_checklist_id: id,
+      p_expected_version: await currentVersion(id),
+      p_payload: treePayload(`${marker} С лишним пунктом`, {
+        groups: [
+          {
+            // Идентификаторы блока и пункта сохраняются. Без них строки
+            // пересоздались бы, а прежние ушли бы в архив — ровно та тихая
+            // потеря, ради которой правки над черновиком вынесены в чистый
+            // модуль с тестами.
+            id: before.groups[0].id,
+            title: "Блок",
+            counts_in_total: true,
+            sort_order: 1,
+            items: [
+              { id: keep?.id, title: "Останется", scale: "0-1-2", weight: 1, allow_na: true, is_critical: false, sort_order: 1 },
+            ],
+          },
+        ],
+      }),
+    });
+    expect(response.ok).toBe(true);
+
+    const after = await readTree(id);
+    expect(after.items).toHaveLength(1);
+    expect(after.items[0].id).toBe(keep?.id);
+    expect(await readRowAsServiceRole("quality_checklist_items", drop!.id)).toBeUndefined();
+  });
+
+  it("оценённый пункт при удалении из шаблона архивируется, а не пропадает", async () => {
+    // Удалить его значило бы потерять выставленную оценку. Это главное
+    // правило редактора: прошлые проверки читаются тем составом, каким их
+    // заполняли.
+    const created = await callSaveTree(coordinatorA.id, {
+      p_checklist_id: null,
+      p_payload: treePayload(`${marker} С оценённым пунктом`, {
+        groups: [
+          {
+            id: null,
+            title: "Блок",
+            counts_in_total: true,
+            sort_order: 1,
+            items: [
+              { id: null, title: "Останется", scale: "0-1-2", weight: 1, allow_na: true, is_critical: false, sort_order: 1 },
+              { id: null, title: "Оценённый", scale: "0-1-2", weight: 1, allow_na: true, is_critical: false, sort_order: 2 },
+            ],
+          },
+        ],
+      }),
+    });
+    expect(created.ok).toBe(true);
+    const { id } = (await created.json()) as { id: string };
+
+    const before = await readTree(id);
+    const keep = before.items.find((item) => item.title === "Останется");
+    const scored = before.items.find((item) => item.title === "Оценённый");
+    expect(scored).toBeDefined();
+
+    // Проверка по этому шаблону — она и делает пункт неудаляемым.
+    const review = await callSave(coordinatorA.id, {
+      p_review_id: null,
+      p_payload: {
+        checklist_id: id,
+        crm_lead_id: 555070,
+        project: projectA,
+        employee_name: `${marker} Оценённый сотрудник`,
+        status: "completed",
+        scores: [
+          { item_id: keep?.id, value: 2, is_na: false },
+          { item_id: scored?.id, value: 1, is_na: false },
+        ],
+      },
+    });
+    expect(review.ok).toBe(true);
+
+    const response = await callSaveTree(coordinatorA.id, {
+      p_checklist_id: id,
+      p_expected_version: await currentVersion(id),
+      p_payload: treePayload(`${marker} С оценённым пунктом`, {
+        groups: [
+          {
+            id: before.groups[0].id,
+            title: "Блок",
+            counts_in_total: true,
+            sort_order: 1,
+            items: [
+              { id: keep?.id, title: "Останется", scale: "0-1-2", weight: 1, allow_na: true, is_critical: false, sort_order: 1 },
+            ],
+          },
+        ],
+      }),
+    });
+    expect(response.ok).toBe(true);
+
+    const survived = await readRowAsServiceRole<{ archived_at: string | null }>(
+      "quality_checklist_items",
+      scored!.id,
+    );
+    expect(survived).toBeDefined();
+    expect(survived?.archived_at).not.toBeNull();
+  });
+
+  it("шаблон без названия, с неизвестной шкалой и с нулевым весом не сохраняется", async () => {
+    const noTitle = await callSaveTree(coordinatorA.id, {
+      p_checklist_id: null,
+      p_payload: treePayload("   "),
+    });
+    expect(noTitle.ok).toBe(false);
+
+    const badScale = await callSaveTree(coordinatorA.id, {
+      p_checklist_id: null,
+      p_payload: treePayload(`${marker} Шкала`, {
+        groups: [
+          {
+            id: null,
+            title: "Блок",
+            counts_in_total: true,
+            sort_order: 1,
+            items: [{ id: null, title: "П", scale: "0-5", weight: 1, allow_na: true, is_critical: false, sort_order: 1 }],
+          },
+        ],
+      }),
+    });
+    expect(badScale.ok).toBe(false);
+
+    const badWeight = await callSaveTree(coordinatorA.id, {
+      p_checklist_id: null,
+      p_payload: treePayload(`${marker} Вес`, {
+        groups: [
+          {
+            id: null,
+            title: "Блок",
+            counts_in_total: true,
+            sort_order: 1,
+            items: [{ id: null, title: "П", scale: "0-2", weight: 0, allow_na: true, is_critical: false, sort_order: 1 }],
+          },
+        ],
+      }),
+    });
+    expect(badWeight.ok).toBe(false);
+  });
+
+  it("вид проверки ограничен известными значениями", async () => {
+    const response = await callSaveTree(coordinatorA.id, {
+      p_checklist_id: null,
+      p_payload: treePayload(`${marker} Вид`, { kind: "выдуманный" }),
+    });
+
+    expect(response.ok).toBe(false);
+  });
 });

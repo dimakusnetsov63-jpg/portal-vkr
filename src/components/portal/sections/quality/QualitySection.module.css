@@ -86,6 +86,131 @@
   padding: var(--sp-3) var(--sp-4);
 }
 
+/* --- Редактор шаблонов --------------------------------------------------
+   Список шаблонов карточками, а не таблицей: у шаблона три атрибута и три
+   действия, и строка таблицы под это не нужна. */
+.checklistCards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.checklistCard {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+}
+/* Архивный шаблон приглушён, но читаем: он остаётся источником для копии. */
+.checklistCard[data-archived="true"] {
+  opacity: 0.6;
+}
+.checklistCardMain {
+  min-width: 0;
+  flex: 1;
+}
+.checklistCardMain h4 {
+  margin: 0 0 var(--sp-1);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+}
+.checklistCardMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+}
+.checklistCardActions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.errorList {
+  margin: 0;
+  padding-left: var(--sp-4);
+}
+.groupHeading {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+/* Строка пункта: формулировка занимает всё свободное место, настройки
+   выстроены справа одинаково у всех строк — глаз идёт по колонке, а не
+   выискивает переключатель в каждой строке заново. */
+.itemRows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: var(--sp-3) 0;
+}
+.itemRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+}
+.itemTitleInput {
+  flex: 1 1 320px;
+  min-width: 0;
+  height: var(--control-h-md);
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text-1);
+  font-size: var(--fs-md);
+}
+.weightField {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+}
+.weightField input {
+  width: 56px;
+  height: var(--control-h-md);
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text-1);
+}
+.itemRowActions {
+  display: flex;
+  gap: var(--sp-1);
+  margin-left: auto;
+}
+/* Как пункт будет выглядеть в проверке — увидеть кнопки полезнее, чем
+   прочитать название шкалы. */
+.itemPreview {
+  display: flex;
+  gap: var(--sp-1);
+  flex-basis: 100%;
+}
+.previewChip {
+  padding: 2px var(--sp-2);
+  border-radius: var(--radius-xs);
+  background: var(--surface-hover);
+  color: var(--text-3);
+  font-size: var(--fs-2xs);
+}
+
 /* Комментарий проверяющего бывает длинным. В строке показывается начало —
    целиком он читается в карточке, куда строка и открывается. */
 .commentCell {

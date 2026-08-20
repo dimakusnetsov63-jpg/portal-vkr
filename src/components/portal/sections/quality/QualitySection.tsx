@@ -16,6 +16,7 @@ import styles from "./QualitySection.module.css";
 import { ReviewDrawer } from "./ReviewDrawer";
 import { ReviewFormModal } from "./ReviewFormModal";
 import { ReviewsTable } from "./ReviewsTable";
+import { ChecklistsPanel } from "./ChecklistsPanel";
 import { KIND_LABELS, QUALITY_KINDS, formatPercent } from "./qualityOptions";
 import { activePreset, PERIOD_PRESETS, type QualityTab } from "./qualityFilters";
 import { useQualityReviews } from "./useQualityReviews";
@@ -33,9 +34,12 @@ const TABS: { id: QualityTab; label: string }[] = [
   { id: "reviews", label: "Проверки" },
   { id: "cases", label: "Аудиотека" },
   { id: "archived", label: "Архив" },
+  { id: "checklists", label: "Шаблоны" },
 ];
 
-const EMPTY_STATE: Record<QualityTab, { title: string; text: string }> = {
+// Пустое состояние есть у трёх вкладок реестра. У «Шаблонов» своё — оно
+// живёт в ChecklistsPanel вместе с их загрузкой.
+const EMPTY_STATE: Record<Exclude<QualityTab, "checklists">, { title: string; text: string }> = {
   reviews: {
     title: "Проверок не найдено",
     text: "Измените период или фильтры, либо заведите первую проверку.",
@@ -84,7 +88,10 @@ export function QualitySection() {
     return () => setContextAction(null);
   }, [setContextAction, editable]);
 
-  const emptyState = EMPTY_STATE[filters.tab];
+  // На вкладке шаблонов реестра нет вовсе, поэтому у неё нет ни пустого
+  // состояния, ни фильтров, ни показателей: они все про проверки.
+  const onChecklists = filters.tab === "checklists";
+  const emptyState = filters.tab === "checklists" ? null : EMPTY_STATE[filters.tab];
   const current = activePreset(filters);
 
   return (
@@ -93,7 +100,7 @@ export function QualitySection() {
         Проверка звонков по чек-листам проектов и лидов, закрытых самоотказом: баллы, проценты по блокам и итог.
       </PageHead>
 
-      {registry.summaryLoading ? (
+      {onChecklists ? null : registry.summaryLoading ? (
         <SkeletonCards count={5} className={styles.statGrid} />
       ) : (
         <div className={styles.statGrid}>
@@ -124,6 +131,10 @@ export function QualitySection() {
           ))}
         </div>
 
+        {onChecklists && <ChecklistsPanel />}
+
+        {!onChecklists && (
+        <>
         {/*
           Готовые периоды — просьба команды КЦ: они пришли из воронки
           Битрикса и привыкли переключать период кнопкой, а не двумя
@@ -212,6 +223,7 @@ export function QualitySection() {
         {!registry.loading && registry.failed && <ErrorState onRetry={registry.reload} />}
         {!registry.loading &&
           !registry.failed &&
+          emptyState &&
           (registry.rows.length === 0 ? (
             <EmptyState title={emptyState.title} text={emptyState.text} onReset={registry.resetFilters} />
           ) : (
@@ -224,6 +236,8 @@ export function QualitySection() {
               onPageChange={registry.setPage}
             />
           ))}
+        </>
+        )}
       </Panel>
 
       {formOpen && (

@@ -95,6 +95,76 @@ export async function getChecklistTree(checklistId: string): Promise<QualityChec
   };
 }
 
+/** Брошено `saveChecklistTree`, когда шаблон успели изменить между открытием и сохранением. */
+export class QualityChecklistConflictError extends Error {
+  constructor() {
+    super("Кто-то уже изменил этот шаблон. Обновите страницу и повторите правку.");
+    this.name = "QualityChecklistConflictError";
+  }
+}
+
+export interface SaveChecklistTreeResult {
+  id: string;
+  version: number;
+}
+
+/**
+ * Сохранение шаблона целиком — одной транзакцией, а не пачкой запросов.
+ *
+ * Правка шаблона перемешивает вставки, обновления и удаления по трём
+ * таблицам. Последовательные вызовы PostgREST не атомарны: половина
+ * применилась, вторая упала — и шаблон остался в состоянии, которого никто
+ * не задумывал. Тот же довод, что у `portal_save_vacancy_project_tree`.
+ *
+ * `checklistId = null` создаёт шаблон; версия при этом не нужна.
+ */
+export async function saveChecklistTree(
+  checklistId: string | null,
+  payload: Record<string, unknown>,
+  expectedVersion: number | null,
+): Promise<SaveChecklistTreeResult> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("portal_save_quality_checklist_tree", {
+    // Генератор типов выводит `p_checklist_id: string`: он не различает
+    // «параметр без значения по умолчанию» и «параметр, принимающий null».
+    // Функция null принимает намеренно — это и есть создание шаблона. Файл
+    // database.types.ts генерируемый, править его руками нельзя (CLAUDE.md
+    // §7), поэтому приведение стоит здесь, на одной строке, а не в типах.
+    p_checklist_id: checklistId as string,
+    p_payload: payload as never,
+    p_expected_version: expectedVersion ?? undefined,
+  });
+
+  if (error) {
+    if (error.message?.includes("version_conflict")) throw new QualityChecklistConflictError();
+    throw error;
+  }
+  return data as unknown as SaveChecklistTreeResult;
+}
+
+/** Архивация шаблона и возврат из архива. Обычный UPDATE: производных значений у флага нет. */
+export async function setChecklistArchived(checklistId: string, archived: boolean): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("quality_checklists")
+    .update({ archived_at: archived ? new Date().toISOString() : null })
+    .eq("id", checklistId);
+  if (error) throw error;
+}
+
+/** Все шаблоны, включая архивные — для редактора. Форма проверки берёт только активные. */
+export async function listAllChecklists(): Promise<QualityChecklistRow[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("quality_checklists")
+    .select("*")
+    .order("archived_at", { ascending: true, nullsFirst: true })
+    .order("kind", { ascending: true })
+    .order("project", { ascending: true, nullsFirst: true });
+  if (error) throw error;
+  return data;
+}
+
 export interface ReviewsPage {
   rows: QualityReviewRow[];
   total: number;

@@ -65,10 +65,20 @@ describe("buildReviewFilters", () => {
   it("признаки вкладок не включаются одновременно ни при какой вкладке", () => {
     // Оба сразу означали бы «архивные кейсы» — состояние, которого в
     // интерфейсе нет и которое незаметно сузило бы выдачу до пустой.
-    for (const tab of ["reviews", "cases", "archived"] as const) {
+    for (const tab of ["reviews", "cases", "archived", "checklists"] as const) {
       const filters = buildReviewFilters(state({ tab }));
       expect(Boolean(filters.onlyCases) && Boolean(filters.showArchived)).toBe(false);
     }
+  });
+
+  it("вкладка «Шаблоны» не сужает выдачу проверок", () => {
+    // Там не проверки, а их критерии. Реестр за этой вкладкой не
+    // показывается, но фильтр остаётся прежним: вернувшись на «Проверки»,
+    // человек должен увидеть то же, что и уходя.
+    const filters = buildReviewFilters(state({ tab: "checklists" }));
+
+    expect(filters.onlyCases).toBeUndefined();
+    expect(filters.showArchived).toBeUndefined();
   });
 
   it("период переносится в запрос", () => {

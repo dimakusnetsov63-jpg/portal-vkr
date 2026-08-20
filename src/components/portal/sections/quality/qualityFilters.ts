@@ -11,8 +11,12 @@ import type { QualityKind, QualityReviewFilters } from "@/lib/supabase/quality.t
  * заметить это можно только глазами.
  */
 
-/** Вкладка реестра. Не фильтр сам по себе — она задаёт сразу два признака. */
-export type QualityTab = "reviews" | "cases" | "archived";
+/**
+ * Вкладка раздела. Первые три — виды одной и той же выдачи проверок, они
+ * задают признаки фильтра. «Шаблоны» стоят особняком: там не проверки, а их
+ * критерии, и фильтры реестра к ним неприменимы.
+ */
+export type QualityTab = "reviews" | "cases" | "archived" | "checklists";
 
 export interface QualityFilterState {
   tab: QualityTab;

@@ -1761,6 +1761,14 @@ export type Database = {
         Args: { p_role: Database["public"]["Enums"]["portal_user_role"] }
         Returns: string[]
       }
+      portal_save_quality_checklist_tree: {
+        Args: {
+          p_checklist_id: string
+          p_expected_version?: number
+          p_payload: Json
+        }
+        Returns: Json
+      }
       portal_save_quality_review: {
         Args: {
           p_expected_version?: number
