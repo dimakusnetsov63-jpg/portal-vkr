@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { SECTION_ORDER, isLockedCell, sectionsInMenuOrder, toMatrix } from "./accessMatrix";
+import { SECTION_LABELS, SECTION_ORDER, isLockedCell, sectionsInMenuOrder, toMatrix } from "./accessMatrix";
+import { NAV_ITEMS } from "@/lib/portal/constants";
 import type { SectionPermissionRow } from "@/lib/supabase/portalAuth.types";
 
 function row(
@@ -67,6 +68,21 @@ describe("sectionsInMenuOrder", () => {
 
   it("users идёт последним — это право, а не пункт меню", () => {
     expect(SECTION_ORDER[SECTION_ORDER.length - 1]).toBe("users");
+  });
+
+  it("содержит все разделы меню в том же порядке", () => {
+    // Список собирается из NAV_ITEMS именно поэтому: своя копия однажды уже
+    // отстала — «Контроль качества» в неё не дописали, и раздел выводился в
+    // хвосте таблицы под слагом `quality`.
+    expect(SECTION_ORDER).toEqual([...NAV_ITEMS.map((item) => item.id), "users"]);
+  });
+
+  it("подписывает каждый раздел по-русски, а не слагом", () => {
+    for (const section of SECTION_ORDER) {
+      expect(SECTION_LABELS[section], section).toBeTruthy();
+      expect(SECTION_LABELS[section], section).not.toBe(section);
+    }
+    expect(SECTION_LABELS.quality).toBe("Контроль качества");
   });
 });
 

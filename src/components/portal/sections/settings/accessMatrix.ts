@@ -1,4 +1,5 @@
 import type { PortalRole } from "@/lib/auth/roles";
+import { NAV_ITEMS } from "@/lib/portal/constants";
 import type { SectionPermission, SectionPermissionRow } from "@/lib/supabase/portalAuth.types";
 
 /**
@@ -9,35 +10,20 @@ import type { SectionPermission, SectionPermissionRow } from "@/lib/supabase/por
 export type PermissionMatrix = Record<string, Record<string, SectionPermission>>;
 
 /**
- * Порядок строк таблицы. Совпадает с порядком пунктов меню и с
- * `portal_section_order()` в базе; `users` — не раздел меню, а право
- * управлять учётными записями, поэтому идёт последним, как и в SQL.
+ * Порядок строк таблицы и подписи разделов — из `NAV_ITEMS`, а не своим
+ * списком. Раньше здесь лежала копия, и она отстала: раздел «Контроль
+ * качества» (TASK-013) в неё не дописали, поэтому в панели он оказывался в
+ * хвосте таблицы и подписывался слагом `quality` — веткой для незнакомых
+ * разделов (см. `sectionsInMenuOrder`). Собранный из меню список отстать
+ * не может: новый раздел портала всё равно заводится в `NAV_ITEMS`.
+ *
+ * `users` — не пункт меню, а право управлять учётными записями, поэтому
+ * дописан последним, как и в `portal_section_order()` в базе.
  */
-export const SECTION_ORDER: string[] = [
-  "overview",
-  "demand",
-  "addresses",
-  "candidates",
-  "vacancies",
-  "rates",
-  "marketing",
-  "analytics",
-  "notifications",
-  "settings",
-  "users",
-];
+export const SECTION_ORDER: string[] = [...NAV_ITEMS.map((item) => item.id), "users"];
 
 export const SECTION_LABELS: Record<string, string> = {
-  overview: "Обзор",
-  demand: "Потребность",
-  addresses: "Адреса",
-  candidates: "Кандидаты",
-  vacancies: "Описание вакансий",
-  rates: "Ставки",
-  marketing: "Маркетинг",
-  analytics: "Аналитика",
-  notifications: "Уведомления",
-  settings: "Настройки",
+  ...Object.fromEntries(NAV_ITEMS.map((item) => [item.id, item.label])),
   users: "Учётные записи",
 };
 
