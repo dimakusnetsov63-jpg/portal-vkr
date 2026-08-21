@@ -1860,7 +1860,13 @@ export type Database = {
         | "quality_review_updated"
         | "quality_review_archived"
         | "quality_review_restored"
-      portal_user_role: "head" | "coordinator" | "manager" | "recruiter"
+      portal_user_role:
+        | "head"
+        | "coordinator"
+        | "manager"
+        | "recruiter"
+        | "okk"
+        | "marketolog"
       staffing_demand_history_action: "insert" | "update" | "delete"
     }
     CompositeTypes: {
@@ -2044,7 +2050,14 @@ export const Constants = {
         "quality_review_archived",
         "quality_review_restored",
       ],
-      portal_user_role: ["head", "coordinator", "manager", "recruiter"],
+      portal_user_role: [
+        "head",
+        "coordinator",
+        "manager",
+        "recruiter",
+        "okk",
+        "marketolog",
+      ],
       staffing_demand_history_action: ["insert", "update", "delete"],
     },
   },

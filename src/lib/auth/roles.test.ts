@@ -6,7 +6,15 @@ import {
 
   isPortalPage,
   isPortalRole,
+  type PortalRole,
 } from "./roles";
+
+/**
+ * Роли, права которых заданы в коде. «ОКК» и «Маркетолог» добавлены позже,
+ * когда матрица уже жила в базе, поэтому в ROLE_PERMISSIONS у них пусто —
+ * см. отдельную проверку ниже.
+ */
+const BASELINE_ROLES = ["head", "coordinator", "manager", "recruiter"] as const satisfies readonly PortalRole[];
 
 describe("canAccess — минимальные права из ТЗ", () => {
   it("даёт руководителю все разделы и управление пользователями", () => {
@@ -63,11 +71,23 @@ describe("canAccess — минимальные права из ТЗ", () => {
     expect(canAccess("recruiter", "users")).toBe(false);
   });
 
-  it("даёт «Адреса» и «Ставки» всем четырём ролям, в отличие от большинства разделов", () => {
+  it("даёт «Адреса» и «Ставки» всем четырём ролям baseline, в отличие от большинства разделов", () => {
     const withAddresses = PORTAL_ROLES.filter((role) => canAccess(role, "addresses"));
-    expect(withAddresses).toEqual([...PORTAL_ROLES]);
+    expect(withAddresses).toEqual([...BASELINE_ROLES]);
     const withRates = PORTAL_ROLES.filter((role) => canAccess(role, "rates"));
-    expect(withRates).toEqual([...PORTAL_ROLES]);
+    expect(withRates).toEqual([...BASELINE_ROLES]);
+  });
+
+  it("не даёт «ОКК» и «Маркетологу» ничего: их разделы назначаются в настройках", () => {
+    // Роли заведены после перехода на настраиваемые права (миграции
+    // 20260821110000/20260821110100), и ROLE_PERMISSIONS для них пуста
+    // намеренно — она лишь зеркалит seed, в котором все флаги выключены.
+    // Реальные права придут из portal_section_permissions.
+    for (const role of ["okk", "marketolog"] as const) {
+      expect(allowedSections(role)).toEqual([]);
+      expect(canAccess(role, "candidates")).toBe(false);
+      expect(canAccess(role, "users")).toBe(false);
+    }
   });
 
   it("отдаёт управление пользователями только руководителю", () => {
@@ -79,6 +99,8 @@ describe("canAccess — минимальные права из ТЗ", () => {
 describe("guards", () => {
   it("не пропускает произвольные строки в роли и разделы", () => {
     expect(isPortalRole("head")).toBe(true);
+    expect(isPortalRole("okk")).toBe(true);
+    expect(isPortalRole("marketolog")).toBe(true);
     expect(isPortalRole("admin")).toBe(false);
     expect(isPortalRole(null)).toBe(false);
     expect(isPortalPage("candidates")).toBe(true);

@@ -105,15 +105,18 @@ describe("portal_can_view_section / portal_can_edit_section", () => {
     }
   });
 
-  it("vacancies: читают все четыре роли, редактируют только head и coordinator", async () => {
-    const expected: Record<PortalRole, boolean> = {
+  it("vacancies: читают все четыре роли baseline, редактируют только head и coordinator", async () => {
+    // «ОКК» и «Маркетолог» сюда не входят: они заведены без прав вовсе (см.
+    // отдельную проверку ниже), и раздел «Описание вакансий» им, как и все
+    // остальные, назначает руководитель в «Настройки → Доступы».
+    const expected = {
       head: true,
       coordinator: true,
       manager: false,
       recruiter: false,
-    };
+    } satisfies Partial<Record<PortalRole, boolean>>;
 
-    for (const role of PORTAL_ROLES) {
+    for (const role of Object.keys(expected) as (keyof typeof expected)[]) {
       const user = await makeUser(role);
 
       const canView = await callRpcAsUser<boolean>(user.id, "portal_can_view_section", { p_section: "vacancies" });
@@ -121,6 +124,24 @@ describe("portal_can_view_section / portal_can_edit_section", () => {
 
       expect(canView, `${role} читает вакансии`).toBe(true);
       expect(canEdit, `${role} редактирует вакансии`).toBe(expected[role]);
+    }
+  });
+
+  it.each(["okk", "marketolog"] as const)("роль %s заведена без прав: ни VIEW, ни EDIT нигде", async (role) => {
+    // Строки в матрице у новых ролей есть (иначе руководитель не смог бы
+    // ничего им включить), но все флаги выключены — до первой настройки
+    // роль не открывает ни одного раздела.
+    const user = await makeUser(role);
+
+    for (const section of probedSections) {
+      expect(
+        await callRpcAsUser<boolean>(user.id, "portal_can_view_section", { p_section: section }),
+        `${role} / ${section}`,
+      ).toBe(false);
+      expect(
+        await callRpcAsUser<boolean>(user.id, "portal_can_edit_section", { p_section: section }),
+        `${role} / ${section}`,
+      ).toBe(false);
     }
   });
 

@@ -723,7 +723,7 @@ NULL.
 | `full_name` | text | **not null** | `check` длины 2–120 после `btrim` |
 | `login` | text | **not null** | Уникален. `check (login ~ '^[a-z0-9._-]{3,32}$')` — хранится только в нижнем регистре, поэтому уникального индекса по самому полю достаточно |
 | `password_hash` | text | **not null** | bcrypt (`pgcrypto`: `crypt`/`gen_salt('bf', 10)`). Открытый пароль не хранится и не возвращается ни одной функцией |
-| `role` | enum `portal_user_role` | **not null** | head / coordinator / manager / recruiter |
+| `role` | enum `portal_user_role` | **not null** | head / coordinator / manager / recruiter / okk / marketolog (последние две с `20260821110000`) |
 | `projects` | text[] | **not null** | Значения проектов как текст, без FK. `check (cardinality(projects) > 0)` |
 | `all_projects` | boolean | **not null** | `default false`. `true` = доступны все проекты, включая будущие; `projects` при этом игнорируется. Миграция `20260811100100`, **не применена** |
 | `is_active` | boolean | not null | `default true`; `false` = вход запрещён |
@@ -811,6 +811,14 @@ unique (role, section, project) where project is not null
 `vacancy_*` и сегодня требует `vacancies` **и** `settings`. Сверка
 автоматизирована в `src/lib/auth/sectionPermissionsSeed.test.ts`.
 
+С тех пор матрица выросла до **72 строк (6 ролей × 12 прав)**: раздел
+«Контроль качества» добавил по строке каждой роли (`20260818100500`), роли
+`okk` и `marketolog` — по 12 строк каждая (`20260821110100`). У новых ролей
+все три флага выключены во всех разделах: их права руководитель назначает
+сам в «Настройки → Доступы», а строки заведены потому, что
+`portal_admin_set_section_permission` умеет только обновлять готовую строку
+(иначе включить роли хоть что-то из интерфейса было бы нельзя).
+
 ### `public.portal_sessions`
 
 Активные сессии. В базе лежит **sha256 от токена**, а не сам токен: дамп
@@ -863,11 +871,12 @@ unique (role, section, project) where project is not null
 | `candidate_stage` | Прибыл на проект, Отработал 1 смену, Отработал 10 смен, Завершил вахту, Уволился (5) — 5-е значение с `20260808100000_add_stage_terminated.sql` |
 | `candidate_list_type` | recruiter, manager, coordinator, city, position, project, legal_entity, vacancy_category, termination_reason, return_reason, qc_objection, qc_violation (12) — два последних с `20260818100000_quality_list_types.sql` (TASK-013), до них `termination_reason`/`return_reason` с `20260808100100_add_termination_list_types.sql` |
 | `staffing_demand_history_action` | insert, update, delete (3) |
-| `portal_user_role` | head, coordinator, manager, recruiter (4) |
+| `portal_user_role` | head, coordinator, manager, recruiter, okk, marketolog (6) — две последние с `20260821110000_portal_roles_okk_marketolog.sql` |
 | `portal_audit_action` | user_created, user_updated, user_role_changed, user_password_changed, user_activated, user_deactivated, login_success, login_failed, logout, section_permission_changed, user_projects_changed (с `20260813100000`), quality_review_created, quality_review_updated (с `20260820110000`) — 13 |
 
 Роли хранятся латинскими слагами; русские подписи («Руководитель»,
-«Координатор», «Менеджер», «Рекрутер») живут в `src/lib/auth/roles.ts`.
+«Координатор», «Менеджер», «Рекрутер», «ОКК», «Маркетолог») живут в
+`src/lib/auth/roles.ts`.
 
 Значения стадий заданы бизнесом дословно и не переименовываются. Изменение
 состава enum — это миграция схемы, а не правка справочника.

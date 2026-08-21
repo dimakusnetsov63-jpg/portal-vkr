@@ -36,7 +36,19 @@ import { PORTAL_ROLES, allowedSections, permissionsForRole, type PortalRole } fr
 const MIGRATION_FILES = [
   "20260811100000_portal_section_permissions.sql",
   "20260818100500_quality_section_permissions.sql",
+  "20260821110100_seed_okk_marketolog_permissions.sql",
 ];
+
+/**
+ * Роли, у которых права были ещё до того, как матрица стала настраиваемой.
+ * Проверки «раздел доступен всем» относятся именно к ним: «ОКК» и
+ * «Маркетолог» заведены позже и без единого права — их разделы назначает
+ * руководитель в «Настройки → Доступы», а не миграция.
+ */
+const BASELINE_ROLES = ["head", "coordinator", "manager", "recruiter"] as const satisfies readonly PortalRole[];
+
+/** Роли, добавленные после перехода на настраиваемые права. */
+const NEW_ROLES = ["okk", "marketolog"] as const satisfies readonly PortalRole[];
 
 const migrationSources = MIGRATION_FILES.map((name) =>
   readFileSync(fileURLToPath(new URL(`../../../supabase/migrations/${name}`, import.meta.url)), "utf8"),
@@ -56,7 +68,7 @@ interface SeedRow {
 /** Разбирает строки VALUES вида `('head', 'overview', null, true, true, true)`. */
 function parseSeed(sql: string): SeedRow[] {
   const rowPattern =
-    /\(\s*'(head|coordinator|manager|recruiter)',\s*'([a-z_]+)',\s*(null|'[^']*'),\s*(true|false),\s*(true|false),\s*(true|false)\s*\)/g;
+    /\(\s*'(head|coordinator|manager|recruiter|okk|marketolog)',\s*'([a-z_]+)',\s*(null|'[^']*'),\s*(true|false),\s*(true|false),\s*(true|false)\s*\)/g;
 
   return [...sql.matchAll(rowPattern)].map((match) => ({
     role: match[1] as PortalRole,
@@ -167,8 +179,8 @@ describe("equivalence: simulated portal_role_sections() против roles.ts", 
 });
 
 describe("исключения, которые нельзя потерять при переносе", () => {
-  it("vacancies: читают все четыре роли", () => {
-    for (const role of PORTAL_ROLES) {
+  it("vacancies: читают все четыре роли baseline", () => {
+    for (const role of BASELINE_ROLES) {
       expect(rowFor(role, "vacancies").canView).toBe(true);
     }
   });
@@ -212,10 +224,27 @@ describe("исключения, которые нельзя потерять п�
     expect(rowFor("recruiter", "users").canView).toBe(false);
   });
 
-  it("candidates, addresses, rates: читают и редактируют все четыре роли", () => {
-    for (const role of PORTAL_ROLES) {
+  it("candidates, addresses, rates: читают и редактируют все четыре роли baseline", () => {
+    for (const role of BASELINE_ROLES) {
       for (const section of ["candidates", "addresses", "rates"]) {
         expect(rowFor(role, section).canEdit).toBe(true);
+      }
+    }
+  });
+
+  it("okk и marketolog заведены во всех разделах и без единого права", () => {
+    // Строки обязаны существовать: portal_admin_set_section_permission
+    // только обновляет готовую строку (P0002, если её нет), поэтому без
+    // seed'а руководитель не смог бы включить новым ролям ничего. А все
+    // флаги выключены потому, что разделы этим ролям назначаются вручную —
+    // ни одна учётная запись не должна получить доступ раньше, чем выбор
+    // сделан.
+    for (const role of NEW_ROLES) {
+      for (const section of sectionOrder) {
+        const row = rowFor(role, section);
+        expect(row.visible, `${role}/${section}`).toBe(false);
+        expect(row.canView, `${role}/${section}`).toBe(false);
+        expect(row.canEdit, `${role}/${section}`).toBe(false);
       }
     }
   });

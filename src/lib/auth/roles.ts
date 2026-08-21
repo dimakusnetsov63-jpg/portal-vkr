@@ -29,7 +29,7 @@ import type { PortalPage } from "@/lib/portal/types";
  * «Настройки → Доступы», который пишет в базу.
  */
 
-export const PORTAL_ROLES = ["head", "coordinator", "manager", "recruiter"] as const;
+export const PORTAL_ROLES = ["head", "coordinator", "manager", "recruiter", "okk", "marketolog"] as const;
 
 export type PortalRole = (typeof PORTAL_ROLES)[number];
 
@@ -38,6 +38,8 @@ export const ROLE_LABELS: Record<PortalRole, string> = {
   coordinator: "Координатор",
   manager: "Менеджер",
   recruiter: "Рекрутер",
+  okk: "ОКК",
+  marketolog: "Маркетолог",
 };
 
 /**
@@ -62,7 +64,8 @@ const SECTION_ORDER: PortalPage[] = [
 ];
 
 // "Адреса", "Ставки" и "Уведомления" — единственные разделы, которые видят
-// все четыре роли (в отличие от остальных, которые ограничены по ролям):
+// все четыре роли baseline (в отличие от остальных, которые ограничены по
+// ролям; "ОКК" и "Маркетолог" появились позже и в baseline не входят):
 // рекрутёру нужно называть кандидату актуальную ставку так же, как
 // координатору и менеджеру — сверять её с условиями клиента. См.
 // docs/requirements/addresses.md и docs/requirements/rates.md.
@@ -90,6 +93,15 @@ const ROLE_PERMISSIONS: Record<PortalRole, readonly PortalPermission[]> = {
   ],
   manager: ["overview", "demand", "addresses", "candidates", "vacancies", "rates", "quality", "notifications"],
   recruiter: ["addresses", "candidates", "vacancies", "rates", "notifications"],
+  // «ОКК» и «Маркетолог» (миграции 20260821110000/20260821110100) заведены
+  // без единого права: их разделы руководитель назначает сам в
+  // «Настройки → Доступы». Пустой список здесь — не заглушка, а зеркало
+  // seed'а: обе роли добавлены уже после того, как права стали
+  // настраиваемыми, поэтому «как было до появления настраиваемых прав» для
+  // них означает «никак». Настоящие права этих ролей всегда лежат в
+  // portal_section_permissions и в код не переносятся.
+  okk: [],
+  marketolog: [],
 };
 
 export function isPortalRole(value: unknown): value is PortalRole {
