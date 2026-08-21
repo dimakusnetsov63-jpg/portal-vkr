@@ -41,7 +41,7 @@ describe("RLS: контроль качества — доступ, проект�
   // Отдельный координатор для редактора: на пару «вид + проект» стоит
   // уникальный индекс, поэтому каждому сценарию нужен свой проект, а доступ
   // к ним — свой пользователь.
-  const editorProjects = [1, 2, 3, 4, 5].map((n) => `${marker}-E${n}`);
+  const editorProjects = [1, 2, 3, 4, 5, 6].map((n) => `${marker}-E${n}`);
   let coordinatorEditor: { id: string };
   let managerA: TestPortalUser;
   let recruiterA: TestPortalUser;
@@ -1689,6 +1689,92 @@ describe("RLS: контроль качества — доступ, проект�
       p_payload: treePayload(`${marker} Первый (правка)`, editorProjects[4]),
     });
     expect(edit.ok, await edit.clone().text()).toBe(true);
+  });
+
+  it("два блока можно поменять названиями местами", async () => {
+    // Обычное действие редактора, которое было невозможно: названия блоков
+    // уникальны внутри шаблона, и на полпути обмена оба блока называются
+    // одинаково. Немедленная проверка уникальности рубила это с сообщением
+    // «duplicate key value violates unique constraint», не говорящим
+    // пользователю ничего. Ограничение сделано отложенным — проверяется
+    // итоговое состояние.
+    const created = await callSaveTree(coordinatorEditor.id, {
+      p_checklist_id: null,
+      p_payload: treePayload(`${marker} Обмен`, editorProjects[5], {
+        groups: [
+          {
+            id: null,
+            title: "Первый",
+            counts_in_total: true,
+            sort_order: 1,
+            items: [{ id: null, title: "П1", scale: "0-1-2", weight: 1, allow_na: true, is_critical: false, sort_order: 1 }],
+          },
+          {
+            id: null,
+            title: "Второй",
+            counts_in_total: true,
+            sort_order: 2,
+            items: [{ id: null, title: "П2", scale: "0-1-2", weight: 1, allow_na: true, is_critical: false, sort_order: 1 }],
+          },
+        ],
+      }),
+    });
+    expect(created.ok, await created.clone().text()).toBe(true);
+    const { id } = (await created.json()) as { id: string };
+
+    const before = await readTree(id);
+    const first = before.groups.find((g) => g.title === "Первый");
+    const second = before.groups.find((g) => g.title === "Второй");
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
+
+    const swapped = await callSaveTree(coordinatorEditor.id, {
+      p_checklist_id: id,
+      p_expected_version: await currentVersion(id),
+      p_payload: treePayload(`${marker} Обмен`, editorProjects[5], {
+        groups: [
+          {
+            id: first?.id,
+            title: "Второй",
+            counts_in_total: true,
+            sort_order: 1,
+            items: before.items
+              .filter((i) => i.group_id === first?.id)
+              .map((i, index) => ({
+                id: i.id,
+                title: i.title,
+                scale: "0-1-2",
+                weight: 1,
+                allow_na: true,
+                is_critical: false,
+                sort_order: index + 1,
+              })),
+          },
+          {
+            id: second?.id,
+            title: "Первый",
+            counts_in_total: true,
+            sort_order: 2,
+            items: before.items
+              .filter((i) => i.group_id === second?.id)
+              .map((i, index) => ({
+                id: i.id,
+                title: i.title,
+                scale: "0-1-2",
+                weight: 1,
+                allow_na: true,
+                is_critical: false,
+                sort_order: index + 1,
+              })),
+          },
+        ],
+      }),
+    });
+    expect(swapped.ok, await swapped.clone().text()).toBe(true);
+
+    const after = await readTree(id);
+    expect(after.groups.find((g) => g.id === first?.id)?.title).toBe("Второй");
+    expect(after.groups.find((g) => g.id === second?.id)?.title).toBe("Первый");
   });
 
   it("вид проверки ограничен известными значениями", async () => {
