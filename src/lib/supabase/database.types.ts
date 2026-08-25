@@ -1731,6 +1731,34 @@ export type Database = {
           scored_count: number
         }[]
       }
+      portal_quality_report_by_month: {
+        Args: {
+          p_from: string
+          p_kind?: string
+          p_project?: string
+          p_to: string
+        }
+        Returns: {
+          avg_total: number
+          kind: string
+          month: string
+          reviews_count: number
+          scored_count: number
+        }[]
+      }
+      portal_quality_score_distribution: {
+        Args: {
+          p_from: string
+          p_kind?: string
+          p_project?: string
+          p_to: string
+        }
+        Returns: {
+          bucket: string
+          bucket_order: number
+          reviews_count: number
+        }[]
+      }
       portal_require_admin: {
         Args: never
         Returns: {

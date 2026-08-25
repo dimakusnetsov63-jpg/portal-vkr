@@ -515,3 +515,70 @@
   border-top: 1px solid var(--border);
   flex: none;
 }
+
+/* --- Линия по месяцам ---------------------------------------------------
+   Inline SVG: ради двух ломаных тянуть библиотеку графиков несоразмерно. */
+.trendSvg {
+  width: 100%;
+  height: 200px;
+  display: block;
+}
+.trendGrid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.trendTick {
+  fill: var(--text-3);
+  font-size: 10px;
+}
+.trendLegend {
+  display: flex;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+}
+.trendLegendItem {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.trendLegendItem i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+/* Числа под линией: она показывает направление, а они — основание. Средний
+   по трём проверкам и по двумстам на линии выглядят одинаково убедительно. */
+.trendTable {
+  margin-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+  padding-top: var(--sp-2);
+  overflow-x: auto;
+}
+.trendTableRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-2xs);
+  padding: 2px 0;
+}
+.trendTableLabel {
+  flex: 0 0 128px;
+  color: var(--text-2);
+}
+.trendTableCell {
+  flex: 1 0 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.trendTableCell b {
+  color: var(--text-1);
+  font-weight: var(--fw-semibold);
+}
+.trendTableCell span {
+  color: var(--text-3);
+}

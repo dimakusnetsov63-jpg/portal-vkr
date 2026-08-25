@@ -4,15 +4,22 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/portal/ui/Badge";
 import { useHorizontalScrollSync } from "@/components/portal/ui/useHorizontalScrollSync";
 import { EmptyState, ErrorState, SkeletonRows } from "@/components/portal/ui/StateViews";
-import { loadReport, loadReportByGroup } from "@/lib/supabase/qualityRepo";
-import type { QualityGroupReportRow, QualityReportRow } from "@/lib/supabase/quality.types";
+import { loadReport, loadReportByGroup, loadReportByMonth, loadScoreDistribution } from "@/lib/supabase/qualityRepo";
+import type {
+  QualityBucketRow,
+  QualityGroupReportRow,
+  QualityMonthRow,
+  QualityReportRow,
+} from "@/lib/supabase/quality.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import styles from "./QualitySection.module.css";
 import { formatPercent, scoreTone } from "./qualityOptions";
 import type { QualityFilterState } from "./qualityFilters";
 import { blockColumns, buildSummary, summaryTotals } from "./qualitySummary";
 import { BlockBars } from "./BlockBars";
-import { employeeBars, employeeRanking, projectBars, scoreDistribution, teamBars } from "./summaryChart";
+import { TrendLine } from "./TrendLine";
+import { distributionBars, employeeBars, employeeRanking, projectBars, teamBars, trendSeries } from "./summaryChart";
+import { KIND_LABELS } from "./qualityOptions";
 
 /**
  * Сводка по сотрудникам за период — то, что в рабочих таблицах называлось
@@ -33,6 +40,8 @@ export function SummaryPanel({ filters }: { filters: QualityFilterState }) {
   const [callReport, setCallReport] = useState<QualityReportRow[]>([]);
   const [refusalReport, setRefusalReport] = useState<QualityReportRow[]>([]);
   const [groups, setGroups] = useState<QualityGroupReportRow[]>([]);
+  const [months, setMonths] = useState<QualityMonthRow[]>([]);
+  const [buckets, setBuckets] = useState<QualityBucketRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   /** Сотрудник, раскрытый в разрезе по блокам. Строка сводки — вход в него. */
@@ -55,12 +64,16 @@ export function SummaryPanel({ filters }: { filters: QualityFilterState }) {
       wanted === "refusal" ? [] : loadReport(dateFrom, dateTo, project || undefined, "call"),
       wanted === "call" ? [] : loadReport(dateFrom, dateTo, project || undefined, "refusal"),
       loadReportByGroup(dateFrom, dateTo, project || undefined, wanted),
+      loadReportByMonth(dateFrom, dateTo, project || undefined, wanted),
+      loadScoreDistribution(dateFrom, dateTo, project || undefined, wanted),
     ])
-      .then(([call, refusal, byGroup]) => {
+      .then(([call, refusal, byGroup, byMonth, byBucket]) => {
         if (cancelled) return;
         setCallReport(call);
         setRefusalReport(refusal);
         setGroups(byGroup);
+        setMonths(byMonth);
+        setBuckets(byBucket);
       })
       .catch(() => {
         if (!cancelled) setFailed(true);
@@ -149,13 +162,19 @@ export function SummaryPanel({ filters }: { filters: QualityFilterState }) {
         />
 
         <BlockBars
-          bars={scoreDistribution(rows)}
-          caption="Как распределена команда"
-          hint="Доля сотрудников в каждом диапазоне итога. Отвечает на то, что среднее прячет: «82% по команде» — это все работают ровно или половина по 100, а половина по 60."
+          bars={distributionBars(buckets)}
+          caption="Как распределены проверки"
+          hint="Доля проверок в каждом диапазоне итога. Отвечает на то, что среднее прячет: «82% по команде» — это все звонки ровные или половина по 100, а половина по 60."
           order="keep"
           tone="neutral"
         />
       </div>
+
+      <TrendLine
+        series={trendSeries(months, KIND_LABELS)}
+        caption="Динамика по месяцам"
+        hint="Шкала всегда от 0 до 100: подбор границ по данным превратил бы разницу в три пункта в обвал. Под линией — числа и количество проверок за каждый месяц."
+      />
 
       <div className={`${primitives.tableScroll} scroll-x`} ref={scrollRef}>
         <table className={`${primitives.table} ${primitives.tableClickable} ${styles.table}`}>

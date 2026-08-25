@@ -119,6 +119,23 @@ export interface QualityGroupReportRow {
   avg_percent: number | null;
 }
 
+/** Строка помесячной динамики из `portal_quality_report_by_month`. */
+export interface QualityMonthRow {
+  /** Первое число месяца — группировка идёт по `date_trunc`. */
+  month: string;
+  kind: string;
+  reviews_count: number;
+  scored_count: number;
+  avg_total: number | null;
+}
+
+/** Строка распределения из `portal_quality_score_distribution`. */
+export interface QualityBucketRow {
+  bucket: string;
+  bucket_order: number;
+  reviews_count: number;
+}
+
 /** Строка сводки из `portal_quality_report`. */
 export interface QualityReportRow {
   employee_name: string;

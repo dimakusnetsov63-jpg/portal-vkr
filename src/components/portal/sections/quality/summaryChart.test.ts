@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
-import type { QualityReportRow } from "@/lib/supabase/quality.types";
+import type { QualityBucketRow, QualityMonthRow, QualityReportRow } from "@/lib/supabase/quality.types";
 import type { EmployeeSummary } from "./qualitySummary";
 import {
   barWidth,
+  distributionBars,
   employeeBars,
   employeeRanking,
   projectBars,
-  scoreDistribution,
   teamBars,
+  trendSeries,
   weakestFirst,
   type ChartBar,
 } from "./summaryChart";
@@ -166,52 +167,6 @@ describe("projectBars", () => {
   });
 });
 
-describe("scoreDistribution", () => {
-  it("раскладывает сотрудников по диапазонам и считает долю", () => {
-    const bars = scoreDistribution([
-      summary({ employee: "а", overall: 95 }),
-      summary({ employee: "б", overall: 92 }),
-      summary({ employee: "в", overall: 75 }),
-      summary({ employee: "г", overall: 40 }),
-    ]);
-
-    expect(bars.map((b) => [b.label, b.note])).toEqual([
-      ["90–100%", "2 сотрудника"],
-      ["70–90%", "1 сотрудник"],
-      ["50–70%", "0 сотрудников"],
-      ["ниже 50%", "1 сотрудник"],
-    ]);
-    expect(bars[0].value).toBe(50);
-  });
-
-  it("границы не теряют и не задваивают людей", () => {
-    // Ровно 90 и ровно 70 — частый источник ошибки на единицу.
-    const bars = scoreDistribution([
-      summary({ employee: "а", overall: 90 }),
-      summary({ employee: "б", overall: 70 }),
-      summary({ employee: "в", overall: 100 }),
-      summary({ employee: "г", overall: 0 }),
-    ]);
-    const counted = bars.reduce((sum, b) => sum + Number(b.note!.split(" ")[0]), 0);
-
-    expect(counted).toBe(4);
-    expect(bars[0].note).toBe("2 сотрудника");
-    expect(bars[1].note).toBe("1 сотрудник");
-    expect(bars[3].note).toBe("1 сотрудник");
-  });
-
-  it("сотрудники без итога не участвуют вовсе", () => {
-    const bars = scoreDistribution([summary({ overall: null }), summary({ employee: "б", overall: 80 })]);
-
-    expect(bars[1].value).toBe(100);
-  });
-
-  it("никого с итогом — график не рисуется", () => {
-    expect(scoreDistribution([summary({ overall: null })])).toEqual([]);
-    expect(scoreDistribution([])).toEqual([]);
-  });
-});
-
 describe("weakestFirst", () => {
   function bar(label: string, value: number | null): ChartBar {
     return { label, value, baseline: null, delta: null };
@@ -252,5 +207,109 @@ describe("barWidth", () => {
   it("значение за границами зажимается — столбец не вылезет из дорожки", () => {
     expect(barWidth(140)).toBe(100);
     expect(barWidth(-20)).toBe(0);
+  });
+});
+
+describe("trendSeries", () => {
+  function month(overrides: Partial<QualityMonthRow>): QualityMonthRow {
+    return { month: "2026-06-01", kind: "call", reviews_count: 10, scored_count: 10, avg_total: 80, ...overrides };
+  }
+
+  it("виды не складываются в одну линию", () => {
+    // У прослушки КЦ средний около 83%, у самоотказов около 56%: их
+    // полусумма не описывает ни то ни другое.
+    const series = trendSeries(
+      [month({ kind: "call", avg_total: 83 }), month({ kind: "refusal", avg_total: 56 })],
+      { call: "Прослушка КЦ", refusal: "Самоотказы" },
+    );
+
+    expect(series.map((s) => s.label)).toEqual(["Прослушка КЦ", "Самоотказы"]);
+    expect(series[0].points[0].value).toBe(83);
+    expect(series[1].points[0].value).toBe(56);
+  });
+
+  it("месяцы выравниваются по всем рядам", () => {
+    // Иначе линии разъедутся по горизонтали и сравнивать их станет нельзя.
+    const series = trendSeries(
+      [
+        month({ month: "2026-05-01", kind: "call" }),
+        month({ month: "2026-06-01", kind: "call" }),
+        month({ month: "2026-06-01", kind: "refusal" }),
+      ],
+      {},
+    );
+
+    expect(series[0].points.map((p) => p.month)).toEqual(["2026-05-01", "2026-06-01"]);
+    expect(series[1].points.map((p) => p.month)).toEqual(["2026-05-01", "2026-06-01"]);
+    // В мае самоотказов не было — точка есть, но пустая.
+    expect(series[1].points[0].value).toBeNull();
+    expect(series[1].points[0].reviews).toBe(0);
+  });
+
+  it("месяцы идут по возрастанию, как бы ни пришли из базы", () => {
+    const series = trendSeries(
+      [month({ month: "2026-07-01" }), month({ month: "2026-04-01" }), month({ month: "2026-06-01" })],
+      {},
+    );
+
+    expect(series[0].points.map((p) => p.month)).toEqual(["2026-04-01", "2026-06-01", "2026-07-01"]);
+  });
+
+  it("подпись месяца — русская и короткая", () => {
+    const series = trendSeries([month({ month: "2026-08-01" })], {});
+
+    expect(series[0].points[0].label).toBe("авг 26");
+  });
+
+  it("месяц без итога даёт пустую точку, а не ноль", () => {
+    const series = trendSeries([month({ avg_total: null, scored_count: 0, reviews_count: 3 })], {});
+
+    expect(series[0].points[0].value).toBeNull();
+    expect(series[0].points[0].reviews).toBe(3);
+  });
+
+  it("нет данных — нет рядов", () => {
+    expect(trendSeries([], {})).toEqual([]);
+  });
+});
+
+describe("distributionBars", () => {
+  function bucket(overrides: Partial<QualityBucketRow>): QualityBucketRow {
+    return { bucket: "90–100%", bucket_order: 1, reviews_count: 0, ...overrides };
+  }
+
+  it("длина столбца — доля проверок, а не процент качества", () => {
+    const bars = distributionBars([
+      bucket({ bucket: "90–100%", bucket_order: 1, reviews_count: 30 }),
+      bucket({ bucket: "70–90%", bucket_order: 2, reviews_count: 70 }),
+    ]);
+
+    expect(bars[0].value).toBe(30);
+    expect(bars[1].value).toBe(70);
+  });
+
+  it("порядок диапазонов задаёт база и его нельзя пересортировать", () => {
+    const bars = distributionBars([
+      bucket({ bucket: "ниже 50%", bucket_order: 4, reviews_count: 90 }),
+      bucket({ bucket: "90–100%", bucket_order: 1, reviews_count: 10 }),
+    ]);
+
+    expect(bars.map((b) => b.label)).toEqual(["90–100%", "ниже 50%"]);
+  });
+
+  it("пустой диапазон остаётся в графике: ноль честнее отсутствия", () => {
+    const bars = distributionBars([
+      bucket({ bucket: "90–100%", bucket_order: 1, reviews_count: 5 }),
+      bucket({ bucket: "50–70%", bucket_order: 3, reviews_count: 0 }),
+    ]);
+
+    expect(bars).toHaveLength(2);
+    expect(bars[1].note).toBe("0 проверок");
+    expect(bars[1].value).toBe(0);
+  });
+
+  it("ни одной проверки — графика нет вовсе", () => {
+    expect(distributionBars([bucket({ reviews_count: 0 })])).toEqual([]);
+    expect(distributionBars([])).toEqual([]);
   });
 });

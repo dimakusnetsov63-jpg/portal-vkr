@@ -1,4 +1,4 @@
-import type { QualityReportRow } from "@/lib/supabase/quality.types";
+import type { QualityBucketRow, QualityMonthRow, QualityReportRow } from "@/lib/supabase/quality.types";
 import type { EmployeeSummary } from "./qualitySummary";
 
 /**
@@ -149,47 +149,6 @@ export function projectBars(callReport: QualityReportRow[]): ChartBar[] {
     .sort((a, b) => (b.value ?? -1) - (a.value ?? -1));
 }
 
-// --- Распределение -------------------------------------------------------
-
-/** Границы диапазонов. Пороги те же, что у цвета бейджа: 70 и 90. */
-const BUCKETS: { label: string; min: number; max: number }[] = [
-  { label: "90–100%", min: 90, max: 100.01 },
-  { label: "70–90%", min: 70, max: 90 },
-  { label: "50–70%", min: 50, max: 70 },
-  { label: "ниже 50%", min: -0.01, max: 50 },
-];
-
-/**
- * Сколько сотрудников в каждом диапазоне итога.
- *
- * Отвечает на вопрос, который среднее прячет: «82% по команде» — это все
- * работают ровно или половина по 100, а половина по 60? Разница между этими
- * случаями определяет, учить всех или разбираться с конкретными людьми.
- *
- * Считается по **сотрудникам**, а не по проверкам: средние по сотрудникам —
- * это всё, что отдаёт агрегат. Распределение самих проверок было бы точнее и
- * потребовало бы отдельной функции в базе; подпись на экране говорит, что
- * считается, чтобы график не читали как то, чем он не является.
- *
- * Столбец здесь — доля от числа сотрудников, а не процент качества: иначе
- * полосы были бы несопоставимы с остальными графиками по длине.
- */
-export function scoreDistribution(rows: EmployeeSummary[]): ChartBar[] {
-  const scored = rows.filter((row) => row.overall !== null);
-  if (scored.length === 0) return [];
-
-  return BUCKETS.map((bucket) => {
-    const count = scored.filter((row) => row.overall! >= bucket.min && row.overall! < bucket.max).length;
-    return {
-      label: bucket.label,
-      note: plural(count, "сотрудник", "сотрудника", "сотрудников"),
-      value: round2((count / scored.length) * 100),
-      baseline: null,
-      delta: null,
-    };
-  });
-}
-
 // --- Общее ---------------------------------------------------------------
 
 /**
@@ -217,4 +176,86 @@ export function weakestFirst(bars: ChartBar[]): ChartBar[] {
 export function barWidth(value: number | null): number {
   if (value === null || Number.isNaN(value)) return 0;
   return Math.max(0, Math.min(100, value));
+}
+
+// --- Динамика по месяцам -------------------------------------------------
+
+export interface TrendPoint {
+  /** Первое число месяца из базы — ключ и основа подписи. */
+  month: string;
+  label: string;
+  value: number | null;
+  reviews: number;
+}
+
+export interface TrendSeries {
+  kind: string;
+  label: string;
+  points: TrendPoint[];
+}
+
+const MONTHS = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+
+/** «2026-06-01» → «июн 26». Разбор из частей строки, а не через `Date`. */
+function monthLabel(iso: string): string {
+  const [year, month] = iso.split("-");
+  const index = Number(month) - 1;
+  return `${MONTHS[index] ?? month} ${year.slice(2)}`;
+}
+
+/**
+ * Помесячные ряды — по одному на вид проверки.
+ *
+ * Виды не складываются: у прослушки КЦ и самоотказа разный смысл и разные
+ * шкалы, и общая линия по ним не значила бы ничего. В данных это видно
+ * сразу — у звонков средний около 83%, у самоотказов около 56%, и их
+ * полусумма не описывает ни то ни другое.
+ *
+ * Месяцы выравниваются по всем рядам: если в мае самоотказов не было, точка
+ * всё равно есть, но пустая. Иначе линии разъехались бы по горизонтали и
+ * сравнивать их стало бы нельзя.
+ */
+export function trendSeries(rows: QualityMonthRow[], labels: Record<string, string>): TrendSeries[] {
+  const months = [...new Set(rows.map((row) => row.month))].sort();
+  const kinds = [...new Set(rows.map((row) => row.kind))].sort();
+
+  return kinds.map((kind) => ({
+    kind,
+    label: labels[kind] ?? kind,
+    points: months.map((month) => {
+      const row = rows.find((item) => item.month === month && item.kind === kind);
+      return {
+        month,
+        label: monthLabel(month),
+        value: row?.avg_total === null || row?.avg_total === undefined ? null : Number(row.avg_total),
+        reviews: row ? Number(row.reviews_count) : 0,
+      };
+    }),
+  }));
+}
+
+/**
+ * Столбцы распределения из серверного агрегата.
+ *
+ * Длина полосы — доля от числа проверок, а не процент качества: иначе полосы
+ * были бы несопоставимы с остальными графиками, где длина означает оценку.
+ * Порядок задаёт база (`bucket_order`) — пересортировывать нельзя, диапазоны
+ * идут сверху вниз от лучшего к худшему.
+ */
+export function distributionBars(rows: QualityBucketRow[]): ChartBar[] {
+  const total = rows.reduce((sum, row) => sum + Number(row.reviews_count), 0);
+  if (total === 0) return [];
+
+  return [...rows]
+    .sort((a, b) => Number(a.bucket_order) - Number(b.bucket_order))
+    .map((row) => {
+      const count = Number(row.reviews_count);
+      return {
+        label: row.bucket,
+        note: plural(count, "проверка", "проверки", "проверок"),
+        value: round2((count / total) * 100),
+        baseline: null,
+        delta: null,
+      };
+    });
 }

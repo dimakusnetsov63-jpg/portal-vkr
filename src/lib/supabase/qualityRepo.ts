@@ -1,7 +1,9 @@
 import { createClient } from "./client";
 import type {
   QualityAnswer,
+  QualityBucketRow,
   QualityGroupReportRow,
+  QualityMonthRow,
   QualityChecklistRow,
   QualityChecklistTree,
   QualityGroupRow,
@@ -375,6 +377,49 @@ export async function loadReportByGroup(
   } as never);
   if (error) throw error;
   return (data ?? []) as unknown as QualityGroupReportRow[];
+}
+
+/**
+ * Помесячная динамика: сколько проверок и какой средний итог по месяцам.
+ *
+ * Считает база, а не клиент: собрать помесячный разрез из готовых агрегатов
+ * нельзя — они отдают средние за период целиком, а тянуть в браузер отдельные
+ * проверки ради графика значило бы вернуть «загрузить всё», от которого раздел
+ * ушёл с первого дня.
+ */
+export async function loadReportByMonth(
+  from: string,
+  to: string,
+  project?: string,
+  kind?: QualityKind,
+): Promise<QualityMonthRow[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("portal_quality_report_by_month", {
+    p_from: from,
+    p_to: to,
+    p_project: project ?? undefined,
+    p_kind: kind ?? undefined,
+  } as never);
+  if (error) throw error;
+  return (data ?? []) as unknown as QualityMonthRow[];
+}
+
+/** Распределение завершённых проверок по диапазонам итога. */
+export async function loadScoreDistribution(
+  from: string,
+  to: string,
+  project?: string,
+  kind?: QualityKind,
+): Promise<QualityBucketRow[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("portal_quality_score_distribution", {
+    p_from: from,
+    p_to: to,
+    p_project: project ?? undefined,
+    p_kind: kind ?? undefined,
+  } as never);
+  if (error) throw error;
+  return (data ?? []) as unknown as QualityBucketRow[];
 }
 
 /**
