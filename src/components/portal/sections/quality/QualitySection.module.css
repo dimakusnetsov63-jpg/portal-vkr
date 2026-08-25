@@ -91,6 +91,117 @@
   padding: var(--sp-3) var(--sp-4);
 }
 
+/* --- Столбцы по блокам --------------------------------------------------
+   Нарисованы на CSS: ради горизонтальных полос тянуть библиотеку графиков в
+   проект с четырьмя зависимостями несоразмерно. */
+.chart {
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  margin-bottom: var(--sp-3);
+}
+.chartTitle {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-2);
+}
+.chartRows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.chartRow {
+  display: grid;
+  grid-template-columns: minmax(140px, 240px) 1fr 56px 48px;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-xs);
+}
+.chartLabel {
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chartTrack {
+  position: relative;
+  height: 18px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-hover);
+  overflow: hidden;
+}
+.chartFill {
+  height: 100%;
+  border-radius: var(--radius-xs);
+  transition: width var(--dur-2) var(--ease-out);
+}
+.fillGreen {
+  background: var(--green);
+}
+.fillAmber {
+  background: var(--amber);
+}
+.fillRed {
+  background: var(--red);
+}
+/* Блок без оценки: дорожка пустая, но строка на месте — пустой блок сам по
+   себе новость. */
+.fillGray {
+  background: var(--border-strong);
+}
+/* Засечка среднего по команде поверх дорожки: «выше или ниже» читается
+   положением, а не сравнением двух чисел. */
+.chartBaseline {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--text-1);
+  opacity: 0.55;
+}
+.chartValue {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-1);
+  font-weight: var(--fw-semibold);
+}
+.chartDelta,
+.chartDeltaDown {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--green);
+}
+.chartDeltaDown {
+  color: var(--red);
+}
+
+@media (max-width: 860px) {
+  .chartRow {
+    grid-template-columns: minmax(96px, 1fr) 1fr 48px 40px;
+  }
+}
+
+.chartBack {
+  margin-bottom: var(--sp-3);
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+.chartBack:hover {
+  text-decoration: underline;
+}
+
+/* Раскрытый сотрудник виден и в таблице — иначе, отскроллив вниз, непонятно,
+   чей разрез показан сверху. */
+.table tbody tr[data-selected] td {
+  background: var(--accent-soft);
+}
+
 /* Итоговая строка сводки: она про всех сразу и не должна читаться как ещё
    один сотрудник. */
 .summaryTotal td {

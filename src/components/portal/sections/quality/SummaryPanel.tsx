@@ -11,6 +11,8 @@ import styles from "./QualitySection.module.css";
 import { formatPercent, scoreTone } from "./qualityOptions";
 import type { QualityFilterState } from "./qualityFilters";
 import { blockColumns, buildSummary, summaryTotals } from "./qualitySummary";
+import { BlockBars } from "./BlockBars";
+import { employeeBars, teamBars } from "./summaryChart";
 
 /**
  * Сводка по сотрудникам за период — то, что в рабочих таблицах называлось
@@ -33,6 +35,8 @@ export function SummaryPanel({ filters }: { filters: QualityFilterState }) {
   const [groups, setGroups] = useState<QualityGroupReportRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  /** Сотрудник, раскрытый в разрезе по блокам. Строка сводки — вход в него. */
+  const [openEmployee, setOpenEmployee] = useState<string | null>(null);
 
   const { scrollRef, fakeRef, innerWidth } = useHorizontalScrollSync();
 
@@ -79,6 +83,11 @@ export function SummaryPanel({ filters }: { filters: QualityFilterState }) {
   const blocks = useMemo(() => blockColumns(groups), [groups]);
   const totals = useMemo(() => summaryTotals(rows, blocks), [rows, blocks]);
 
+  const selected = useMemo(
+    () => rows.find((row) => row.employee === openEmployee) ?? null,
+    [rows, openEmployee],
+  );
+
   if (loading) return <SkeletonRows rows={8} />;
   if (failed) return <ErrorState onRetry={load} />;
   if (rows.length === 0) {
@@ -97,8 +106,29 @@ export function SummaryPanel({ filters }: { filters: QualityFilterState }) {
         колонка. Блок «Возражения» в общий процент не входит — так было в рабочих таблицах.
       </p>
 
+      {/*
+        Разрез по блокам стоит выше таблицы намеренно. Таблица отвечает на
+        «сколько», а этот график — на «чему учить»: слабые блоки сверху.
+        Второй вопрос важнее, и до него не должно приходиться доскроллить.
+      */}
+      {selected ? (
+        <BlockBars
+          bars={employeeBars(selected, totals, blocks)}
+          caption={`${selected.employee} — по блокам, засечка показывает среднее по команде`}
+          showBaseline
+        />
+      ) : (
+        <BlockBars bars={teamBars(totals, blocks)} caption="Вся команда по блокам — слабое сверху" />
+      )}
+
+      {selected && (
+        <button type="button" className={styles.chartBack} onClick={() => setOpenEmployee(null)}>
+          ← Вернуться к команде
+        </button>
+      )}
+
       <div className={`${primitives.tableScroll} scroll-x`} ref={scrollRef}>
-        <table className={`${primitives.table} ${styles.table}`}>
+        <table className={`${primitives.table} ${primitives.tableClickable} ${styles.table}`}>
           <thead>
             <tr>
               <th className={primitives.colSticky} style={{ width: 200 }}>
@@ -119,7 +149,14 @@ export function SummaryPanel({ filters }: { filters: QualityFilterState }) {
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.employee}>
+              // Клик по строке раскрывает разрез по блокам этого сотрудника:
+              // именно за этим в сводку и приходят — понять, на чём человек
+              // теряет, а не только сколько у него процентов.
+              <tr
+                key={row.employee}
+                data-selected={row.employee === openEmployee || undefined}
+                onClick={() => setOpenEmployee(row.employee === openEmployee ? null : row.employee)}
+              >
                 <td className={primitives.colSticky}>
                   <div className={primitives.nameCell}>{row.employee}</div>
                 </td>
