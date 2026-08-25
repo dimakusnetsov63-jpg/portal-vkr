@@ -129,6 +129,14 @@ export interface QualityMonthRow {
   avg_total: number | null;
 }
 
+/** Строка статистики возражений из `portal_quality_objection_stats`. */
+export interface QualityObjectionRow {
+  objection: string;
+  reviews_count: number;
+  scored_count: number;
+  avg_total: number | null;
+}
+
 /** Строка распределения из `portal_quality_score_distribution`. */
 export interface QualityBucketRow {
   bucket: string;

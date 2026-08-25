@@ -4,11 +4,18 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/portal/ui/Badge";
 import { useHorizontalScrollSync } from "@/components/portal/ui/useHorizontalScrollSync";
 import { EmptyState, ErrorState, SkeletonRows } from "@/components/portal/ui/StateViews";
-import { loadReport, loadReportByGroup, loadReportByMonth, loadScoreDistribution } from "@/lib/supabase/qualityRepo";
+import {
+  loadObjectionStats,
+  loadReport,
+  loadReportByGroup,
+  loadReportByMonth,
+  loadScoreDistribution,
+} from "@/lib/supabase/qualityRepo";
 import type {
   QualityBucketRow,
   QualityGroupReportRow,
   QualityMonthRow,
+  QualityObjectionRow,
   QualityReportRow,
 } from "@/lib/supabase/quality.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
@@ -18,7 +25,15 @@ import type { QualityFilterState } from "./qualityFilters";
 import { blockColumns, buildSummary, summaryTotals } from "./qualitySummary";
 import { BlockBars } from "./BlockBars";
 import { TrendLine } from "./TrendLine";
-import { distributionBars, employeeBars, employeeRanking, projectBars, teamBars, trendSeries } from "./summaryChart";
+import {
+  distributionBars,
+  employeeBars,
+  employeeRanking,
+  objectionBars,
+  projectBars,
+  teamBars,
+  trendSeries,
+} from "./summaryChart";
 import { KIND_LABELS } from "./qualityOptions";
 
 /**
@@ -42,6 +57,7 @@ export function SummaryPanel({ filters }: { filters: QualityFilterState }) {
   const [groups, setGroups] = useState<QualityGroupReportRow[]>([]);
   const [months, setMonths] = useState<QualityMonthRow[]>([]);
   const [buckets, setBuckets] = useState<QualityBucketRow[]>([]);
+  const [objections, setObjections] = useState<QualityObjectionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   /** Сотрудник, раскрытый в разрезе по блокам. Строка сводки — вход в него. */
@@ -66,14 +82,16 @@ export function SummaryPanel({ filters }: { filters: QualityFilterState }) {
       loadReportByGroup(dateFrom, dateTo, project || undefined, wanted),
       loadReportByMonth(dateFrom, dateTo, project || undefined, wanted),
       loadScoreDistribution(dateFrom, dateTo, project || undefined, wanted),
+      loadObjectionStats(dateFrom, dateTo, project || undefined, wanted),
     ])
-      .then(([call, refusal, byGroup, byMonth, byBucket]) => {
+      .then(([call, refusal, byGroup, byMonth, byBucket, byObjection]) => {
         if (cancelled) return;
         setCallReport(call);
         setRefusalReport(refusal);
         setGroups(byGroup);
         setMonths(byMonth);
         setBuckets(byBucket);
+        setObjections(byObjection);
       })
       .catch(() => {
         if (!cancelled) setFailed(true);
@@ -169,6 +187,19 @@ export function SummaryPanel({ filters }: { filters: QualityFilterState }) {
           tone="neutral"
         />
       </div>
+
+      {/*
+        Единственный график раздела не про наших людей, а про кандидатов.
+        Стоит отдельно от остальных и во всю ширину: формулировки возражений
+        длинные, а вопрос, на который он отвечает, другого рода.
+      */}
+      <BlockBars
+        bars={objectionBars(objections)}
+        caption="Что говорят кандидаты"
+        hint="Длина полосы — как часто звучит возражение. Рядом число случаев и средний итог проверок, где оно встретилось: возражение, которое звучит часто и отрабатывается слабо, — это задача, а не наблюдение. По пяти случаям выводов не делают, поэтому число стоит рядом с процентом."
+        order="keep"
+        tone="neutral"
+      />
 
       <TrendLine
         series={trendSeries(months, KIND_LABELS)}

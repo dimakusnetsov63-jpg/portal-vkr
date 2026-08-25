@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { QualityBucketRow, QualityMonthRow, QualityReportRow } from "@/lib/supabase/quality.types";
+import type { QualityBucketRow, QualityMonthRow, QualityObjectionRow, QualityReportRow } from "@/lib/supabase/quality.types";
 import type { EmployeeSummary } from "./qualitySummary";
 import {
   areaPath,
@@ -7,6 +7,7 @@ import {
   distributionBars,
   employeeBars,
   employeeRanking,
+  objectionBars,
   projectBars,
   smoothPath,
   teamBars,
@@ -384,5 +385,50 @@ describe("areaPath", () => {
   it("по одной точке заливку не строит — площади нет", () => {
     expect(areaPath([{ x: 0, y: 10 }], 100)).toBe("");
     expect(areaPath([], 100)).toBe("");
+  });
+});
+
+describe("objectionBars", () => {
+  function objection(overrides: Partial<QualityObjectionRow>): QualityObjectionRow {
+    return { objection: "Далеко добираться", reviews_count: 10, scored_count: 10, avg_total: 55, ...overrides };
+  }
+
+  it("длина полосы — доля от всех возражений, а не качество отработки", () => {
+    // Два вопроса, две величины: длиной меряется «что слышим чаще», а
+    // качество стоит рядом числом.
+    const bars = objectionBars([
+      objection({ objection: "Нашёл другую работу", reviews_count: 75 }),
+      objection({ objection: "Не устраивает з/п", reviews_count: 25 }),
+    ]);
+
+    expect(bars[0].value).toBe(75);
+    expect(bars[1].value).toBe(25);
+  });
+
+  it("рядом с качеством всегда стоит число случаев", () => {
+    // «Я подумаю» отрабатывается на 37%, но случаев пять — по такой выборке
+    // вывода не сделать, и это должно быть видно сразу.
+    const bars = objectionBars([objection({ objection: "Я подумаю", reviews_count: 5, avg_total: 37.5 })]);
+
+    expect(bars[0].note).toBe("5 · отработано 37.5%");
+  });
+
+  it("порядок задаёт база и его не пересортировывают", () => {
+    const bars = objectionBars([
+      objection({ objection: "Частое", reviews_count: 100 }),
+      objection({ objection: "Редкое", reviews_count: 1 }),
+    ]);
+
+    expect(bars.map((b) => b.label)).toEqual(["Частое", "Редкое"]);
+  });
+
+  it("возражение без единого итога подписано числом случаев", () => {
+    const bars = objectionBars([objection({ reviews_count: 3, scored_count: 0, avg_total: null })]);
+
+    expect(bars[0].note).toBe("3 случая");
+  });
+
+  it("нет возражений — нет графика", () => {
+    expect(objectionBars([])).toEqual([]);
   });
 });

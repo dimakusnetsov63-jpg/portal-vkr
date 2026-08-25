@@ -1,4 +1,9 @@
-import type { QualityBucketRow, QualityMonthRow, QualityReportRow } from "@/lib/supabase/quality.types";
+import type {
+  QualityBucketRow,
+  QualityMonthRow,
+  QualityObjectionRow,
+  QualityReportRow,
+} from "@/lib/supabase/quality.types";
 import type { EmployeeSummary } from "./qualitySummary";
 
 /**
@@ -315,4 +320,36 @@ export function smoothPath(points: Point[], tension = 0.5): string {
 export function areaPath(points: Point[], baselineY: number, tension = 0.5): string {
   if (points.length < 2) return "";
   return `${smoothPath(points, tension)} L ${points[points.length - 1].x} ${baselineY} L ${points[0].x} ${baselineY} Z`;
+}
+
+// --- Возражения кандидатов -----------------------------------------------
+
+/**
+ * Возражения по частоте, самые частые сверху.
+ *
+ * Длина полосы — доля от всех возражений за период, а не качество
+ * отработки: график отвечает на «что мы слышим чаще всего». Качество стоит
+ * рядом числом, потому что отвечает на другой вопрос — «с чем справляемся
+ * хуже» — и мерить его той же длиной значило бы склеить две разные вещи в
+ * одну картинку.
+ *
+ * Число случаев обязательно рядом с процентом отработки: «я подумаю»
+ * отрабатывается на 37%, но случаев пять — по такой выборке вывода не
+ * сделать, и читатель должен видеть это сразу.
+ */
+export function objectionBars(rows: QualityObjectionRow[]): ChartBar[] {
+  const total = rows.reduce((sum, row) => sum + Number(row.reviews_count), 0);
+  if (total === 0) return [];
+
+  return rows.map((row) => {
+    const count = Number(row.reviews_count);
+    const handled = row.avg_total === null ? null : Number(row.avg_total);
+    return {
+      label: row.objection,
+      note: handled === null ? plural(count, "случай", "случая", "случаев") : `${count} · отработано ${handled}%`,
+      value: round2((count / total) * 100),
+      baseline: null,
+      delta: null,
+    };
+  });
 }

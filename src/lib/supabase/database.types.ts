@@ -1695,6 +1695,20 @@ export type Database = {
         Args: { p_keep?: string }
         Returns: number
       }
+      portal_quality_objection_stats: {
+        Args: {
+          p_from: string
+          p_kind?: string
+          p_project?: string
+          p_to: string
+        }
+        Returns: {
+          avg_total: number
+          objection: string
+          reviews_count: number
+          scored_count: number
+        }[]
+      }
       portal_quality_report: {
         Args: {
           p_from: string

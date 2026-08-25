@@ -4,6 +4,7 @@ import type {
   QualityBucketRow,
   QualityGroupReportRow,
   QualityMonthRow,
+  QualityObjectionRow,
   QualityChecklistRow,
   QualityChecklistTree,
   QualityGroupRow,
@@ -402,6 +403,28 @@ export async function loadReportByMonth(
   } as never);
   if (error) throw error;
   return (data ?? []) as unknown as QualityMonthRow[];
+}
+
+/**
+ * Возражения кандидатов: как часто звучит каждое и с каким итогом
+ * отрабатывается. Единственный агрегат раздела про то, что говорят
+ * кандидаты, а не про то, как работают сотрудники.
+ */
+export async function loadObjectionStats(
+  from: string,
+  to: string,
+  project?: string,
+  kind?: QualityKind,
+): Promise<QualityObjectionRow[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("portal_quality_objection_stats", {
+    p_from: from,
+    p_to: to,
+    p_project: project ?? undefined,
+    p_kind: kind ?? undefined,
+  } as never);
+  if (error) throw error;
+  return (data ?? []) as unknown as QualityObjectionRow[];
 }
 
 /** Распределение завершённых проверок по диапазонам итога. */
