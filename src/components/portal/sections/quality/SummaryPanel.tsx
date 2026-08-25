@@ -12,7 +12,7 @@ import { formatPercent, scoreTone } from "./qualityOptions";
 import type { QualityFilterState } from "./qualityFilters";
 import { blockColumns, buildSummary, summaryTotals } from "./qualitySummary";
 import { BlockBars } from "./BlockBars";
-import { employeeBars, teamBars } from "./summaryChart";
+import { employeeBars, employeeRanking, projectBars, scoreDistribution, teamBars } from "./summaryChart";
 
 /**
  * Сводка по сотрудникам за период — то, что в рабочих таблицах называлось
@@ -126,6 +126,36 @@ export function SummaryPanel({ filters }: { filters: QualityFilterState }) {
           ← Вернуться к команде
         </button>
       )}
+
+      {/*
+        Дальше графики, которые отвечают на другие вопросы: кто именно
+        слабее, где слабее проект и ровно ли распределена команда. Все
+        строятся из тех же загруженных агрегатов — ни одного зашитого числа.
+      */}
+      <div className={styles.chartGrid}>
+        <BlockBars
+          bars={employeeRanking(rows, totals)}
+          caption="Сотрудники по общему проценту"
+          hint="Число проверок рядом с именем — не украшение: 100% по двум прослушкам и 85% по сорока это разные вещи."
+          order="keep"
+          showBaseline
+        />
+
+        <BlockBars
+          bars={projectBars(callReport)}
+          caption="Проекты по общему проценту"
+          hint="У каждого проекта свой чек-лист, поэтому проценты считаются по разным наборам критериев. Внутри проекта цифры сопоставимы, между проектами это ориентир, а не приговор."
+          order="keep"
+        />
+
+        <BlockBars
+          bars={scoreDistribution(rows)}
+          caption="Как распределена команда"
+          hint="Доля сотрудников в каждом диапазоне итога. Отвечает на то, что среднее прячет: «82% по команде» — это все работают ровно или половина по 100, а половина по 60."
+          order="keep"
+          tone="neutral"
+        />
+      </div>
 
       <div className={`${primitives.tableScroll} scroll-x`} ref={scrollRef}>
         <table className={`${primitives.table} ${primitives.tableClickable} ${styles.table}`}>

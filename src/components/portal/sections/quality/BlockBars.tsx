@@ -2,51 +2,66 @@
 
 import styles from "./QualitySection.module.css";
 import { formatPercent, scoreTone } from "./qualityOptions";
-import { barWidth, weakestFirst, type BlockBar } from "./summaryChart";
+import { barWidth, weakestFirst, type ChartBar } from "./summaryChart";
 
 /**
- * Столбцы по блокам чек-листа.
+ * Горизонтальные столбцы сводки: блоки чек-листа, рейтинг сотрудников,
+ * проекты, распределение. Форма у всех одна — подпись, дорожка, число, — и
+ * заводить под каждый график свой компонент незачем.
  *
- * Нарисованы обычным CSS, без библиотеки графиков. В проекте четыре
- * зависимости всего, и тянуть ради горизонтальных полос ещё одну — с её
- * весом в бандле и обновлениями — несоразмерно задаче. Понадобится что-то
- * вроде линий по месяцам с осями и подсказками — тогда и решим осознанно.
- *
- * Слабое сверху: смысл не в том, чтобы перечислить блоки, а в том, чтобы
- * показать, чему учить в первую очередь.
+ * Нарисовано обычным CSS, без библиотеки графиков. В проекте четыре
+ * зависимости, и тянуть ради полос ещё одну — с её весом в бандле и
+ * обновлениями — несоразмерно задаче. Понадобятся линии с осями и
+ * подсказками — решим отдельно.
  */
 export function BlockBars({
   bars,
   caption,
+  hint,
   showBaseline,
+  order = "weakestFirst",
+  tone = "score",
 }: {
-  bars: BlockBar[];
+  bars: ChartBar[];
   caption: string;
-  /** Показывать засечку среднего по команде — только в разрезе сотрудника. */
+  /** Оговорка под заголовком: чем именно график не является. */
+  hint?: string;
+  /** Засечка среднего для сравнения — только там, где есть с чем сравнивать. */
   showBaseline?: boolean;
+  /** `keep` — порядок задан снаружи (рейтинг, диапазоны); менять его нельзя. */
+  order?: "weakestFirst" | "keep";
+  /**
+   * `score` — цвет по порогам качества. `neutral` — для графиков, где полоса
+   * означает долю, а не оценку: красная полоса «ниже 50%» читалась бы как
+   * «этот диапазон плохой», хотя плохое здесь — его размер.
+   */
+  tone?: "score" | "neutral";
 }) {
-  const sorted = weakestFirst(bars);
+  const rows = order === "weakestFirst" ? weakestFirst(bars) : bars;
+
+  if (rows.length === 0) return null;
 
   return (
     <section className={styles.chart}>
       <h4 className={styles.chartTitle}>{caption}</h4>
+      {hint && <p className={styles.chartHint}>{hint}</p>}
+
       <div className={styles.chartRows}>
-        {sorted.map((bar) => (
-          <div key={bar.title} className={styles.chartRow}>
-            <span className={styles.chartLabel} title={bar.title}>
-              {bar.title}
-              {!bar.countsInTotal && <span className={styles.groupNote}>не в итог</span>}
+        {rows.map((bar) => (
+          <div key={bar.label} className={styles.chartRow}>
+            <span className={styles.chartLabel} title={bar.label}>
+              {bar.label}
+              {bar.note && <span className={styles.groupNote}>{bar.note}</span>}
             </span>
 
             <div className={styles.chartTrack}>
               <div
-                className={`${styles.chartFill} ${styles[`fill${toneClass(bar.value)}`] ?? ""}`}
+                className={`${styles.chartFill} ${tone === "score" ? (styles[`fill${toneClass(bar.value)}`] ?? "") : styles.fillNeutral}`}
                 style={{ width: `${barWidth(bar.value)}%` }}
               />
               {/*
-                Засечка среднего по команде. Она рисуется поверх дорожки, а
-                не рядом: сравнение «выше или ниже» читается положением, а не
-                чтением двух чисел подряд.
+                Засечка базы рисуется поверх дорожки, а не рядом: «выше или
+                ниже» читается положением, а не сличением двух чисел подряд.
               */}
               {showBaseline && bar.baseline !== null && (
                 <div
