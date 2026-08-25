@@ -259,3 +259,60 @@ export function distributionBars(rows: QualityBucketRow[]): ChartBar[] {
       };
     });
 }
+
+// --- Геометрия линии -----------------------------------------------------
+
+export interface Point {
+  x: number;
+  y: number;
+}
+
+/**
+ * Плавная кривая через точки — кубические кривые Безье по Кэтмулл-Рому.
+ *
+ * ЗАЖИМ ОБЯЗАТЕЛЕН. Наивный Кэтмулл-Ром на резком переходе выгибается за
+ * пределы соседних точек: между 82% и 59% кривая нарисовала бы провал ниже
+ * 59 или горб выше 82 — пик, которого в данных нет. Для процента, по
+ * которому разговаривают с людьми, это не косметика, а вымысел. Поэтому
+ * управляющие точки прижимаются к коридору между концами сегмента: линия
+ * остаётся гладкой, но не выдумывает значений.
+ *
+ * `tension` 0 даёт ломаную, 1 — максимально круглую. 0.5 — обычный
+ * компромисс, при котором кривая читается как линия, а не как орнамент.
+ */
+export function smoothPath(points: Point[], tension = 0.5): string {
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+
+  const clamp = (value: number, a: number, b: number) => Math.max(Math.min(a, b), Math.min(Math.max(a, b), value));
+  const parts = [`M ${points[0].x} ${points[0].y}`];
+
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const p0 = points[i - 1] ?? points[i];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] ?? p2;
+
+    const c1x = p1.x + ((p2.x - p0.x) / 6) * tension;
+    const c2x = p2.x - ((p3.x - p1.x) / 6) * tension;
+    // Управляющие точки не выходят за коридор между концами сегмента —
+    // отсюда и берётся запрет на выдуманные пики.
+    const c1y = clamp(p1.y + ((p2.y - p0.y) / 6) * tension, p1.y, p2.y);
+    const c2y = clamp(p2.y - ((p3.y - p1.y) / 6) * tension, p1.y, p2.y);
+
+    parts.push(`C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.x} ${p2.y}`);
+  }
+
+  return parts.join(" ");
+}
+
+/**
+ * Та же кривая, но замкнутая вниз до основания — заливка под линией.
+ *
+ * Заливка здесь не украшение: она отделяет «есть данные» от «пусто» на
+ * разорванных участках лучше, чем одна линия, и заодно даёт графику воздух.
+ */
+export function areaPath(points: Point[], baselineY: number, tension = 0.5): string {
+  if (points.length < 2) return "";
+  return `${smoothPath(points, tension)} L ${points[points.length - 1].x} ${baselineY} L ${points[0].x} ${baselineY} Z`;
+}

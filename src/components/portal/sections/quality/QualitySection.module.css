@@ -520,21 +520,87 @@
    Inline SVG: ради двух ломаных тянуть библиотеку графиков несоразмерно. */
 .trendSvg {
   width: 100%;
-  height: 200px;
+  height: 260px;
   display: block;
+  overflow: visible;
 }
+/* Сетка почти незаметна: она нужна, чтобы прикинуть уровень, а не чтобы её
+   разглядывали. Линия должна быть единственным, что бросается в глаза. */
 .trendGrid {
-  stroke: var(--border);
+  stroke: var(--border-subtle);
   stroke-width: 1;
 }
 .trendTick {
   fill: var(--text-3);
-  font-size: 10px;
+  font-size: 11px;
+}
+
+/* Линия прорисовывается при открытии: взгляд идёт слева направо вместе с
+   ней и заодно прочитывает направление, а не только конечную точку. */
+.trendPath {
+  stroke-dasharray: 2000;
+  stroke-dashoffset: 2000;
+  animation: trend-draw 1.1s var(--ease-out) forwards;
+}
+.trendArea {
+  opacity: 0;
+  animation: trend-fade 0.9s var(--ease-out) 0.5s forwards;
+}
+/* Ореол дышит, сама точка стоит: подвижная точка читалась бы как
+   меняющееся значение. */
+.trendHalo {
+  opacity: 0.18;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: trend-pulse 2.6s var(--ease) infinite;
+}
+.trendDot circle:last-child {
+  transition: r var(--dur-1) var(--ease);
+}
+.trendDot:hover circle:last-child {
+  r: 6;
+}
+
+@keyframes trend-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes trend-fade {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes trend-pulse {
+  0%,
+  100% {
+    opacity: 0.12;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(1.15);
+  }
+}
+
+/* Движение — украшение, и оно не должно навязываться тем, кто его отключил
+   в системе. График при этом остаётся полностью читаемым. */
+@media (prefers-reduced-motion: reduce) {
+  .trendPath,
+  .trendArea,
+  .trendHalo {
+    animation: none;
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  .trendHalo {
+    opacity: 0.18;
+  }
 }
 .trendLegend {
   display: flex;
   gap: var(--sp-4);
-  margin-bottom: var(--sp-2);
+  margin-bottom: var(--sp-3);
   font-size: var(--fs-xs);
   color: var(--text-2);
 }

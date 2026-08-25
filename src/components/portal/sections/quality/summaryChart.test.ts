@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { QualityBucketRow, QualityMonthRow, QualityReportRow } from "@/lib/supabase/quality.types";
 import type { EmployeeSummary } from "./qualitySummary";
 import {
+  areaPath,
   barWidth,
   distributionBars,
   employeeBars,
   employeeRanking,
   projectBars,
+  smoothPath,
   teamBars,
   trendSeries,
   weakestFirst,
@@ -311,5 +313,76 @@ describe("distributionBars", () => {
   it("ни одной проверки — графика нет вовсе", () => {
     expect(distributionBars([bucket({ reviews_count: 0 })])).toEqual([]);
     expect(distributionBars([])).toEqual([]);
+  });
+});
+
+describe("smoothPath", () => {
+  it("пустой список и одна точка не роняют разметку", () => {
+    expect(smoothPath([])).toBe("");
+    expect(smoothPath([{ x: 10, y: 20 }])).toBe("M 10 20");
+  });
+
+  it("начинается с первой точки и проходит через все", () => {
+    const d = smoothPath([
+      { x: 0, y: 50 },
+      { x: 10, y: 40 },
+      { x: 20, y: 60 },
+    ]);
+
+    expect(d.startsWith("M 0 50")).toBe(true);
+    expect(d).toContain("10 40");
+    expect(d).toContain("20 60");
+  });
+
+  it("кривая не выдумывает пиков за пределами соседних точек", () => {
+    // Наивный Кэтмулл-Ром на резком переходе выгибается за коридор: между
+    // 82 и 59 нарисовал бы провал ниже 59. Для процента, по которому
+    // разговаривают с людьми, это вымысел, а не сглаживание.
+    const d = smoothPath([
+      { x: 0, y: 10 },
+      { x: 10, y: 20 },
+      { x: 20, y: 90 },
+      { x: 30, y: 80 },
+    ]);
+
+    const ys = [...d.matchAll(/[ ,](-?\d+(?:\.\d+)?)(?=[ ,]|$)/g)]
+      .map((m) => Number(m[1]))
+      .filter((_, index) => index % 2 === 1);
+
+    expect(Math.min(...ys)).toBeGreaterThanOrEqual(10);
+    expect(Math.max(...ys)).toBeLessThanOrEqual(90);
+  });
+
+  it("нулевое натяжение даёт по сути ломаную", () => {
+    const straight = smoothPath(
+      [
+        { x: 0, y: 0 },
+        { x: 10, y: 10 },
+      ],
+      0,
+    );
+
+    expect(straight).toBe("M 0 0 C 0 0, 10 10, 10 10");
+  });
+});
+
+describe("areaPath", () => {
+  it("замыкается до основания и закрывается", () => {
+    const d = areaPath(
+      [
+        { x: 0, y: 10 },
+        { x: 20, y: 30 },
+      ],
+      100,
+    );
+
+    expect(d).toContain("L 20 100");
+    expect(d).toContain("L 0 100");
+    expect(d.endsWith("Z")).toBe(true);
+  });
+
+  it("по одной точке заливку не строит — площади нет", () => {
+    expect(areaPath([{ x: 0, y: 10 }], 100)).toBe("");
+    expect(areaPath([], 100)).toBe("");
   });
 });
