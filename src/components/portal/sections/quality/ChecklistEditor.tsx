@@ -80,6 +80,9 @@ export function ChecklistEditor({
 
   const [draft, setDraft] = useState<ChecklistDraft>(() => emptyChecklist());
   const [version, setVersion] = useState<number | null>(null);
+  // Проект, с которым шаблон был открыт. Нужен, чтобы отличить смену проекта
+  // от простого редактирования: смена переносит шаблон, а не копирует его.
+  const [savedProject, setSavedProject] = useState<string | null>(null);
   const [loading, setLoading] = useState(checklistId !== null || copyOf !== undefined);
   const [failed, setFailed] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -101,8 +104,12 @@ export function ChecklistEditor({
         // Копия: то же дерево, но без идентификаторов — сохранится как новый
         // шаблон. Название подсказывает, что это копия, чтобы два одинаковых
         // «Прослушка КЦ» не оказались в списке рядом.
-        setDraft(copyOf ? copyDraft(loaded, `${loaded.title} — копия`) : loaded);
+        // У копии проект очищается намеренно. Оставить проект источника
+        // значило бы предложить сохранение, которое заведомо отвергнут:
+        // действующий шаблон на пару «вид + проект» может быть только один.
+        setDraft(copyOf ? { ...copyDraft(loaded, `${loaded.title} — копия`), project: "" } : loaded);
         setVersion(copyOf ? null : tree.checklist.version);
+        setSavedProject(copyOf ? null : (tree.checklist.project ?? ""));
       })
       .catch(() => {
         if (!cancelled) setFailed(true);
@@ -117,6 +124,9 @@ export function ChecklistEditor({
   }, [sourceId, copyOf]);
 
   const errors = useMemo(() => validateChecklistDraft(draft), [draft]);
+
+  /** Правка существующего шаблона, у которой сменили проект: он переедет. */
+  const movesTemplate = savedProject !== null && draft.project !== savedProject;
 
   /**
    * Сколько пунктов и сколько блоков идут в итог — то, что важно увидеть до
@@ -220,9 +230,25 @@ export function ChecklistEditor({
               </option>
             ))}
           </select>
-          <span className={styles.fieldNote}>
-            Проектный шаблон вытесняет общий для своего проекта. Общий остаётся для всех остальных.
-          </span>
+          {/*
+            Смена проекта у сохранённого шаблона переносит его, а не копирует:
+            строка одна, у неё просто меняется значение. Однажды так и вышло —
+            единственный общий чек-лист звонка переназначили на один проект, и
+            остальные двадцать молча остались без шаблона. Предупреждение
+            появляется ровно в момент, когда это происходит, и называет
+            действие, которое человек, скорее всего, имел в виду.
+          */}
+          {movesTemplate ? (
+            <span className={`${styles.fieldNote} ${styles.fieldNoteWarning}`}>
+              Шаблон <b>перейдёт</b> {draft.project ? `к проекту «${draft.project}»` : "ко всем проектам"} и
+              перестанет применяться {savedProject ? `к «${savedProject}»` : "как общий"}. Копии не создастся.
+              Нужен отдельный шаблон для другого проекта — вернитесь к списку и нажмите «Копировать».
+            </span>
+          ) : (
+            <span className={styles.fieldNote}>
+              Проектный шаблон вытесняет общий для своего проекта. Общий остаётся для всех остальных.
+            </span>
+          )}
         </label>
       </div>
 

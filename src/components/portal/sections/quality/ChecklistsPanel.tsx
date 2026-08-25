@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePortal } from "@/components/portal/context/PortalContext";
 import { Badge } from "@/components/portal/ui/Badge";
 import { Button } from "@/components/portal/ui/Button";
@@ -10,7 +10,9 @@ import { listAllChecklists, setChecklistArchived } from "@/lib/supabase/qualityR
 import type { QualityChecklistRow } from "@/lib/supabase/quality.types";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import styles from "./QualitySection.module.css";
+import { activeListOptions } from "@/lib/portal/candidateOptions";
 import { ChecklistEditor } from "./ChecklistEditor";
+import { checklistCoverage } from "./checklistCoverage";
 import { KIND_LABELS } from "./qualityOptions";
 
 /**
@@ -24,7 +26,7 @@ import { KIND_LABELS } from "./qualityOptions";
  * Список грузится здесь, а не в PortalContext: он нужен одной вкладке.
  */
 export function ChecklistsPanel() {
-  const { canEdit, pushToast } = usePortal();
+  const { canEdit, listOptions, pushToast } = usePortal();
   const editable = canEdit("quality");
 
   const [rows, setRows] = useState<QualityChecklistRow[]>([]);
@@ -32,6 +34,11 @@ export function ChecklistsPanel() {
   const [failed, setFailed] = useState(false);
   const [editing, setEditing] = useState<{ id: string | null; copyOf?: string } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  const projectOptions = useMemo(
+    () => activeListOptions(listOptions, "project").map((option) => option.value),
+    [listOptions],
+  );
 
   const load = useCallback(() => {
     let cancelled = false;
@@ -58,6 +65,8 @@ export function ChecklistsPanel() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- начальная загрузка списка шаблонов
     return load();
   }, [load]);
+
+  const coverage = useMemo(() => checklistCoverage(rows, projectOptions), [rows, projectOptions]);
 
   async function toggleArchived(row: QualityChecklistRow) {
     const archived = row.archived_at === null;
@@ -101,6 +110,31 @@ export function ChecklistsPanel() {
           </Button>
         )}
       </div>
+
+      {/*
+        Связь «проект → шаблон» по списку шаблонов не читается: там
+        перечислены шаблоны, а вопрос обратный — «по «Куперу» проверка
+        вообще заполнится?». Однажды единственный общий чек-лист звонка
+        переназначили на один проект, и остальные двадцать молча остались
+        без шаблона; заметить это было негде.
+      */}
+      {!loading && !failed && (
+        <div className={styles.coverage}>
+          {coverage.map((kind) => (
+            <p key={kind.kind}>
+              <b>{KIND_LABELS[kind.kind]}:</b>{" "}
+              {kind.own.length > 0 && <>свой шаблон у {kind.own.length} — {kind.own.join(", ")}. </>}
+              {kind.fallback.length > 0 && <>По общему работают ещё {kind.fallback.length}. </>}
+              {kind.missing.length > 0 && (
+                <span className={styles.coverageMissing}>
+                  Без шаблона {kind.missing.length}: {kind.missing.join(", ")} — проверку по ним не завести.
+                </span>
+              )}
+              {kind.own.length === 0 && kind.fallback.length === 0 && kind.missing.length === 0 && "проектов нет в справочнике."}
+            </p>
+          ))}
+        </div>
+      )}
 
       {loading && <SkeletonRows rows={5} />}
       {!loading && failed && <ErrorState onRetry={load} />}

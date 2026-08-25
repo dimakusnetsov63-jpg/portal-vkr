@@ -45,6 +45,11 @@
   font-size: var(--fs-xs);
   color: var(--text-3);
 }
+/* Та же подсказка, когда она предупреждает о последствии, а не поясняет. */
+.fieldNoteWarning {
+  color: var(--amber);
+  font-weight: var(--fw-semibold);
+}
 
 /* Выбранный ответ по пункту чек-листа.
 
@@ -84,6 +89,29 @@
   flex-direction: column;
   gap: var(--sp-2);
   padding: var(--sp-3) var(--sp-4);
+}
+
+/* Кто каким шаблоном пользуется. Стоит над списком, потому что отвечает на
+   вопрос, которого в списке не видно: по каким проектам проверка вообще
+   заполнится. */
+.coverage {
+  margin-bottom: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  background: var(--surface-2);
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+}
+.coverage p {
+  margin: 0 0 var(--sp-1);
+}
+.coverage p:last-child {
+  margin-bottom: 0;
+}
+.coverageMissing {
+  color: var(--red);
+  font-weight: var(--fw-semibold);
 }
 
 /* --- Редактор шаблонов --------------------------------------------------
