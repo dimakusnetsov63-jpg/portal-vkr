@@ -29,6 +29,7 @@
 import ExcelJS from "exceljs";
 import fs from "node:fs";
 import path from "node:path";
+import { CALL_TYPES, leadId, norm, payloadLiteral, score, text, toIsoDate } from "./quality-excel.mjs";
 
 const FILE = process.env.QUALITY_XLSX ?? "C:/Users/Redmi/Downloads/Чек-листы по проектам (1).xlsx";
 const TREES = process.env.QUALITY_TREES ?? "trees.clean.json";
@@ -74,100 +75,6 @@ const SPECIAL_COLUMNS = {
 
 /** Колонки-хвост: считаются самим порталом либо не относятся к пунктам. */
 const TAIL_PATTERNS = [/^общий процент/i, /^нарушение/i, /^рекомендации/i, /^кейс/i, /^месяц/i, /^%/];
-
-function text(v) {
-  if (v === null || v === undefined) return "";
-  if (v instanceof Date) return v.toISOString().slice(0, 10);
-  if (typeof v === "object") {
-    if (v.richText) return v.richText.map((p) => p.text).join("");
-    if (v.text !== undefined) return String(v.text);
-    if (v.result !== undefined) return String(v.result);
-    if (v.hyperlink) return String(v.hyperlink);
-  }
-  return String(v);
-}
-
-/**
- * Приводит формулировку к виду, по которому её сравнивают.
- *
- * Сглаживаются только механические различия набора, не смысловые: двойные
- * пробелы и переносы строк, разные виды тире и кавычек, точка в конце. Всё
- * это встречается в файле и в шаблонах вперемешку — «при тяжких –
- * завершение» против «при тяжких — завершение», «Спросили, есть ли
- * вопросы.» против того же без точки. Без сглаживания такие пары не находят
- * друг друга, и пункт молча теряет оценку.
- *
- * Ничего сверх этого приводить нельзя: два пункта, различающиеся словами,
- * обязаны остаться разными.
- */
-function norm(s) {
-  return text(s)
-    .replace(/[‐-―−]/g, "-")
-    .replace(/[«»“”„‘’]/g, '"')
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/[.;,]+$/, "")
-    .toLowerCase();
-}
-
-function toIsoDate(v) {
-  if (v instanceof Date) {
-    // Дата из Excel приходит в UTC; берём её календарные части, иначе
-    // проверка съедет на день назад.
-    return `${v.getUTCFullYear()}-${String(v.getUTCMonth() + 1).padStart(2, "0")}-${String(v.getUTCDate()).padStart(2, "0")}`;
-  }
-  const s = text(v).trim();
-  const m = s.match(/^(\d{2})[.\/](\d{2})[.\/](\d{4})$/);
-  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  return null;
-}
-
-/** Номер лида: в файле это гиперссылка на карточку CRM либо голое число. */
-function leadId(cell) {
-  const raw = cell?.value;
-  const candidates = [];
-  if (raw && typeof raw === "object") {
-    if (raw.hyperlink) candidates.push(String(raw.hyperlink));
-    if (raw.text) candidates.push(String(raw.text));
-  }
-  candidates.push(text(raw));
-  if (cell?.hyperlink) candidates.push(String(cell.hyperlink));
-
-  for (const c of candidates) {
-    const m = c.match(/(\d{4,})/);
-    if (m) return Number(m[1]);
-  }
-  return null;
-}
-
-const CALL_TYPES = { исходящий: "outgoing", входящий: "incoming", недозвон: "no_answer" };
-
-/**
- * Балл из ячейки: 0/1/2, «н/д» или пусто.
- *
- * У переключателя блока («Было возражение?») в файле стоит «Да»/«Нет», а не
- * балл — в портале это 1 и 0. На части листов там же встречается 0/2:
- * колонка заведена той же формулой, что соседние. Любое положительное
- * значение означает «да».
- */
-function score(v, scale) {
-  const s = norm(v);
-  if (s === "") return { kind: "empty" };
-  if (s === "н/д" || s === "нд" || s === "n/a") return { kind: "na" };
-
-  if (scale === "yes_no") {
-    if (s === "да") return { kind: "value", value: 1 };
-    if (s === "нет") return { kind: "value", value: 0 };
-    const yn = Number(s.replace(",", "."));
-    if (Number.isFinite(yn)) return { kind: "value", value: yn > 0 ? 1 : 0 };
-    return { kind: "unknown", raw: text(v) };
-  }
-
-  const n = Number(s.replace(",", "."));
-  if (Number.isFinite(n) && [0, 1, 2].includes(n)) return { kind: "value", value: n };
-  return { kind: "unknown", raw: text(v) };
-}
 
 // --- Разбор листа --------------------------------------------------------
 
@@ -427,9 +334,8 @@ for (const { sheetName, project, tree, parsed } of out) {
       scores: r.scores,
     };
 
-    const json = JSON.stringify(payload);
     lines.push(
-      `insert into imported_reviews select (public.portal_save_quality_review(null, $vkr$${json}$vkr$::jsonb) ->> 'id')::uuid;`,
+      `insert into imported_reviews select (public.portal_save_quality_review(null, ${payloadLiteral(payload)}::jsonb) ->> 'id')::uuid;`,
     );
     emitted += 1;
   }
