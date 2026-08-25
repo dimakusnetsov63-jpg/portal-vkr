@@ -17,6 +17,7 @@ import { ReviewDrawer } from "./ReviewDrawer";
 import { ReviewFormModal } from "./ReviewFormModal";
 import { ReviewsTable } from "./ReviewsTable";
 import { ChecklistsPanel } from "./ChecklistsPanel";
+import { SummaryPanel } from "./SummaryPanel";
 import { KIND_LABELS, QUALITY_KINDS, formatPercent } from "./qualityOptions";
 import { activePreset, PERIOD_PRESETS, type QualityTab } from "./qualityFilters";
 import { useQualityReviews } from "./useQualityReviews";
@@ -34,12 +35,13 @@ const TABS: { id: QualityTab; label: string }[] = [
   { id: "reviews", label: "Проверки" },
   { id: "cases", label: "Аудиотека" },
   { id: "archived", label: "Архив" },
+  { id: "summary", label: "Сводка" },
   { id: "checklists", label: "Шаблоны" },
 ];
 
 // Пустое состояние есть у трёх вкладок реестра. У «Шаблонов» своё — оно
 // живёт в ChecklistsPanel вместе с их загрузкой.
-const EMPTY_STATE: Record<Exclude<QualityTab, "checklists">, { title: string; text: string }> = {
+const EMPTY_STATE: Record<Exclude<QualityTab, "checklists" | "summary">, { title: string; text: string }> = {
   reviews: {
     title: "Проверок не найдено",
     text: "Измените период или фильтры, либо заведите первую проверку.",
@@ -89,9 +91,13 @@ export function QualitySection() {
   }, [setContextAction, editable]);
 
   // На вкладке шаблонов реестра нет вовсе, поэтому у неё нет ни пустого
-  // состояния, ни фильтров, ни показателей: они все про проверки.
+  // состояния, ни фильтров, ни показателей: они все про проверки. «Сводка»
+  // показывает те же проверки, свёрнутые по сотрудникам, — период, проект и
+  // вид ей нужны, а поиск по лиду и постраничный реестр нет.
   const onChecklists = filters.tab === "checklists";
-  const emptyState = filters.tab === "checklists" ? null : EMPTY_STATE[filters.tab];
+  const onSummary = filters.tab === "summary";
+  const emptyState =
+    filters.tab === "checklists" || filters.tab === "summary" ? null : EMPTY_STATE[filters.tab];
   const current = activePreset(filters);
 
   return (
@@ -158,6 +164,7 @@ export function QualitySection() {
         </div>
 
         <div className={primitives.toolbar}>
+          {!onSummary && (
           <div className={primitives.searchField} style={{ minWidth: 240 }}>
             <Icon name="search" size={16} />
             <input
@@ -167,6 +174,7 @@ export function QualitySection() {
               onChange={(event) => setFilter("search", event.target.value)}
             />
           </div>
+          )}
 
           <input
             type="date"
@@ -219,9 +227,12 @@ export function QualitySection() {
           )}
         </div>
 
-        {registry.loading && <SkeletonRows rows={9} />}
-        {!registry.loading && registry.failed && <ErrorState onRetry={registry.reload} />}
-        {!registry.loading &&
+        {onSummary && <SummaryPanel filters={filters} />}
+
+        {!onSummary && registry.loading && <SkeletonRows rows={9} />}
+        {!onSummary && !registry.loading && registry.failed && <ErrorState onRetry={registry.reload} />}
+        {!onSummary &&
+          !registry.loading &&
           !registry.failed &&
           emptyState &&
           (registry.rows.length === 0 ? (

@@ -13,10 +13,11 @@ import type { QualityKind, QualityReviewFilters } from "@/lib/supabase/quality.t
 
 /**
  * Вкладка раздела. Первые три — виды одной и той же выдачи проверок, они
- * задают признаки фильтра. «Шаблоны» стоят особняком: там не проверки, а их
- * критерии, и фильтры реестра к ним неприменимы.
+ * задают признаки фильтра. «Сводка» показывает те же проверки, но свёрнутые
+ * по сотрудникам, и период с проектом ей нужны. «Шаблоны» стоят особняком:
+ * там не проверки, а их критерии, и фильтры реестра к ним неприменимы.
  */
-export type QualityTab = "reviews" | "cases" | "archived" | "checklists";
+export type QualityTab = "reviews" | "cases" | "archived" | "summary" | "checklists";
 
 export interface QualityFilterState {
   tab: QualityTab;
