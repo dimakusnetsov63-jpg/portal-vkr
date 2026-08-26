@@ -3,9 +3,9 @@ name: CI
 # H-12 (docs/AUDIT-2026-07-31.md). `verify` is the required gate; `dependency-audit`
 # is informational only (continue-on-error) — a new advisory in an existing
 # dependency isn't caused by whatever PR happens to run next, and failing an
-# unrelated PR on it would just be noise. See docs/SECURITY.md for the
-# accepted-risk exception registry that `npm audit` output should be checked
-# against by hand.
+# unrelated PR on it would just be noise. It runs at --audit-level=high so
+# that a red mark means something new rather than a standing accepted
+# exception; see docs/SECURITY.md for the registry and the reasoning.
 #
 # No secrets are configured or required: tsc/eslint/vitest/next build all
 # succeed with zero environment variables (verified locally by running
@@ -67,9 +67,28 @@ jobs:
 
       - run: npm ci
 
-      # Does not fail the job (continue-on-error above) — findings are
-      # reviewed by hand against docs/SECURITY.md, not auto-suppressed here.
-      - run: npm audit
+      # --audit-level=high sets the EXIT CODE threshold only: moderate and low
+      # findings are still printed in full, they just don't turn the job red.
+      # This matches the rule actually written in docs/SECURITY.md — "any high
+      # or critical is either fixed or entered in the registry with a reason".
+      #
+      # Why the threshold at all: EX-003 (uuid inside exceljs) is an accepted
+      # exception whose only npm-offered "fix" is a major downgrade of the
+      # Excel parser. Left at the default, this job would be red permanently
+      # for a finding that was already reviewed and consciously accepted — and
+      # a permanently red mark is one people stop reading. Green here now means
+      # "nothing above the documented threshold", so red means something new.
+      #
+      # NOT --omit=dev, deliberately. That flag judges a package by its section
+      # in package.json, not by whether it ships: exceljs is a devDependency
+      # but is imported from src/lib/imports/ and lands in the server bundle,
+      # parsing user-uploaded files. The full tree is the honest scope here.
+      # See docs/SECURITY.md, "Проверка зависимостей".
+      #
+      # continue-on-error stays: a new advisory in an existing dependency isn't
+      # caused by whatever PR happens to run next, and failing an unrelated PR
+      # on it would still be noise.
+      - run: npm audit --audit-level=high
 
   rls-tests:
     name: rls-tests
