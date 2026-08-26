@@ -480,21 +480,30 @@ export function ReviewFormModal({
         </label>
       </div>
 
-      {form.kind === "refusal" && (
-        <div className={primitives.fieldRow}>
-          <label className={primitives.field}>
-            <span>Возражение кандидата</span>
-            <select value={form.objection} onChange={(event) => setField("objection", event.target.value)}>
-              <option value="">—</option>
-              {optionsWithCurrent(objectionOptions, form.objection).map((objection) => (
-                <option key={objection} value={objection}>
-                  {objection}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      )}
+      {/*
+        Возражение спрашивается у обоих видов проверки. У самоотказа это
+        причина отказа, у прослушки КЦ — возражение, прозвучавшее в
+        разговоре; поле одно, потому что в базе колонка одна и справочник
+        общий.
+
+        Пустое значение остаётся допустимым: у звонка возражения могло не
+        быть вовсе. Отсюда же и ограничение — «возражения не было» и «не
+        заполнили» в этой колонке неразличимы, поэтому сводка пустые
+        значения не считает вовсе, а не записывает в «прочее».
+      */}
+      <div className={primitives.fieldRow}>
+        <label className={primitives.field}>
+          <span>Возражение кандидата</span>
+          <select value={form.objection} onChange={(event) => setField("objection", event.target.value)}>
+            <option value="">—</option>
+            {optionsWithCurrent(objectionOptions, form.objection).map((objection) => (
+              <option key={objection} value={objection}>
+                {objection}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
       {treeLoading && <SkeletonLines lines={8} />}
 
