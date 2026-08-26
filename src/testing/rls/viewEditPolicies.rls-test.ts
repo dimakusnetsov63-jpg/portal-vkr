@@ -135,7 +135,7 @@ describe("candidate_list_options: recruiter читает, но не пишет",
     });
   });
 
-  it("recruiter видит справочник (VIEW через раздел «Кандидаты»)", async () => {
+  it("recruiter видит справочник", async () => {
     const response = await asUserFetch(recruiter.id, `/candidate_list_options?id=eq.${option.id}&select=id`);
     expect(response.status).toBe(200);
     expect((await response.json()) as unknown[]).toHaveLength(1);
@@ -160,6 +160,73 @@ describe("candidate_list_options: recruiter читает, но не пишет",
 
     const stored = await readRowAsServiceRole<{ value: string }>("candidate_list_options", option.id);
     expect(stored?.value).toBe(`${marker} должность`);
+  });
+});
+
+/**
+ * Регресс на боевую жалобу 26 августа 2026: у роли «ОКК» пусты все
+ * выпадающие списки формы проверки сразу — проект, сотрудник, возражение,
+ * нарушение.
+ *
+ * Причина была в политике чтения: она требовала VIEW раздела «Кандидаты»,
+ * которого у ОКК нет. Справочник при этом общепортальный (TASK-009), его
+ * читают шесть разделов, и любая роль без «Кандидатов» упиралась в ноль
+ * строк — не в ошибку, поэтому интерфейс честно рисовал пустой список и
+ * отличить «нет доступа» от «справочник пуст» не мог.
+ *
+ * `okk` взята намеренно: в baseline у неё **ноль разделов вообще**. Если
+ * условие чтения когда-нибудь снова привяжут к конкретному разделу, этот
+ * тест упадёт первым — какой бы раздел ни выбрали.
+ */
+describe("candidate_list_options: роль без единого раздела всё равно читает справочник", () => {
+  let okk: { id: string };
+  let option: Row;
+
+  beforeAll(async () => {
+    okk = await makeUser("okk");
+    option = await insertTestRow<Row>("candidate_list_options", {
+      list_type: "project",
+      value: `${marker} проект`,
+    });
+  });
+
+  it("okk видит справочник, хотя разделов у неё нет", async () => {
+    const response = await asUserFetch(okk.id, `/candidate_list_options?id=eq.${option.id}&select=id`);
+    expect(response.status).toBe(200);
+    expect((await response.json()) as unknown[]).toHaveLength(1);
+  });
+
+  it("okk по-прежнему не может добавить значение — 403 / 42501", async () => {
+    const response = await asUserFetch(okk.id, "/candidate_list_options", {
+      method: "POST",
+      body: JSON.stringify({ list_type: "project", value: `${marker} свой проект` }),
+    });
+    expect(response.status).toBe(403);
+    expect(((await response.json()) as { code: string }).code).toBe("42501");
+  });
+
+  it("okk по-прежнему не может изменить значение — строка не меняется", async () => {
+    const response = await asUserFetch(okk.id, `/candidate_list_options?id=eq.${option.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ value: "hacked" }),
+    });
+    expect(response.status).toBe(200);
+    expect((await response.json()) as unknown[]).toHaveLength(0);
+
+    const stored = await readRowAsServiceRole<{ value: string }>("candidate_list_options", option.id);
+    expect(stored?.value).toBe(`${marker} проект`);
+  });
+
+  it("деактивированный сотрудник справочник не видит", async () => {
+    const disabled = await makeUser("okk");
+    await serviceRoleFetch(`/portal_users?id=eq.${disabled.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ is_active: false }),
+    });
+
+    const response = await asUserFetch(disabled.id, `/candidate_list_options?id=eq.${option.id}&select=id`);
+    expect(response.status).toBe(200);
+    expect((await response.json()) as unknown[]).toHaveLength(0);
   });
 });
 
