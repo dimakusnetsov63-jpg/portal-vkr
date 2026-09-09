@@ -65,12 +65,19 @@ export function aggregateByObject(rows: DemandImportRow[]): ImportedObject[] {
  * метро, у другого график. Побеждает первое непустое значение — так объект
  * собирает максимум того, что известно, и ни один тикет не «стирает»
  * данные соседнего. Особенности объединяются множеством.
+ *
+ * Исключение — `scheduleTypes`: там как раз важно расхождение между
+ * тикетами. На одном адресе у кладовщика может быть «5/2», а у сборщика
+ * «2/2» — оба графика актуальны, и список собирает их все (без повторов),
+ * а не оставляет первый. `scheduleType` (одиночное поле карточки) при этом
+ * по-прежнему первый распознанный.
  */
 function mergeConditions(base: ImportedConditions, next: ImportedConditions | undefined): ImportedConditions {
   if (!next) return base;
   return {
     metro: base.metro ?? next.metro,
     scheduleType: base.scheduleType ?? next.scheduleType,
+    scheduleTypes: [...new Set([...base.scheduleTypes, ...next.scheduleTypes])],
     shiftType: base.shiftType ?? next.shiftType,
     features: [...new Set([...base.features, ...next.features])],
   };
@@ -153,6 +160,7 @@ export function planAddressWrites(
         required_count: object.required,
         ...(object.conditions.metro ? { metro: object.conditions.metro } : {}),
         ...(object.conditions.scheduleType ? { schedule_type: object.conditions.scheduleType } : {}),
+        ...(object.conditions.scheduleTypes.length > 0 ? { schedule_types: object.conditions.scheduleTypes } : {}),
         ...(object.conditions.shiftType ? { shift_type: object.conditions.shiftType } : {}),
         ...(object.conditions.features.length > 0 ? { features: object.conditions.features } : {}),
       });
@@ -238,6 +246,15 @@ function planZeroes(
  *
  * Особенности (`features`) не заменяются, а дополняются: чекбоксы,
  * проставленные руками, остаются.
+ *
+ * `schedule_types` — второе исключение, и в другую сторону: это не ручное
+ * поле, а срез «какие графики видны в выгрузке по этому объекту сейчас»,
+ * поэтому он **перезаписывается** целиком, а не дополняется — иначе
+ * график, который на объекте отменили, остался бы в списке навсегда.
+ * Ручное одиночное поле `schedule_type` при этом не трогается (правило
+ * выше), они живут независимо. Импорт, не нашедший для объекта ни одного
+ * графика (нет колонки «График» или ячейки пустые), список не трогает
+ * вовсе: выгрузка без условий не должна стирать уже собранное.
  */
 function conditionsPatchFor(card: AddressRow, conditions: ImportedConditions): AddressUpdate {
   const patch: AddressUpdate = {};
@@ -245,8 +262,18 @@ function conditionsPatchFor(card: AddressRow, conditions: ImportedConditions): A
   if (!card.schedule_type && conditions.scheduleType) patch.schedule_type = conditions.scheduleType;
   if (!card.shift_type && conditions.shiftType) patch.shift_type = conditions.shiftType;
 
+  if (conditions.scheduleTypes.length > 0 && !sameSchedules(card.schedule_types, conditions.scheduleTypes)) {
+    patch.schedule_types = conditions.scheduleTypes;
+  }
+
   const missingFeatures = conditions.features.filter((slug) => !card.features.includes(slug));
   if (missingFeatures.length > 0) patch.features = [...card.features, ...missingFeatures];
 
   return patch;
+}
+
+/** Списки графиков как множества: порядок не значим, лишний UPDATE при том же наборе не нужен. */
+function sameSchedules(current: string[], next: string[]): boolean {
+  if (current.length !== next.length) return false;
+  return next.every((schedule) => current.includes(schedule));
 }

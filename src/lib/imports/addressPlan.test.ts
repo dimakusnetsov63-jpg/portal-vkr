@@ -40,6 +40,7 @@ function makeCard(overrides: Partial<AddressRow> = {}): AddressRow {
     status: "unrestricted",
     priority: 3,
     schedule_type: null,
+    schedule_types: [],
     shift_type: null,
     shift_times: [],
     payment_type: null,
@@ -226,6 +227,50 @@ describe("planAddressWrites — условия работы", () => {
     expect(update!.patch.features).toEqual(["free_meals", "unloading"]);
   });
 
+  describe("несколько графиков на объекте", () => {
+    const withSchedules = (scheduleTypes: ImportedConditions["scheduleTypes"]): ImportedObject => ({
+      ...withConditions,
+      conditions: conditions({ scheduleTypes, scheduleType: scheduleTypes[0] ?? null }),
+    });
+
+    it("writes the whole list onto a newly created card", () => {
+      const [created] = planAddressWrites([withSchedules(["5/2", "6/1"])], [], "replace", "Яндекс Лавка").creates;
+      expect(created!.schedule_types).toEqual(["5/2", "6/1"]);
+      // Одиночное поле по-прежнему заполняется первым — оно отдельное.
+      expect(created!.schedule_type).toBe("5/2");
+    });
+
+    it("omits the list entirely when the file had no schedules", () => {
+      const [created] = planAddressWrites([withSchedules([])], [], "replace", "Яндекс Лавка").creates;
+      expect(created).not.toHaveProperty("schedule_types");
+    });
+
+    it("replaces the stored list — a schedule that left the export leaves the card", () => {
+      const card = makeCard({ schedule_types: ["5/2", "6/1"] });
+      const [update] = planAddressWrites([withSchedules(["5/2"])], [card], "replace", "Яндекс Лавка").updates;
+      expect(update!.patch.schedule_types).toEqual(["5/2"]);
+    });
+
+    it("leaves the stored list alone when this import found no schedule at all", () => {
+      const card = makeCard({ schedule_types: ["5/2", "6/1"] });
+      const [update] = planAddressWrites([withSchedules([])], [card], "replace", "Яндекс Лавка").updates;
+      expect(update!.patch).not.toHaveProperty("schedule_types");
+    });
+
+    it("does not write an UPDATE when the set is the same, only the order differs", () => {
+      const card = makeCard({ schedule_types: ["6/1", "5/2"] });
+      const [update] = planAddressWrites([withSchedules(["5/2", "6/1"])], [card], "replace", "Яндекс Лавка").updates;
+      expect(update!.patch).not.toHaveProperty("schedule_types");
+    });
+
+    it("does not touch the manual single schedule field, whatever the list says", () => {
+      const card = makeCard({ schedule_type: "2/2", schedule_types: [] });
+      const [update] = planAddressWrites([withSchedules(["5/2", "6/1"])], [card], "replace", "Яндекс Лавка").updates;
+      expect(update!.patch.schedule_types).toEqual(["5/2", "6/1"]);
+      expect(update!.patch).not.toHaveProperty("schedule_type");
+    });
+  });
+
   it("does not re-add a feature the card already has", () => {
     const card = makeCard({ features: ["unloading"] });
     const [update] = planAddressWrites([withConditions], [card], "replace", "Яндекс Лавка").updates;
@@ -392,5 +437,18 @@ describe("aggregateByObject — условия работы", () => {
       makeRow({ conditions: conditions({ features: ["unloading", "free_meals"] }) }),
     ]);
     expect(object!.conditions.features).toEqual(["unloading", "free_meals"]);
+  });
+
+  // Ровно тот случай, ради которого заведён список: на одном адресе у разных
+  // тикетов разные графики, и оба актуальны.
+  it("unions schedules across tickets of the same object instead of keeping the first", () => {
+    const [object] = aggregateByObject([
+      makeRow({ conditions: conditions({ scheduleType: "5/2", scheduleTypes: ["5/2"] }) }),
+      makeRow({ conditions: conditions({ scheduleType: "2/2", scheduleTypes: ["2/2"] }) }),
+      makeRow({ conditions: conditions({ scheduleType: "5/2", scheduleTypes: ["5/2"] }) }),
+    ]);
+    expect(object!.conditions.scheduleTypes).toEqual(["5/2", "2/2"]);
+    // Одиночное поле остаётся «первым непустым», как и остальные условия.
+    expect(object!.conditions.scheduleType).toBe("5/2");
   });
 });

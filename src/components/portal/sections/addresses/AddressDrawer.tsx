@@ -421,6 +421,23 @@ export function AddressDrawer({ addressId }: { addressId: string | null }) {
                   </select>
                 </div>
               </div>
+
+              {address.schedule_types.length > 0 && (
+                <div className={primitives.field}>
+                  <label>Актуальные графики</label>
+                  <div className={styles.badgeRow}>
+                    {address.schedule_types.map((s) => (
+                      <Badge key={s} color="blue">
+                        {SCHEDULE_TYPE_LABELS[s as AddressScheduleType] ?? s}
+                      </Badge>
+                    ))}
+                  </div>
+                  <span className={styles.computedNote}>
+                    Собраны импортом по всем тикетам этого объекта и пересчитываются при каждой загрузке — поле
+                    «График работы» выше это не затрагивает.
+                  </span>
+                </div>
+              )}
               <div className={primitives.field}>
                 <label>Время выхода (через запятую)</label>
                 <input value={draft.shift_times} onChange={(e) => set("shift_times", e.target.value)} placeholder="08:00, 14:00, 20:00" />

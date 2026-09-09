@@ -421,7 +421,8 @@ city + position + свежие сверху).
 | `required_count` / `staffed_count` / `planned_start_count` / `in_progress_count` | integer | **not null** | `default 0`, `check (>= 0)`. Требуется / Есть сотрудников / План выхода / В работе |
 | `status` | text | **not null** | `default 'unrestricted'`; `check in (stop, reserve, hiring_standby, any_candidate, unrestricted)` |
 | `priority` | smallint | **not null** | `default 3`; `check between 1 and 5` (5 = критический … 1 = минимальный) |
-| `schedule_type` | text | nullable | `check in ('2/2','3/3','5/2','6/1','7/0','flexible','parttime')` |
+| `schedule_type` | text | nullable | `check in ('2/2','3/3','5/2','6/1','7/0','flexible','parttime')`. **Ручное** поле координатора: импорт заполняет его только пустым и никогда не перезаписывает |
+| `schedule_types` | text[] | **not null** | `default '{}'`; `check (schedule_types <@ array[...])` — те же семь значений (миграция `20260909100000`). Актуальные графики объекта, собранные импортом по всем его тикетам: на одном адресе у кладовщика «5/2», у сборщика «2/2», и оба верны. **Пересчитывается** каждым импортом, нашедшим хотя бы один график (не копится — график, ушедший из выгрузки, уходит и отсюда); импорт без графиков список не трогает. Живёт независимо от ручного `schedule_type` |
 | `shift_type` | text | nullable | `check in ('day','night','mixed')` |
 | `shift_times` | text[] | **not null** | `default '{}'`; несколько времён выхода, например `{'08:00','14:00'}` |
 | `payment_type` | text | nullable | `check in ('hourly','per_shift','per_order')` |

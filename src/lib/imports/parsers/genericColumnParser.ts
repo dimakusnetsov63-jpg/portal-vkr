@@ -1,4 +1,5 @@
 import type ExcelJS from "exceljs";
+import { cellText } from "../excel/cellValue";
 import type { RawImportRow } from "../validateRow";
 import type { ColumnMapping, RowError } from "../types";
 import type { DemandParser } from "./DemandParser";
@@ -33,10 +34,11 @@ export function makeGenericColumnParser(parserKey: string): DemandParser {
   };
 }
 
+/** Заголовки читаются по имени, а не по позиции: порядок колонок в файле и лишние колонки на разбор не влияют. `cellText`, а не `String(cell.value)` — заголовок бывает гиперссылкой/rich-text ячейкой (`{text, hyperlink}`), и без этого он превращался бы в `"[object Object]"`, из-за чего файл ошибочно отклонялся как «неверный формат». */
 function headerIndex(headerRow: ExcelJS.Row): Map<string, number> {
   const index = new Map<string, number>();
   headerRow.eachCell((cell, colNumber) => {
-    index.set(String(cell.value ?? "").trim(), colNumber);
+    index.set(cellText(cell.value), colNumber);
   });
   return index;
 }

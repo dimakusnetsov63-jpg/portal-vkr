@@ -123,6 +123,7 @@ export type Database = {
           project: string
           required_count: number
           schedule_type: string | null
+          schedule_types: string[]
           shift_times: string[]
           shift_type: string | null
           site_manager_name: string | null
@@ -163,6 +164,7 @@ export type Database = {
           project: string
           required_count?: number
           schedule_type?: string | null
+          schedule_types?: string[]
           shift_times?: string[]
           shift_type?: string | null
           site_manager_name?: string | null
@@ -203,6 +205,7 @@ export type Database = {
           project?: string
           required_count?: number
           schedule_type?: string | null
+          schedule_types?: string[]
           shift_times?: string[]
           shift_type?: string | null
           site_manager_name?: string | null

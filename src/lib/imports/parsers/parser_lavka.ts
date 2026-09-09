@@ -2,7 +2,13 @@ import type ExcelJS from "exceljs";
 import { cellDate, cellText } from "../excel/cellValue";
 import type { RawImportRow } from "../validateRow";
 import type { RowError } from "../types";
-import { isYes, normalizeMetro, normalizeScheduleType, normalizeShiftType } from "../mapping/normalizeConditions";
+import {
+  isYes,
+  normalizeMetro,
+  normalizeScheduleType,
+  normalizeScheduleTypes,
+  normalizeShiftType,
+} from "../mapping/normalizeConditions";
 import type { DemandParser } from "./DemandParser";
 
 /**
@@ -36,7 +42,14 @@ import type { DemandParser } from "./DemandParser";
  *
  * Должность надёжнее брать из отдельной колонки «Теги», а не парсить из
  * «Задачи» — там она склеена со словом «Вакансия» тем же текстом без
- * чёткого разделителя от адреса при некоторых форматах площадки.
+ * чёткого разделителя от адреса при некоторых форматах площадки. Но
+ * колонки «Теги» может не быть вовсе: Tracker выгружает те колонки,
+ * которые выбраны в текущем виде, и выгрузка от 27.08.2026 пришла без неё
+ * (как и без «Количества вакансий»). Поэтому обе эти колонки
+ * необязательные, и когда «Тегов» нет, должность берётся из «Задачи» —
+ * между «Вакансия» и «для площадки:» («Москва | Вакансия **Кладовщик** для
+ * площадки: МСК Андрея Белого, 3 | 2023010903»). Приоритет всегда у
+ * «Тегов», если колонка есть.
  *
  * Помимо потребности выгрузка несёт **условия работы на объекте**, которые
  * ложатся на существующие поля карточки адреса: «Метро» → `metro`,
@@ -50,7 +63,13 @@ import type { DemandParser } from "./DemandParser";
  * {"task": "Задача", "position": "Теги", "demand": "Количество вакансий",
  *  "date": "Обновлено", "status": "Статус", "metro": "Метро",
  *  "schedule": "График", "nightShift": "Ночной формат работы",
- *  "unloading": "Разгрузка"}.
+ *  "unloading": "Разгрузка"}. Обязательны из них только "task", "date" и
+ * "status" — остальные колонки могут отсутствовать в конкретной выгрузке.
+ *
+ * Колонки ищутся по **названию заголовка**, а не по номеру — порядок
+ * колонок в файле и лишние колонки («Приоритет», «Ключ», «Исполнитель»,
+ * «Резолюция», «Родительский тикет», «Время смены» в выгрузке от
+ * 27.08.2026) на разбор не влияют.
  */
 
 // Не заякорено на "последний токен = только код заявки" — реальные строки
@@ -58,13 +77,21 @@ import type { DemandParser } from "./DemandParser";
 // Виста) 17.07»), поэтому граница адреса — последний " | " в строке, а не
 // последнее одно слово.
 const TASK_PATTERN = /^(.+?)\s*\|.*?площадки:\s*(.+)\s*\|[^|]*$/u;
-const REQUIRED_FIELDS = ["task", "position", "demand", "date", "status"] as const;
+/** Должность внутри «Задачи»: «… | Вакансия Кладовщик для площадки: …» — запасной источник, когда в выгрузке нет колонки «Теги». */
+const TASK_POSITION_PATTERN = /Вакансия\s+(.+?)\s+для\s+площадки:/u;
+const REQUIRED_FIELDS = ["task", "date", "status"] as const;
 /**
- * Колонки «условий работы». Необязательные: если проект пришлёт выгрузку без
- * них, импорт по-прежнему создаст карточки — просто с пустыми полями, а не
- * упадёт на проверке формата.
+ * Колонки «условий работы» плюс те, без которых импорт умеет обойтись:
+ * если проект пришлёт выгрузку без них, импорт по-прежнему создаст
+ * карточки, а не упадёт на проверке формата.
+ *
+ * - `position` («Теги») — должность берётся из «Задачи», см. доккомментарий
+ *   модуля выше;
+ * - `demand` («Количество вакансий») — в реальных выгрузках эта колонка
+ *   всегда пуста, потребность и так считается как «1 тикет = 1 позиция»,
+ *   так что её отсутствие ничего не меняет.
  */
-const OPTIONAL_FIELDS = ["metro", "schedule", "nightShift", "unloading"] as const;
+const OPTIONAL_FIELDS = ["position", "demand", "metro", "schedule", "nightShift", "unloading"] as const;
 const CLOSED_STATUS = "Закрыт";
 
 /** `DemandParser` for project «Лавка» — see the module doc comment above for the full extraction logic and its assumptions. */
@@ -120,22 +147,33 @@ export const parserLavkaV1: DemandParser = {
       const [, city, address] = match;
       const trimmedAddress = address.trim();
 
-      const demandText = cellText(row.getCell(columnIndex.demand).value);
       const optional = (field: (typeof OPTIONAL_FIELDS)[number]) =>
         columnIndex[field] === undefined ? "" : cellText(row.getCell(columnIndex[field]).value);
+
+      // «Теги» — основной источник должности; если колонки нет (или ячейка
+      // пуста), достаём её из «Задачи».
+      const position = optional("position") || TASK_POSITION_PATTERN.exec(taskText)?.[1]?.trim() || "";
+      if (!position) {
+        errors.push({ rowNumber, reason: `Не удалось определить должность: ни колонки «Теги», ни «Вакансия … для площадки:» в «Задаче»: «${taskText}»` });
+        continue;
+      }
+
+      const scheduleText = optional("schedule");
 
       rows.push({
         rowNumber,
         project,
         city,
         address: trimmedAddress,
-        position: cellText(row.getCell(columnIndex.position).value),
+        position,
         date: cellDate(row.getCell(columnIndex.date).value),
-        // "Количество вакансий" в реальном файле не заполняется — один тикет = одна открытая позиция.
-        demand: demandText || "1",
+        // "Количество вакансий" в реальном файле не заполняется (а в выгрузке
+        // от 27.08.2026 колонки нет вовсе) — один тикет = одна открытая позиция.
+        demand: optional("demand") || "1",
         conditions: {
           metro: normalizeMetro(optional("metro")),
-          scheduleType: normalizeScheduleType(optional("schedule")),
+          scheduleType: normalizeScheduleType(scheduleText),
+          scheduleTypes: normalizeScheduleTypes(scheduleText),
           shiftType: normalizeShiftType(optional("nightShift")),
           features: isYes(optional("unloading")) ? ["unloading"] : [],
         },

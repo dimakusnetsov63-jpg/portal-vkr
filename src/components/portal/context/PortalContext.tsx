@@ -837,6 +837,7 @@ export function PortalProvider({
         status: source.status,
         priority: source.priority,
         schedule_type: source.schedule_type,
+        schedule_types: source.schedule_types,
         shift_type: source.shift_type,
         shift_times: source.shift_times,
         payment_type: source.payment_type,

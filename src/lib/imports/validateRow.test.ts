@@ -35,7 +35,13 @@ describe("validateRow", () => {
   });
 
   it("passes the parser's already-normalized conditions through untouched", () => {
-    const conditions = { metro: "Владыкино", scheduleType: "5/2" as const, shiftType: "night" as const, features: ["unloading"] };
+    const conditions = {
+      metro: "Владыкино",
+      scheduleType: "5/2" as const,
+      scheduleTypes: ["5/2" as const],
+      shiftType: "night" as const,
+      features: ["unloading"],
+    };
     const result = validateRow(makeRaw({ conditions }), KNOWN_CITIES, KNOWN_POSITIONS);
     expect("row" in result && result.row.conditions).toEqual(conditions);
   });

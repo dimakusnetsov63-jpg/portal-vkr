@@ -21,6 +21,7 @@ function makeAddress(overrides: Partial<AddressRow> = {}): AddressRow {
     status: "unrestricted",
     priority: 3,
     schedule_type: null,
+    schedule_types: [],
     shift_type: null,
     shift_times: [],
     payment_type: null,

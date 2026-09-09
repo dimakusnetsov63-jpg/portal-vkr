@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { isYes, normalizeMetro, normalizeScheduleType, normalizeShiftType } from "./normalizeConditions";
+import {
+  isYes,
+  normalizeMetro,
+  normalizeScheduleType,
+  normalizeScheduleTypes,
+  normalizeShiftType,
+} from "./normalizeConditions";
 
 describe("normalizeScheduleType", () => {
   it("accepts the canonical form", () => {
@@ -33,6 +39,50 @@ describe("normalizeScheduleType", () => {
     expect(normalizeScheduleType("3/1")).toBeNull();
     expect(normalizeScheduleType("вахта, ежедневно")).toBeNull();
     expect(normalizeScheduleType("")).toBeNull();
+  });
+});
+
+describe("normalizeScheduleTypes", () => {
+  it("returns every recognised schedule in the cell, not just the first", () => {
+    expect(normalizeScheduleTypes("2/2,5/2")).toEqual(["2/2", "5/2"]);
+    expect(normalizeScheduleTypes("6\\1 3\\1  2\\2")).toEqual(["6/1", "2/2"]);
+  });
+
+  it("unifies separators the same way as the single-value form", () => {
+    expect(normalizeScheduleTypes("5\\2, 6-1")).toEqual(["5/2", "6/1"]);
+  });
+
+  it("drops duplicates, keeping first-seen order", () => {
+    expect(normalizeScheduleTypes("5/2, 5\\2, 2/2, 5-2")).toEqual(["5/2", "2/2"]);
+  });
+
+  it("skips values outside the allowed list instead of inventing them", () => {
+    expect(normalizeScheduleTypes("вахта, 5/2, ежедневно, 3/1")).toEqual(["5/2"]);
+  });
+
+  // Дефис двусмыслен: «5-2» — один график, «5/2-6/1» — два. Реальная строка
+  // из выгрузки 27.08.2026, до этого не распознавалась вовсе.
+  it("treats a hyphen between two full schedules as a separator", () => {
+    expect(normalizeScheduleTypes("5/2-6/1")).toEqual(["5/2", "6/1"]);
+    expect(normalizeScheduleTypes("2/2-5/2-6/1")).toEqual(["2/2", "5/2", "6/1"]);
+  });
+
+  it("still treats a hyphen inside one schedule as its own separator", () => {
+    expect(normalizeScheduleTypes("5-2")).toEqual(["5/2"]);
+    expect(normalizeScheduleType("5-2")).toBe("5/2");
+  });
+
+  it("keeps only the valid half of a mixed hyphenated pair", () => {
+    expect(normalizeScheduleTypes("3/1-5/2")).toEqual(["5/2"]);
+  });
+
+  it("returns an empty array for an empty or fully unrecognised cell", () => {
+    expect(normalizeScheduleTypes("")).toEqual([]);
+    expect(normalizeScheduleTypes("вахта")).toEqual([]);
+  });
+
+  it("agrees with normalizeScheduleType on which one comes first", () => {
+    expect(normalizeScheduleTypes("вахта, 5/2, 2/2")[0]).toBe(normalizeScheduleType("вахта, 5/2, 2/2"));
   });
 });
 
