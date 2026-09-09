@@ -66,13 +66,30 @@ export async function listActiveAddressesForProject(project: string): Promise<Ad
   return data.map(asAddressRow);
 }
 
-/** Creates the cards an import found no match for. `source`/`import_id` mark them as import-made so revertImport can remove exactly these. */
+/**
+ * Creates the cards an import found no match for. `source`/`import_id` mark
+ * them as import-made so revertImport can remove exactly these.
+ *
+ * `defaultToNull: false` is load-bearing, not a style choice. Rows here have
+ * **different key sets**: `planAddressWrites` only puts `features`/
+ * `schedule_types`/`metro`/… on a row when the file actually said something
+ * about them. For a bulk insert supabase-js sends the *union* of every row's
+ * keys as `?columns=…`, and PostgREST then fills each column a given row
+ * omits with `NULL` — so one ticket with «Разгрузка: Да» next to one without
+ * made the second row `features = NULL` and the whole import died on
+ * `null value in column "features" violates not-null constraint`. This flag
+ * sends `Prefer: missing=default` instead, which is what "the file said
+ * nothing about this column" actually means: use the column default (`'{}'`).
+ */
 export async function bulkInsertAddressesFromImport(rows: AddressInsert[], importId: string): Promise<AddressRow[]> {
   if (rows.length === 0) return [];
   const supabase = createClient();
   const { data, error } = await supabase
     .from("addresses")
-    .insert(rows.map((row) => toInsertPayload({ ...row, source: "excel", import_id: importId })))
+    .insert(
+      rows.map((row) => toInsertPayload({ ...row, source: "excel", import_id: importId })),
+      { defaultToNull: false },
+    )
     .select();
   if (error) throw error;
   return data.map(asAddressRow);
