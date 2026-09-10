@@ -32,6 +32,18 @@ describe("validateUserForm — создание", () => {
     expect(validateUserForm(makeValues({ login: "Ivanov" }), "create").login).toBeUndefined();
   });
 
+  it("принимает адрес рабочей почты как логин", () => {
+    expect(validateUserForm(makeValues({ login: "hr39@outsourcing-kadrov.ru" }), "create").login).toBeUndefined();
+    expect(validateUserForm(makeValues({ login: " HR39@Outsourcing-Kadrov.RU " }), "create").login).toBeUndefined();
+  });
+
+  it("не принимает почту без домена или с недопустимым доменом", () => {
+    expect(validateUserForm(makeValues({ login: "hr39@" }), "create").login).toBeDefined();
+    expect(validateUserForm(makeValues({ login: "hr39@localhost" }), "create").login).toBeDefined();
+    expect(validateUserForm(makeValues({ login: "hr39@a@b.ru" }), "create").login).toBeDefined();
+    expect(validateUserForm(makeValues({ login: `${"a".repeat(95)}@mail.ru` }), "create").login).toBeDefined();
+  });
+
   it("требует пароль не короче 8 символов", () => {
     const errors = validateUserForm(makeValues({ password: "1234567", confirmPassword: "1234567" }), "create");
     expect(errors.password).toBeDefined();

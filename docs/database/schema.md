@@ -722,7 +722,7 @@ NULL.
 |------|-----|------|-----------|
 | `id` | uuid | not null | PK, `gen_random_uuid()` |
 | `full_name` | text | **not null** | `check` длины 2–120 после `btrim` |
-| `login` | text | **not null** | Уникален. `check (login ~ '^[a-z0-9._-]{3,32}$')` — хранится только в нижнем регистре, поэтому уникального индекса по самому полю достаточно |
+| `login` | text | **not null** | Уникален. `check (login ~ '^[a-z0-9._+-]{1,64}(@[a-z0-9-]+(\.[a-z0-9-]+)+)?$' and char_length(login) between 3 and 100)` — короткое имя либо адрес рабочей почты; хранится только в нижнем регистре, поэтому уникального индекса по самому полю достаточно |
 | `password_hash` | text | **not null** | bcrypt (`pgcrypto`: `crypt`/`gen_salt('bf', 10)`). Открытый пароль не хранится и не возвращается ни одной функцией |
 | `role` | enum `portal_user_role` | **not null** | head / coordinator / manager / recruiter / okk / marketolog (последние две с `20260821110000`) |
 | `projects` | text[] | **not null** | Значения проектов как текст, без FK. `check (cardinality(projects) > 0)` |

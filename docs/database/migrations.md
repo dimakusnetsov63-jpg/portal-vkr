@@ -715,3 +715,36 @@ select cron.schedule('portal-purge-login-attempts', '0 * * * *',
 Подтверждено `select * from cron.job`: `jobname = 'portal-purge-login-attempts'`,
 `schedule = '0 * * * *'`, `active = true`. Без этого `portal_login_attempts`
 росла бы неограниченно — эта часть C-3 тоже закрыта.
+
+## Миграция `20260910120000_login_allow_email.sql`: логин-почта
+
+**Применена к боевой БД 10 сентября 2026** (`db query --linked -f`, как
+TASK-013 и роли ОКК/Маркетолог; версия дописана в
+`supabase_migrations.schema_migrations` вручную — `db query` историю не
+пишет). Проверено после применения: `pg_get_constraintdef` для
+`portal_users_login_format` показывает новое выражение. Схема таблиц не
+менялась — регенерация `database.types.ts` не требуется.
+
+Прежний формат логина `^[a-z0-9._-]{3,32}$` не пропускал рабочую почту:
+ни `@`, ни длину больше 32 символов. Учётки в компании заводят по почте
+(`hr39@outsourcing-kadrov.ru`), поэтому формат расширен до «короткое имя
+**или** адрес почты»:
+
+```
+login ~ '^[a-z0-9._+-]{1,64}(@[a-z0-9-]+(\.[a-z0-9-]+)+)?$'
+and char_length(login) between 3 and 100
+```
+
+Длина проверяется отдельным условием: в самом выражении с необязательной
+доменной частью общую длину не задать. Домен обязан содержать точку —
+`hr39@localhost` не логин.
+
+Миграция трогает три места: CHECK `portal_users_login_format`,
+`portal_admin_login_available()` и `portal_admin_create_user()`.
+`portal_bootstrap_admin()` оставлена как есть — первый руководитель уже
+создан, функция одноразовая. Существующие логины под новый формат подходят,
+backfill не нужен.
+
+Правило продублировано в `src/components/portal/sections/settings/userForm.ts`
+(`LOGIN_PATTERN`, `MIN_LOGIN_LENGTH`, `MAX_LOGIN_LENGTH`) — менять надо в
+обоих местах, рассинхронизацию не поймают ни типы, ни тесты.

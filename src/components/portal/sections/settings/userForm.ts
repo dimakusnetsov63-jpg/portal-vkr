@@ -9,7 +9,15 @@ import type { PortalRole } from "@/lib/auth/roles";
  * локально нельзя: за ней ходят в базу отдельно.
  */
 
-export const LOGIN_PATTERN = /^[a-z0-9._-]{3,32}$/;
+/**
+ * Логин — либо короткое имя (`ivanov`), либо рабочая почта
+ * (`hr39@outsourcing-kadrov.ru`): в компании учётки заводят по почте.
+ * Домен необязателен, длина проверяется отдельно — в самом выражении
+ * ограничить общую длину вместе с необязательной доменной частью нельзя.
+ */
+export const LOGIN_PATTERN = /^[a-z0-9._+-]{1,64}(@[a-z0-9-]+(\.[a-z0-9-]+)+)?$/;
+export const MIN_LOGIN_LENGTH = 3;
+export const MAX_LOGIN_LENGTH = 100;
 export const MIN_PASSWORD_LENGTH = 8;
 export const MIN_FULL_NAME_LENGTH = 2;
 
@@ -38,6 +46,16 @@ export function normalizeLogin(login: string): string {
   return login.trim().toLowerCase();
 }
 
+/** Допустим ли логин: те же правила, что в CHECK-ограничении `portal_users`. */
+export function isValidLogin(login: string): boolean {
+  const normalized = normalizeLogin(login);
+  return (
+    normalized.length >= MIN_LOGIN_LENGTH &&
+    normalized.length <= MAX_LOGIN_LENGTH &&
+    LOGIN_PATTERN.test(normalized)
+  );
+}
+
 export function validateUserForm(values: UserFormValues, mode: UserFormMode): UserFormErrors {
   const errors: UserFormErrors = {};
 
@@ -47,8 +65,8 @@ export function validateUserForm(values: UserFormValues, mode: UserFormMode): Us
 
   // Логин задаётся один раз: при редактировании поле не показывается,
   // потому что смена логина обесценивает записи журнала.
-  if (mode === "create" && !LOGIN_PATTERN.test(normalizeLogin(values.login))) {
-    errors.login = "3–32 символа: латиница в нижнем регистре, цифры, точка, дефис, подчёркивание";
+  if (mode === "create" && !isValidLogin(values.login)) {
+    errors.login = "3–100 символов: латиница в нижнем регистре, цифры, точка, дефис, подчёркивание, плюс; либо рабочая почта";
   }
 
   // При редактировании пустой пароль означает «не менять».
