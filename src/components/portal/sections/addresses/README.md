@@ -105,6 +105,15 @@ CRUD выполняет `lib/supabase/addressesRepo.ts` (обычный `createC
 
 ## Импорт потребности из Excel
 
+`ImportDemandModal` подгружает `importDemand` **динамически** (`await
+import()` внутри обработчика кнопки), а не обычным импортом сверху файла.
+Это единственная в портале дорога к `exceljs`, а он вместе с `jszip` —
+921 КБ отдельным чанком. Статический импорт клал парсер xlsx в клиентский
+граф страницы `/`, то есть его качал каждый, кто просто открыл портал:
+модалка живёт в «Адресах», «Адреса» — в `PortalApp`, разделы там тоже
+импортируются статически. Проверяется так: чанк с `jszip` не должен
+упоминаться в `.next/server/app/page_client-reference-manifest.js`.
+
 Модуль импорта — `src/lib/imports/` (отдельно от раздела, чистый TS без
 React/JSX): `types.ts` (единый формат `DemandImportRow`), `excel/readWorkbook.ts`
 + `excel/cellValue.ts` (exceljs), `parsers/` (`DemandParser` — интерфейс,

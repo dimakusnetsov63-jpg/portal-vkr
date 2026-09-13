@@ -9,7 +9,6 @@ import modal from "@/components/portal/ui/Modal.module.css";
 import primitives from "@/components/portal/ui/primitives.module.css";
 import { activeListOptions } from "@/lib/portal/candidateOptions";
 import { toIsoDate } from "@/lib/portal/demandWindow";
-import { importDemand } from "@/lib/imports/importDemand";
 import type { ImportMode, ImportPreviewAction, ImportPreviewRow, ImportReport } from "@/lib/imports/types";
 
 const MODE_HINTS: Record<ImportMode, string> = {
@@ -25,6 +24,18 @@ const MODE_HINTS: Record<ImportMode, string> = {
  * отчёт. Парсер и маппинг колонок определяются project_import_configs на
  * сервере (importDemand.ts) — эта модалка не знает, какой именно парсер
  * используется.
+ *
+ * `importDemand` подгружается динамически — это единственная в портале
+ * дорога к `exceljs`, а он вместе с `jszip` весит 1,5 МБ из 2,2 МБ всей
+ * статики. Статический импорт здесь клал парсер xlsx в общий бандл, и его
+ * качал каждый, кто просто открыл портал: модалка живёт в «Адресах»,
+ * «Адреса» — в `PortalApp`, а разделы там тоже импортируются статически.
+ * Теперь он приезжает в момент, когда пользователь действительно нажал
+ * «Проверить» или «Импортировать» — то есть у двух ролей из шести и только
+ * при реальной загрузке файла.
+ *
+ * Тип `ImportReport` и остальные импортируются обычным `import type` — типы
+ * стираются при сборке и в бандл ничего не тянут.
  */
 export function ImportDemandModal({ onClose }: { onClose: () => void }) {
   const { pushToast, listOptions, currentUser, refreshAddresses } = usePortal();
@@ -46,6 +57,11 @@ export function ImportDemandModal({ onClose }: { onClose: () => void }) {
     if (!project || !file || !demandDate) return;
     setBusy(dryRun ? "check" : "import");
     try {
+      // Сеть на этой строке: первый вызов за сессию докачивает чанк с
+      // парсером. Кнопка уже в состоянии «Проверка…»/«Импорт…», поэтому
+      // отдельного индикатора загрузки кода не нужно. Ошибку сети здесь
+      // ловит тот же catch, что и ошибки разбора файла.
+      const { importDemand } = await import("@/lib/imports/importDemand");
       const result = await importDemand({
         project,
         file,
