@@ -25,6 +25,54 @@ export interface PortalSession {
 }
 
 /**
+ * Внутренний заголовок, которым middleware передаёт уже проверенную сессию
+ * дальше по конвейеру — Server Components и Route Handlers читают её оттуда
+ * вместо повторного `portal_session_context`.
+ *
+ * Один заход на `/` стоил двух обращений к базе: сначала `guardRequest` в
+ * `proxy.ts`, потом `getPortalSession()` на самой странице. Оба спрашивали
+ * одно и то же про один и тот же токен в пределах одного запроса — а
+ * функция ещё и volatile, то есть раз в пять минут делает UPDATE.
+ *
+ * ЗАГОЛОВОК НЕ ЯВЛЯЕТСЯ ПРЕДЪЯВЛЕНИЕМ ПРАВ. Доверять ему можно ровно
+ * потому, что `guardRequest` безусловно удаляет пришедший снаружи заголовок
+ * с этим именем до всех проверок (см. `stripForgedSessionHeader`), и
+ * выставляет его только сам. Без этого шага любой клиент входил бы кем
+ * угодно, отправив один заголовок — поэтому удаление сделано первым
+ * действием, до любой ветки с ранним возвратом.
+ *
+ * Настоящая граница доступа к данным в любом случае не здесь, а в политиках
+ * RLS: токен для PostgREST подписывается отдельно и содержимое этого
+ * заголовка не использует.
+ */
+export const SESSION_HEADER = "x-portal-session";
+
+/**
+ * base64 от UTF-8, а не сырой JSON: значения заголовков — latin1, а
+ * `full_name` пользователя кириллический. Подписывать нечего — заголовок
+ * никогда не покидает серверный конвейер и не пересекает границу доверия.
+ */
+export function encodeSessionHeader(session: PortalSession): string {
+  const bytes = new TextEncoder().encode(JSON.stringify(session));
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+/** `null` на любом повреждённом значении — вызывающий тогда просто спросит базу. */
+export function decodeSessionHeader(value: string | null | undefined): PortalSession | null {
+  if (!value) return null;
+  try {
+    const binary = atob(value);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const parsed = JSON.parse(new TextDecoder().decode(bytes)) as PortalSession;
+    return parsed.sessionId && parsed.user ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Клиент для auth-RPC. Ходит под доверенной ролью `portal_auth_caller`, а не
  * под `anon`: только так ограничение частоты по источнику внутри
  * `portal_login` становится достоверным — см. `signPortalServiceJwt`.

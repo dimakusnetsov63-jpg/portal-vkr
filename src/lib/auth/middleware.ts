@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE, type PortalSession, resolveSession } from "./session";
+import { SESSION_COOKIE, SESSION_HEADER, encodeSessionHeader, type PortalSession, resolveSession } from "./session";
 import { canAccess, isPortalPage } from "./roles";
 import type { PortalPage } from "@/lib/portal/types";
 
@@ -49,8 +49,23 @@ export function isTrustedOrigin(origin: string | null, host: string | null): boo
   }
 }
 
+/**
+ * Заголовки запроса без `SESSION_HEADER`, кем бы он ни был прислан.
+ *
+ * Выполняется до всех проверок и на всех путях, включая ранний возврат для
+ * `/api/auth/*`: заголовок доверенный только потому, что снаружи он попасть
+ * не может. Пропусти этот шаг на одной ветке — и `getPortalSession()` в
+ * маршруте под ней поверит любому, кто отправит строку base64.
+ */
+function stripForgedSessionHeader(request: NextRequest): Headers {
+  const headers = new Headers(request.headers);
+  headers.delete(SESSION_HEADER);
+  return headers;
+}
+
 export async function guardRequest(request: NextRequest): Promise<NextResponse> {
   const { pathname, searchParams } = request.nextUrl;
+  const headers = stripForgedSessionHeader(request);
 
   // Маршруты входа/выхода/выпуска токена проверяют себя сами: middleware,
   // редиректящий /api/auth/login на /login, сделал бы вход невозможным.
@@ -61,7 +76,9 @@ export async function guardRequest(request: NextRequest): Promise<NextResponse> 
     if (request.method !== "GET" && !isTrustedOrigin(request.headers.get("origin"), request.headers.get("host"))) {
       return NextResponse.json({ error: "Запрос отклонён: недоверенный источник" }, { status: 403 });
     }
-    return NextResponse.next();
+    // Сессию здесь не проверяем и не прокидываем — эти маршруты решают про
+    // себя сами. Заголовок при этом всё равно вычищен (см. выше).
+    return NextResponse.next({ request: { headers } });
   }
 
   const redirectTo = (target: string) => {
@@ -75,7 +92,7 @@ export async function guardRequest(request: NextRequest): Promise<NextResponse> 
   const session = await resolveSession(token);
 
   if (!session) {
-    if (isPublicPath(pathname)) return NextResponse.next();
+    if (isPublicPath(pathname)) return NextResponse.next({ request: { headers } });
     const response = redirectTo("/login");
     // Cookie могла остаться от отозванной или истёкшей сессии — иначе
     // отключённый пользователь ходил бы по кругу /login → / → /login.
@@ -95,7 +112,10 @@ export async function guardRequest(request: NextRequest): Promise<NextResponse> 
     return redirectTo(FORBIDDEN_PATH);
   }
 
-  return NextResponse.next();
+  // Сессия проверена — отдаём её дальше, чтобы страница не спрашивала базу
+  // повторно про тот же токен в том же запросе.
+  headers.set(SESSION_HEADER, encodeSessionHeader(session));
+  return NextResponse.next({ request: { headers } });
 }
 
 /**
