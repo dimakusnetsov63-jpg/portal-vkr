@@ -1,17 +1,30 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "./portal-tokens.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+/**
+ * Шрифты Geist убраны (остались от стартового шаблона create-next-app).
+ *
+ * Портал ими не рисует ничего: весь текст идёт системным стеком
+ * `--portal-font` из `portal-tokens.css` (`-apple-system`, `Segoe UI`,
+ * `Roboto`, …), а переменные `--font-geist-sans/mono` не были упомянуты
+ * нигде в `src/`, кроме собственного объявления здесь и проброса в
+ * `@theme` в `globals.css`.
+ *
+ * При этом `next/font` ставил на КАЖДУЮ страницу, включая статическую
+ * `/login`, два `<link rel="preload" as="font">` — 52 КБ с приоритетом выше
+ * скриптов, на критическом пути первой загрузки. На быстром устройстве это
+ * незаметно, на медленном канале ровно это и откладывает появление формы
+ * входа.
+ *
+ * Отдельно: подключён был только `subsets: ["latin"]` — кириллицы в наборе
+ * нет вовсе, так что даже при реальном применении русский текст всё равно
+ * рисовался бы запасным шрифтом.
+ *
+ * Если шрифт фирменного стиля когда-нибудь понадобится — подключать его
+ * нужно в `--portal-font`, а не переменной, на которую никто не смотрит, и
+ * обязательно с `subsets: ["latin", "cyrillic"]`.
+ */
 
 export const metadata: Metadata = {
   title: "ВКР — Ваш кадровый ресурс",
@@ -25,10 +38,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="ru"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
+    <html lang="ru" className="h-full antialiased">
       <body className="min-h-full flex flex-col portal-root">{children}</body>
     </html>
   );

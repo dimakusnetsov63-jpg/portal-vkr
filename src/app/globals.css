@@ -5,11 +5,13 @@
   --foreground: #171717;
 }
 
+/* --font-sans/--font-mono убраны вместе с Geist (см. layout.tsx): они
+   указывали на переменные, которые больше не объявляются, а утилиты
+   `font-sans`/`font-mono` в проекте не используются ни разу. Текст портала
+   рисует системный стек `--portal-font` из portal-tokens.css. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
