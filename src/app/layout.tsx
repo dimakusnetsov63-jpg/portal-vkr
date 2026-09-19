@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import "./portal-tokens.css";
 
@@ -26,6 +27,27 @@ import "./portal-tokens.css";
  * обязательно с `subsets: ["latin", "cyrillic"]`.
  */
 
+/**
+ * Speed Insights — метрики скорости с РЕАЛЬНЫХ заходов, а не из эмуляции.
+ *
+ * Заведено ради вопроса «почему с одних устройств портал работает хорошо, а
+ * с других плохо»: локальный throttling показывает, как ведёт себя выдуманное
+ * медленное устройство, а здесь видно разбивку по настоящим — типу
+ * устройства, браузеру, стране и скорости соединения.
+ *
+ * Что уезжает в Vercel: тайминги загрузки (Core Web Vitals), маршрут, тип
+ * устройства, браузер, страна. Ни логина, ни содержимого страниц, ни данных
+ * кандидатов — компонент не имеет к ним доступа и ничего из портала не
+ * читает. Это всё равно телеметрия о сотрудниках, и включена она осознанным
+ * решением владельца, а не «заодно».
+ *
+ * CSP не мешает: скрипт и приёмник метрик живут на том же origin
+ * (`/_vercel/…`), то есть попадают под `script-src 'self'` и
+ * `connect-src 'self'` из `next.config.ts`.
+ *
+ * Работает только на Vercel и только при включённом Speed Insights в
+ * настройках проекта — локально и в CI компонент не делает ничего.
+ */
 export const metadata: Metadata = {
   title: "ВКР — Ваш кадровый ресурс",
   description:
@@ -39,7 +61,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru" className="h-full antialiased">
-      <body className="min-h-full flex flex-col portal-root">{children}</body>
+      <body className="min-h-full flex flex-col portal-root">
+        {children}
+        <SpeedInsights />
+      </body>
     </html>
   );
 }

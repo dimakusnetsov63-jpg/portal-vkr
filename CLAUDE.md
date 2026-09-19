@@ -56,7 +56,9 @@
 - **CSS Modules** — стилизация компонентов портала (`*.module.css`)
 - **Tailwind CSS 4** — только утилиты в app-оболочке (`layout.tsx`,
   `globals.css`); компоненты портала на CSS Modules, не на Tailwind
-- **Vercel** — хостинг, автодеплой при пуше в `main`
+- **Vercel** — хостинг, автодеплой при пуше в `main`; `@vercel/speed-insights`
+  собирает метрики скорости с реальных заходов (что именно уезжает —
+  [`docs/SECURITY.md`](docs/SECURITY.md), «Известные ограничения»)
 - **ESLint** (`eslint-config-next`)
 
 ## 3. Главные правила работы
