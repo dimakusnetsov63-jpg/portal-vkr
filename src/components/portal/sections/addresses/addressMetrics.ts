@@ -16,8 +16,21 @@ export function addressFillRate(row: AddressRow): number {
   return (row.staffed_count / row.required_count) * 100;
 }
 
+/**
+ * Карточка «сейчас в работе»: по ней действительно кого-то ищут. Импорт не
+ * удаляет и не архивирует объект, пропавший из выгрузки, — он ставит
+ * `required_count = 0` (объект вернётся в следующем файле вместе со всем,
+ * что координатор заполнил руками). Поэтому в базе копятся карточки с нулём
+ * — следы прошлых выгрузок, — и без этого признака дашборд считал бы их
+ * наравне с живыми.
+ */
+export function hasOpenDemand(row: AddressRow): boolean {
+  return row.required_count > 0;
+}
+
 export interface AddressMetrics {
-  total: number;
+  /** Адресов, по которым сейчас есть потребность — из отфильтрованной выборки, в отличие от active/archived. */
+  withDemand: number;
   active: number;
   archived: number;
   totalDemand: number;
@@ -29,20 +42,29 @@ export interface AddressMetrics {
 
 /**
  * Pure metric computation. Two separate inputs on purpose:
- *  - `allRows` — the whole loaded dataset, used only for
- *    «Всего/Активных/Архивных адресов»: these three never depend on the
- *    current filters or the Активные/Архив toggle;
+ *  - `allRows` — the whole loaded dataset, used only for «Активных/Архивных
+ *    адресов»: эти два счётчика про жизненный цикл карточки и не зависят ни
+ *    от фильтров, ни от вкладки Активные/Архив;
  *  - `activeFilteredRows` — the currently-filtered set with archived
- *    addresses already excluded (regardless of which tab is open), used for
- *    every other KPI: archived addresses never participate in KPI по ТЗ.
+ *    addresses already excluded (regardless of which tab is open).
  *
- * An empty `activeFilteredRows` yields 0 for every KPI (never NaN, no
- * divide-by-zero) — same convention as calculateCandidateMetrics.
+ * Все показатели потребности считаются не по нему целиком, а по
+ * **карточкам с ненулевой потребностью** (`hasOpenDemand`): дашборд отвечает
+ * на вопрос «что нужно закрывать прямо сейчас», а обнулённый объект в этот
+ * ответ не входит — ни своим приоритетом, ни своей укомплектованностью.
+ * Особенно это важно для «Средней укомплектованности»: у карточки без
+ * потребности `addressFillRate` даёт 100% (осознанное правило раздела), и
+ * сотня-другая таких нулей раньше превращала показатель в долю обнулённых
+ * карточек вместо реальной укомплектованности.
+ *
+ * Пустая выборка даёт 0 по всем показателям (никогда NaN, без деления на
+ * ноль) — та же конвенция, что и в calculateCandidateMetrics.
  */
 export function calculateAddressMetrics(allRows: AddressRow[], activeFilteredRows: AddressRow[]): AddressMetrics {
-  const total = allRows.length;
   const archived = allRows.filter((a) => Boolean(a.archived_at)).length;
-  const active = total - archived;
+  const active = allRows.length - archived;
+
+  const demandRows = activeFilteredRows.filter(hasOpenDemand);
 
   let totalDemand = 0;
   let closedPositions = 0;
@@ -50,7 +72,7 @@ export function calculateAddressMetrics(allRows: AddressRow[], activeFilteredRow
   let criticalCount = 0;
   let fillRateSum = 0;
 
-  for (const a of activeFilteredRows) {
+  for (const a of demandRows) {
     totalDemand += a.required_count;
     closedPositions += a.staffed_count;
     openDemand += Math.max(addressDeficit(a), 0);
@@ -58,8 +80,16 @@ export function calculateAddressMetrics(allRows: AddressRow[], activeFilteredRow
     fillRateSum += addressFillRate(a);
   }
 
-  const avgFillRatePct =
-    activeFilteredRows.length === 0 ? 0 : Math.round(fillRateSum / activeFilteredRows.length);
+  const avgFillRatePct = demandRows.length === 0 ? 0 : Math.round(fillRateSum / demandRows.length);
 
-  return { total, active, archived, totalDemand, closedPositions, openDemand, criticalCount, avgFillRatePct };
+  return {
+    withDemand: demandRows.length,
+    active,
+    archived,
+    totalDemand,
+    closedPositions,
+    openDemand,
+    criticalCount,
+    avgFillRatePct,
+  };
 }

@@ -68,18 +68,41 @@ describe("addressFillRate", () => {
 });
 
 describe("calculateAddressMetrics", () => {
-  it("counts total/active/archived from the full dataset, ignoring the current filter", () => {
+  it("counts active/archived from the full dataset, ignoring the current filter", () => {
     const all = [
       makeAddress({ id: "1", archived_at: null }),
       makeAddress({ id: "2", archived_at: null }),
       makeAddress({ id: "3", archived_at: "2026-07-10T00:00:00.000Z" }),
     ];
     // Simulate a filter that only matched address "1" (e.g. by project) —
-    // total/active/archived must not be affected by that.
+    // active/archived must not be affected by that.
     const m = calculateAddressMetrics(all, [all[0]]);
-    expect(m.total).toBe(3);
     expect(m.active).toBe(2);
     expect(m.archived).toBe(1);
+  });
+
+  it("counts only addresses with open demand, unlike active/archived", () => {
+    const rows = [
+      makeAddress({ id: "1", required_count: 3 }),
+      makeAddress({ id: "2", required_count: 0 }), // обнулён прошлой синхронизацией
+      makeAddress({ id: "3", required_count: 1 }),
+    ];
+    const m = calculateAddressMetrics(rows, rows);
+    expect(m.withDemand).toBe(2);
+    expect(m.active).toBe(3); // сама карточка никуда не делась
+  });
+
+  it("leaves zeroed addresses out of every demand KPI, not just the count", () => {
+    const rows = [
+      makeAddress({ id: "1", required_count: 10, staffed_count: 4, priority: 5 }),
+      // Обнулённый объект с критическим приоритетом и людьми на смене: по нему
+      // сейчас никого не ищут, поэтому он не критичный и не укомплектованный.
+      makeAddress({ id: "2", required_count: 0, staffed_count: 7, priority: 5 }),
+    ];
+    const m = calculateAddressMetrics(rows, rows);
+    expect(m.criticalCount).toBe(1);
+    expect(m.closedPositions).toBe(4);
+    expect(m.avgFillRatePct).toBe(40); // только карточка «1»: 4/10
   });
 
   it("sums required/staffed and clamps unclosed demand at 0 for overstaffed addresses", () => {
@@ -96,28 +119,30 @@ describe("calculateAddressMetrics", () => {
 
   it("counts only priority 5 (Критический) addresses as critical", () => {
     const active = [
-      makeAddress({ id: "1", priority: 5 }),
-      makeAddress({ id: "2", priority: 4 }),
-      makeAddress({ id: "3", priority: 5 }),
+      makeAddress({ id: "1", priority: 5, required_count: 1 }),
+      makeAddress({ id: "2", priority: 4, required_count: 1 }),
+      makeAddress({ id: "3", priority: 5, required_count: 1 }),
     ];
     const m = calculateAddressMetrics(active, active);
     expect(m.criticalCount).toBe(2);
   });
 
-  it("averages per-address fill rate (not a single weighted ratio)", () => {
+  it("averages per-address fill rate over addresses that actually need people", () => {
     const active = [
       makeAddress({ id: "1", required_count: 10, staffed_count: 10 }), // 100%
       makeAddress({ id: "2", required_count: 10, staffed_count: 0 }), // 0%
-      makeAddress({ id: "3", required_count: 0, staffed_count: 0 }), // 100% (no demand)
+      // Без потребности addressFillRate даёт 100%, но в средней по дашборду
+      // такая карточка не участвует — иначе показатель съезжает к доле нулей.
+      makeAddress({ id: "3", required_count: 0, staffed_count: 0 }),
     ];
     const m = calculateAddressMetrics(active, active);
-    expect(m.avgFillRatePct).toBe(67); // (100 + 0 + 100) / 3 = 66.67 -> rounds to 67
+    expect(m.avgFillRatePct).toBe(50); // (100 + 0) / 2, карточка «3» не в счёте
   });
 
   it("returns zeros for an empty active/filtered set, never NaN", () => {
     const m = calculateAddressMetrics([], []);
     expect(m).toEqual({
-      total: 0,
+      withDemand: 0,
       active: 0,
       archived: 0,
       totalDemand: 0,
@@ -127,5 +152,13 @@ describe("calculateAddressMetrics", () => {
       avgFillRatePct: 0,
     });
     for (const v of Object.values(m)) expect(Number.isNaN(v)).toBe(false);
+  });
+
+  it("returns zeros when nothing in the filtered set has demand left", () => {
+    const zeroed = [makeAddress({ id: "1", required_count: 0 }), makeAddress({ id: "2", required_count: 0 })];
+    const m = calculateAddressMetrics(zeroed, zeroed);
+    expect(m.withDemand).toBe(0);
+    expect(m.avgFillRatePct).toBe(0); // не 100% от «пустых» карточек
+    expect(m.active).toBe(2);
   });
 });

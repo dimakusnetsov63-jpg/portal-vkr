@@ -5,7 +5,7 @@ import styles from "./AddressesSection.module.css";
 export function AddressesDashboard({ stats }: { stats: AddressMetrics }) {
   return (
     <div className={styles.statGrid8}>
-      <StatCard icon="mapPin" value={stats.total.toLocaleString("ru-RU")} label="Всего адресов" />
+      <StatCard icon="mapPin" value={stats.withDemand.toLocaleString("ru-RU")} label="Адресов с потребностью" />
       <StatCard icon="check" value={stats.active.toLocaleString("ru-RU")} label="Активных адресов" />
       <StatCard icon="box" value={stats.archived.toLocaleString("ru-RU")} label="Архивных адресов" />
       <StatCard icon="users" value={stats.totalDemand.toLocaleString("ru-RU")} label="Общая потребность" />

@@ -43,6 +43,8 @@ AddressesSection
   → filterAddresses(addresses, {...filters, showArchived})       — для таблицы
   → filterAddresses(addresses, {...filters, showArchived:false}) — для KPI
   → calculateAddressMetrics(addresses, activeFiltered)
+      — показатели потребности считаются по hasOpenDemand(required_count > 0):
+        обнулённые импортом карточки в дашборд не входят
   → <AddressesDashboard> + <AddressesTable> + <AddAddressModal>
 ```
 
