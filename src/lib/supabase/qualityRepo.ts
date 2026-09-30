@@ -35,6 +35,26 @@ import type {
  *    значений.
  */
 
+/**
+ * Ошибка Supabase как настоящий `Error`.
+ *
+ * supabase-js возвращает `error` простым объектом, не экземпляром `Error`.
+ * Интерфейс раздела проверяет `instanceof Error` и в противном случае
+ * показывает общий текст — так «Недостаточно прав», «Проверку нельзя
+ * завершить…» и сбой сети сливались в одно «Не удалось сохранить проверку»,
+ * и понять причину было нельзя (тот же приём, что `toErrorMessage` в
+ * импорте потребности).
+ */
+function toError(error: { message?: string | null }): Error {
+  const message = error.message?.trim() ?? "";
+  // Сбой сети supabase-js заворачивает в «TypeError: Failed to fetch» —
+  // пользователю это ничего не говорит.
+  if (/Failed to fetch|NetworkError|Load failed/i.test(message)) {
+    return new Error("Нет связи с сервером. Проверьте интернет и повторите — введённые данные не потеряны.");
+  }
+  return new Error(message || "Ошибка сервера без описания");
+}
+
 /** Форма jsonb-колонки `group_scores` — см. quality.types.ts. */
 function asReviewRow(row: unknown): QualityReviewRow {
   return row as QualityReviewRow;
@@ -49,7 +69,7 @@ export async function listChecklists(): Promise<QualityChecklistRow[]> {
     .is("archived_at", null)
     .order("kind", { ascending: true })
     .order("project", { ascending: true, nullsFirst: true });
-  if (error) throw error;
+  if (error) throw toError(error);
   return data;
 }
 
@@ -77,9 +97,9 @@ export async function getChecklistTree(checklistId: string): Promise<QualityChec
       .order("sort_order", { ascending: true }),
   ]);
 
-  if (checklistResult.error) throw checklistResult.error;
-  if (groupsResult.error) throw groupsResult.error;
-  if (itemsResult.error) throw itemsResult.error;
+  if (checklistResult.error) throw toError(checklistResult.error);
+  if (groupsResult.error) throw toError(groupsResult.error);
+  if (itemsResult.error) throw toError(itemsResult.error);
 
   const items = itemsResult.data as unknown as QualityItemRow[];
   const byGroup = new Map<string, QualityItemRow[]>();
@@ -140,7 +160,7 @@ export async function saveChecklistTree(
 
   if (error) {
     if (error.message?.includes("version_conflict")) throw new QualityChecklistConflictError();
-    throw error;
+    throw toError(error);
   }
   return data as unknown as SaveChecklistTreeResult;
 }
@@ -152,7 +172,7 @@ export async function setChecklistArchived(checklistId: string, archived: boolea
     .from("quality_checklists")
     .update({ archived_at: archived ? new Date().toISOString() : null })
     .eq("id", checklistId);
-  if (error) throw error;
+  if (error) throw toError(error);
 }
 
 /** Все шаблоны, включая архивные — для редактора. Форма проверки берёт только активные. */
@@ -164,7 +184,7 @@ export async function listAllChecklists(): Promise<QualityChecklistRow[]> {
     .order("archived_at", { ascending: true, nullsFirst: true })
     .order("kind", { ascending: true })
     .order("project", { ascending: true, nullsFirst: true });
-  if (error) throw error;
+  if (error) throw toError(error);
   return data;
 }
 
@@ -207,7 +227,7 @@ export async function listReviews(
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (error) throw error;
+  if (error) throw toError(error);
   return { rows: (data ?? []).map(asReviewRow), total: count ?? 0 };
 }
 
@@ -218,8 +238,8 @@ export async function getReview(reviewId: string): Promise<QualityReviewWithScor
     supabase.from("quality_reviews").select("*").eq("id", reviewId).single(),
     supabase.from("quality_review_scores").select("*").eq("review_id", reviewId),
   ]);
-  if (reviewResult.error) throw reviewResult.error;
-  if (scoresResult.error) throw scoresResult.error;
+  if (reviewResult.error) throw toError(reviewResult.error);
+  if (scoresResult.error) throw toError(scoresResult.error);
   return {
     review: asReviewRow(reviewResult.data),
     scores: scoresResult.data as QualityScoreRow[],
@@ -233,7 +253,7 @@ export async function findReviewsByLead(crmLeadId: number, excludeReviewId?: str
   if (excludeReviewId) query = query.neq("id", excludeReviewId);
 
   const { data, error } = await query.order("review_date", { ascending: false }).limit(5);
-  if (error) throw error;
+  if (error) throw toError(error);
   return (data ?? []).map(asReviewRow);
 }
 
@@ -331,7 +351,7 @@ export async function saveReview(input: SaveReviewInput): Promise<SaveReviewResu
 
   if (error) {
     if (error.message?.includes("version_conflict")) throw new QualityVersionConflictError();
-    throw error;
+    throw toError(error);
   }
   return data as unknown as SaveReviewResult;
 }
@@ -350,7 +370,7 @@ export async function loadReport(
     p_project: project ?? undefined,
     p_kind: kind ?? undefined,
   } as never);
-  if (error) throw error;
+  if (error) throw toError(error);
   return (data ?? []) as unknown as QualityReportRow[];
 }
 
@@ -376,7 +396,7 @@ export async function loadReportByGroup(
     p_kind: kind ?? undefined,
     p_employee: employeeName ?? undefined,
   } as never);
-  if (error) throw error;
+  if (error) throw toError(error);
   return (data ?? []) as unknown as QualityGroupReportRow[];
 }
 
@@ -401,7 +421,7 @@ export async function loadReportByMonth(
     p_project: project ?? undefined,
     p_kind: kind ?? undefined,
   } as never);
-  if (error) throw error;
+  if (error) throw toError(error);
   return (data ?? []) as unknown as QualityMonthRow[];
 }
 
@@ -423,7 +443,7 @@ export async function loadObjectionStats(
     p_project: project ?? undefined,
     p_kind: kind ?? undefined,
   } as never);
-  if (error) throw error;
+  if (error) throw toError(error);
   return (data ?? []) as unknown as QualityObjectionRow[];
 }
 
@@ -441,7 +461,7 @@ export async function loadScoreDistribution(
     p_project: project ?? undefined,
     p_kind: kind ?? undefined,
   } as never);
-  if (error) throw error;
+  if (error) throw toError(error);
   return (data ?? []) as unknown as QualityBucketRow[];
 }
 
@@ -458,5 +478,5 @@ export async function setReviewArchived(reviewId: string, archived: boolean): Pr
     p_review_id: reviewId,
     p_archived: archived,
   } as never);
-  if (error) throw error;
+  if (error) throw toError(error);
 }

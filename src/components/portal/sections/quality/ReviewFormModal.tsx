@@ -179,9 +179,22 @@ export function ReviewFormModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [duplicateNote, setDuplicateNote] = useState<string | null>(null);
+  // Были ли правки с момента открытия. Нужен, чтобы не терять заполненную
+  // проверку: модалка закрывается по Esc и по клику мимо окна, а клик
+  // засчитывается «мимо» и тогда, когда выделение текста в поле (длинная
+  // ссылка на лид) отпустили за краем окна. Проверяющие теряли так
+  // по 35 проставленных пунктов.
+  const [dirty, setDirty] = useState(false);
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+    setDirty(true);
+  }
+
+  function requestClose() {
+    if (saving) return;
+    if (dirty && !window.confirm("Закрыть проверку? Несохранённые изменения пропадут.")) return;
+    onClose();
   }
 
   const checklist = useMemo(
@@ -294,6 +307,7 @@ export function ReviewFormModal({
 
   const changeAnswer = useCallback((itemId: string, value: number | null, isNa: boolean) => {
     setAnswers((prev) => ({ ...prev, [itemId]: { value, isNa } }));
+    setDirty(true);
   }, []);
 
   async function submit(status: "draft" | "completed") {
@@ -372,7 +386,7 @@ export function ReviewFormModal({
     <Modal
       open
       wide
-      onClose={onClose}
+      onClose={requestClose}
       title={existing ? "Проверка качества" : "Новая проверка"}
       footer={
         <>
@@ -383,7 +397,7 @@ export function ReviewFormModal({
             {unanswered > 0 && <span className={primitives.muted}>не заполнено пунктов: {unanswered}</span>}
           </div>
           <div className={primitives.spacer} />
-          <Button onClick={onClose} disabled={saving}>
+          <Button onClick={requestClose} disabled={saving}>
             Отмена
           </Button>
           <Button onClick={() => void submit("draft")} disabled={saving}>

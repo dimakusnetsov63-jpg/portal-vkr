@@ -54,7 +54,13 @@ export function Combobox({
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={(e) => {
-          if (e.key === "Escape") setOpen(false);
+          // Esc закрывает только список, а не окно, в котором стоит поле:
+          // без этого Esc в открытом списке заодно закрывал модалку и
+          // терял всё, что в ней заполнили.
+          if (e.key === "Escape" && open) {
+            e.stopPropagation();
+            setOpen(false);
+          }
         }}
       />
       <button
