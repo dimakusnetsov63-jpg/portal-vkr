@@ -1,6 +1,6 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { supabaseEnv } from "./env";
-import { getPortalAccessToken } from "./accessToken";
+import { fetchWithTokenRetry, getPortalAccessToken } from "./accessToken";
 import type { Database } from "./database.types";
 import type { PortalAuthDatabase } from "./portalAuth.types";
 
@@ -10,6 +10,7 @@ const clientOptions = {
   // поднимает собственный auth-клиент — обращение к `supabase.auth` из
   // такого клиента намеренно бросает исключение.
   accessToken: getPortalAccessToken,
+  global: { fetch: fetchWithTokenRetry },
 } as const;
 
 /**
