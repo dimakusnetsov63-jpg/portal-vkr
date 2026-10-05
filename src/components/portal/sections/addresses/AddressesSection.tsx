@@ -109,22 +109,21 @@ export function AddressesSection() {
     [addresses, filters, showArchived],
   );
 
-  // KPI никогда не зависят от текущей вкладки Активные/Архив — обе выборки
-  // считаются независимо от неё, даже если открыт «Архив». Но от самих
-  // фильтров (проект, город, должность, …) зависят все восемь показателей:
-  // дашборд описывает выбранный срез, а не базу целиком.
-  const activeForKpi = useMemo(
+  // KPI не зависят от открытой вкладки — обе выборки считаются независимо от
+  // неё. Но от самих фильтров (проект, город, должность, …) зависят все три
+  // показателя: дашборд описывает выбранный срез, а не базу целиком.
+  const inWorkForKpi = useMemo(
     () => filterAddresses(addresses, { ...filters, showArchived: false }),
     [addresses, filters],
   );
-  const archivedForKpi = useMemo(
+  const outOfWorkForKpi = useMemo(
     () => filterAddresses(addresses, { ...filters, showArchived: true }),
     [addresses, filters],
   );
 
   const stats = useMemo(
-    () => calculateAddressMetrics(activeForKpi, archivedForKpi),
-    [activeForKpi, archivedForKpi],
+    () => calculateAddressMetrics(inWorkForKpi, outOfWorkForKpi),
+    [inWorkForKpi, outOfWorkForKpi],
   );
 
   return (
@@ -143,12 +142,14 @@ export function AddressesSection() {
             <button
               className={`${primitives.pillTabButton} ${!showArchived ? primitives.pillTabButtonActive : ""}`}
               onClick={() => setShowArchived(false)}
+              title="Объекты, по которым сейчас идёт набор — «Требуется» больше нуля"
             >
               Активные
             </button>
             <button
               className={`${primitives.pillTabButton} ${showArchived ? primitives.pillTabButtonActive : ""}`}
               onClick={() => setShowArchived(true)}
+              title="Убранные в архив вручную и те, у кого «Требуется» равно нулю — объект вернётся в «Активные» сам, как только потребность появится снова"
             >
               Архив
             </button>

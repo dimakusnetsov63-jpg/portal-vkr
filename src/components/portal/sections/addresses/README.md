@@ -41,9 +41,11 @@ AddressesSection
                   restoreAddressRecord, duplicateAddressRecord,
                   selectedAddressId, openAddressDrawer, listOptions
   → filterAddresses(addresses, {...filters, showArchived})       — для таблицы
-  → filterAddresses(addresses, {...filters, showArchived:false}) — активные для KPI
-  → filterAddresses(addresses, {...filters, showArchived:true})  — архивные для KPI
-  → calculateAddressMetrics(activeFiltered, archivedFiltered)
+      — вкладка «Активные» = не в архиве И required_count > 0 (isOutOfWork)
+      — вкладка «Архив»    = архивные + обнулённые импортом
+  → filterAddresses(addresses, {...filters, showArchived:false}) — в работе, для KPI
+  → filterAddresses(addresses, {...filters, showArchived:true})  — вне работы, для KPI
+  → calculateAddressMetrics(inWorkFiltered, outOfWorkFiltered)
       — все показатели следуют фильтрам, но не вкладке «Активные/Архив»
       — показатели потребности считаются по hasOpenDemand(required_count > 0):
         обнулённые импортом карточки в дашборд не входят

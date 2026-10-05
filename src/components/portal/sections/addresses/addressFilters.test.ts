@@ -14,7 +14,9 @@ function makeAddress(overrides: Partial<AddressRow> = {}): AddressRow {
     latitude: null,
     longitude: null,
     object_type: "darkstore",
-    required_count: 0,
+    // Ненулевая по умолчанию: иначе фикстура попадала бы во вкладку «Архив»
+    // (см. isOutOfWork) и тесты остальных фильтров проверяли бы пустой список.
+    required_count: 1,
     staffed_count: 0,
     planned_start_count: 0,
     in_progress_count: 0,
@@ -66,6 +68,27 @@ describe("filterAddresses", () => {
     const rows = [makeAddress({ id: "1" }), makeAddress({ id: "2", archived_at: "2026-07-10T00:00:00.000Z" })];
     expect(filterAddresses(rows, noFilters).map((a) => a.id)).toEqual(["1"]);
     expect(filterAddresses(rows, { ...noFilters, showArchived: true }).map((a) => a.id)).toEqual(["2"]);
+  });
+
+  it("keeps addresses without demand out of the active tab, alongside the archived ones", () => {
+    const rows = [
+      makeAddress({ id: "сейчас набирают", required_count: 2 }),
+      makeAddress({ id: "обнулён импортом", required_count: 0 }),
+      makeAddress({ id: "в архиве", archived_at: "2026-07-10T00:00:00.000Z" }),
+    ];
+    expect(filterAddresses(rows, noFilters).map((a) => a.id)).toEqual(["сейчас набирают"]);
+    expect(filterAddresses(rows, { ...noFilters, showArchived: true }).map((a) => a.id)).toEqual([
+      "обнулён импортом",
+      "в архиве",
+    ]);
+  });
+
+  it("returns a zeroed address to the active tab as soon as it has demand again", () => {
+    // Обнуление — не архивирование: archived_at пуст, поэтому следующий импорт
+    // находит карточку, проставляет потребность, и она возвращается сама.
+    const zeroed = makeAddress({ id: "1", required_count: 0 });
+    expect(filterAddresses([zeroed], noFilters)).toHaveLength(0);
+    expect(filterAddresses([{ ...zeroed, required_count: 3 }], noFilters)).toHaveLength(1);
   });
 
   it("applies exact-match filters (project/city/position/district/metro/objectType/status/priority/coordinator)", () => {

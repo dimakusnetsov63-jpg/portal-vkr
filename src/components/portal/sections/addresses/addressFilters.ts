@@ -22,8 +22,25 @@ export interface AddressFilters {
   priority: number;
   /** Exact coordinator match; empty string means "all coordinators". */
   coordinator: string;
-  /** When false, archived addresses are excluded — the "Активные/Архив" segmented toggle. */
+  /** Вкладка «Активные/Архив». См. `isOutOfWork` — «Архив» показывает не только архивные. */
   showArchived: boolean;
+}
+
+/**
+ * Карточка не в работе: либо убрана в архив руками, либо по ней сейчас никого
+ * не ищут (`required_count = 0`). Обнулённые попадают во вкладку «Архив»
+ * вместе с архивными, чтобы рабочий список состоял только из объектов, по
+ * которым реально идёт набор.
+ *
+ * Это **только разделение на вкладки**, а не архивирование: `archived_at` у
+ * обнулённой карточки остаётся пустым. Иначе импорт перестал бы её находить
+ * (`listActiveAddressesForProject` читает только неархивные) и при возвращении
+ * объекта в выгрузку завёл бы дубликат вместо обновления. А так объект, по
+ * которому снова появилась потребность, сам возвращается в «Активные» —
+ * восстанавливать руками нечего.
+ */
+export function isOutOfWork(address: AddressRow): boolean {
+  return Boolean(address.archived_at) || address.required_count === 0;
 }
 
 /**
@@ -38,7 +55,7 @@ export interface AddressFilters {
 export function filterAddresses(addresses: AddressRow[], filters: AddressFilters): AddressRow[] {
   const q = filters.search.trim().toLowerCase();
   return addresses.filter((a) => {
-    if (filters.showArchived ? !a.archived_at : Boolean(a.archived_at)) return false;
+    if (filters.showArchived !== isOutOfWork(a)) return false;
     if (filters.project && a.project !== filters.project) return false;
     if (filters.city && a.city !== filters.city) return false;
     if (filters.position && (a.position ?? "") !== filters.position) return false;
