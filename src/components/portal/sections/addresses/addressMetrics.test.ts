@@ -82,16 +82,13 @@ describe("calculateAddressMetrics", () => {
       makeAddress({ id: "2", project: "Яндекс Лавка", required_count: 1 }),
       makeAddress({ id: "3", project: "Купер", required_count: 5 }),
     ];
-    const everything = calculateAddressMetrics(all, []);
-    expect(everything.active).toBe(3);
-    expect(everything.totalDemand).toBe(8);
+    expect(calculateAddressMetrics(all, []).active).toBe(3);
 
     // Срез по проекту «Яндекс Лавка» — ровно то, что приходит из
     // filterAddresses, когда в тулбаре выбран проект.
     const oneProject = calculateAddressMetrics(all.slice(0, 2), []);
     expect(oneProject.active).toBe(2);
     expect(oneProject.withDemand).toBe(2);
-    expect(oneProject.totalDemand).toBe(3);
   });
 
   it("counts only addresses with open demand, unlike active", () => {
@@ -105,73 +102,16 @@ describe("calculateAddressMetrics", () => {
     expect(m.active).toBe(3); // сама карточка никуда не делась
   });
 
-  it("leaves zeroed addresses out of every demand KPI, not just the count", () => {
-    const rows = [
-      makeAddress({ id: "1", required_count: 10, staffed_count: 4, priority: 5 }),
-      // Обнулённый объект с критическим приоритетом и людьми на смене: по нему
-      // сейчас никого не ищут, поэтому он не критичный и не укомплектованный.
-      makeAddress({ id: "2", required_count: 0, staffed_count: 7, priority: 5 }),
-    ];
-    const m = calculateAddressMetrics(rows, []);
-    expect(m.criticalCount).toBe(1);
-    expect(m.closedPositions).toBe(4);
-    expect(m.avgFillRatePct).toBe(40); // только карточка «1»: 4/10
-  });
-
-  it("sums required/staffed and clamps unclosed demand at 0 for overstaffed addresses", () => {
-    const active = [
-      makeAddress({ id: "1", required_count: 10, staffed_count: 4 }), // deficit 6
-      makeAddress({ id: "2", required_count: 4, staffed_count: 10 }), // deficit -6, clamped to 0
-      makeAddress({ id: "3", required_count: 5, staffed_count: 5 }), // deficit 0
-    ];
-    const m = calculateAddressMetrics(active, []);
-    expect(m.totalDemand).toBe(19);
-    expect(m.closedPositions).toBe(19);
-    expect(m.openDemand).toBe(6); // 6 + 0 + 0, never negative
-  });
-
-  it("counts only priority 5 (Критический) addresses as critical", () => {
-    const active = [
-      makeAddress({ id: "1", priority: 5, required_count: 1 }),
-      makeAddress({ id: "2", priority: 4, required_count: 1 }),
-      makeAddress({ id: "3", priority: 5, required_count: 1 }),
-    ];
-    const m = calculateAddressMetrics(active, []);
-    expect(m.criticalCount).toBe(2);
-  });
-
-  it("averages per-address fill rate over addresses that actually need people", () => {
-    const active = [
-      makeAddress({ id: "1", required_count: 10, staffed_count: 10 }), // 100%
-      makeAddress({ id: "2", required_count: 10, staffed_count: 0 }), // 0%
-      // Без потребности addressFillRate даёт 100%, но в средней по дашборду
-      // такая карточка не участвует — иначе показатель съезжает к доле нулей.
-      makeAddress({ id: "3", required_count: 0, staffed_count: 0 }),
-    ];
-    const m = calculateAddressMetrics(active, []);
-    expect(m.avgFillRatePct).toBe(50); // (100 + 0) / 2, карточка «3» не в счёте
-  });
-
-  it("returns zeros for an empty active/filtered set, never NaN", () => {
+  it("returns zeros for an empty set, never NaN", () => {
     const m = calculateAddressMetrics([], []);
-    expect(m).toEqual({
-      withDemand: 0,
-      active: 0,
-      archived: 0,
-      totalDemand: 0,
-      closedPositions: 0,
-      openDemand: 0,
-      criticalCount: 0,
-      avgFillRatePct: 0,
-    });
+    expect(m).toEqual({ withDemand: 0, active: 0, archived: 0 });
     for (const v of Object.values(m)) expect(Number.isNaN(v)).toBe(false);
   });
 
-  it("returns zeros when nothing in the filtered set has demand left", () => {
+  it("returns zero with-demand when nothing in the filtered set has demand left", () => {
     const zeroed = [makeAddress({ id: "1", required_count: 0 }), makeAddress({ id: "2", required_count: 0 })];
     const m = calculateAddressMetrics(zeroed, []);
     expect(m.withDemand).toBe(0);
-    expect(m.avgFillRatePct).toBe(0); // не 100% от «пустых» карточек
     expect(m.active).toBe(2);
   });
 });

@@ -132,7 +132,7 @@ export function AddressesSection() {
       <PageHead eyebrow="Подбор">Единая карточка объекта: потребность, статус набора и характеристики адреса.</PageHead>
 
       {addressesLoading ? (
-        <SkeletonCards count={8} className={styles.statGrid8} />
+        <SkeletonCards count={3} className={styles.statGrid3} />
       ) : (
         <AddressesDashboard stats={stats} />
       )}

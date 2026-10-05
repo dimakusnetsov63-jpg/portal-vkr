@@ -1,18 +1,13 @@
-/* Dashboard: 8 stat cards (Всего/Активных/Архивных/Общая потребность/
-   Закрыто вакансий/Незакрытая потребность/Критичных/Средняя укомплектованность) */
-.statGrid8 {
+/* Dashboard: 3 stat cards (Адресов с потребностью / Активных / Архивных).
+   Те же токены и та же раскладка, что у 3-карточного дашборда «Кандидатов». */
+.statGrid3 {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--sp-3);
   margin-bottom: var(--sp-5);
 }
-@media (max-width: 1024px) {
-  .statGrid8 {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-@media (max-width: 600px) {
-  .statGrid8 {
+@media (max-width: 720px) {
+  .statGrid3 {
     grid-template-columns: 1fr;
   }
 }
