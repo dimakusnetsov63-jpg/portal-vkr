@@ -68,26 +68,39 @@ describe("addressFillRate", () => {
 });
 
 describe("calculateAddressMetrics", () => {
-  it("counts active/archived from the full dataset, ignoring the current filter", () => {
-    const all = [
-      makeAddress({ id: "1", archived_at: null }),
-      makeAddress({ id: "2", archived_at: null }),
-      makeAddress({ id: "3", archived_at: "2026-07-10T00:00:00.000Z" }),
-    ];
-    // Simulate a filter that only matched address "1" (e.g. by project) —
-    // active/archived must not be affected by that.
-    const m = calculateAddressMetrics(all, [all[0]]);
+  it("counts active/archived from the filtered sets it is given", () => {
+    const active = [makeAddress({ id: "1" }), makeAddress({ id: "2" })];
+    const archived = [makeAddress({ id: "3", archived_at: "2026-07-10T00:00:00.000Z" })];
+    const m = calculateAddressMetrics(active, archived);
     expect(m.active).toBe(2);
     expect(m.archived).toBe(1);
   });
 
-  it("counts only addresses with open demand, unlike active/archived", () => {
+  it("follows the current filter: a narrower selection gives smaller counters", () => {
+    const all = [
+      makeAddress({ id: "1", project: "Яндекс Лавка", required_count: 2 }),
+      makeAddress({ id: "2", project: "Яндекс Лавка", required_count: 1 }),
+      makeAddress({ id: "3", project: "Купер", required_count: 5 }),
+    ];
+    const everything = calculateAddressMetrics(all, []);
+    expect(everything.active).toBe(3);
+    expect(everything.totalDemand).toBe(8);
+
+    // Срез по проекту «Яндекс Лавка» — ровно то, что приходит из
+    // filterAddresses, когда в тулбаре выбран проект.
+    const oneProject = calculateAddressMetrics(all.slice(0, 2), []);
+    expect(oneProject.active).toBe(2);
+    expect(oneProject.withDemand).toBe(2);
+    expect(oneProject.totalDemand).toBe(3);
+  });
+
+  it("counts only addresses with open demand, unlike active", () => {
     const rows = [
       makeAddress({ id: "1", required_count: 3 }),
       makeAddress({ id: "2", required_count: 0 }), // обнулён прошлой синхронизацией
       makeAddress({ id: "3", required_count: 1 }),
     ];
-    const m = calculateAddressMetrics(rows, rows);
+    const m = calculateAddressMetrics(rows, []);
     expect(m.withDemand).toBe(2);
     expect(m.active).toBe(3); // сама карточка никуда не делась
   });
@@ -99,7 +112,7 @@ describe("calculateAddressMetrics", () => {
       // сейчас никого не ищут, поэтому он не критичный и не укомплектованный.
       makeAddress({ id: "2", required_count: 0, staffed_count: 7, priority: 5 }),
     ];
-    const m = calculateAddressMetrics(rows, rows);
+    const m = calculateAddressMetrics(rows, []);
     expect(m.criticalCount).toBe(1);
     expect(m.closedPositions).toBe(4);
     expect(m.avgFillRatePct).toBe(40); // только карточка «1»: 4/10
@@ -111,7 +124,7 @@ describe("calculateAddressMetrics", () => {
       makeAddress({ id: "2", required_count: 4, staffed_count: 10 }), // deficit -6, clamped to 0
       makeAddress({ id: "3", required_count: 5, staffed_count: 5 }), // deficit 0
     ];
-    const m = calculateAddressMetrics(active, active);
+    const m = calculateAddressMetrics(active, []);
     expect(m.totalDemand).toBe(19);
     expect(m.closedPositions).toBe(19);
     expect(m.openDemand).toBe(6); // 6 + 0 + 0, never negative
@@ -123,7 +136,7 @@ describe("calculateAddressMetrics", () => {
       makeAddress({ id: "2", priority: 4, required_count: 1 }),
       makeAddress({ id: "3", priority: 5, required_count: 1 }),
     ];
-    const m = calculateAddressMetrics(active, active);
+    const m = calculateAddressMetrics(active, []);
     expect(m.criticalCount).toBe(2);
   });
 
@@ -135,7 +148,7 @@ describe("calculateAddressMetrics", () => {
       // такая карточка не участвует — иначе показатель съезжает к доле нулей.
       makeAddress({ id: "3", required_count: 0, staffed_count: 0 }),
     ];
-    const m = calculateAddressMetrics(active, active);
+    const m = calculateAddressMetrics(active, []);
     expect(m.avgFillRatePct).toBe(50); // (100 + 0) / 2, карточка «3» не в счёте
   });
 
@@ -156,7 +169,7 @@ describe("calculateAddressMetrics", () => {
 
   it("returns zeros when nothing in the filtered set has demand left", () => {
     const zeroed = [makeAddress({ id: "1", required_count: 0 }), makeAddress({ id: "2", required_count: 0 })];
-    const m = calculateAddressMetrics(zeroed, zeroed);
+    const m = calculateAddressMetrics(zeroed, []);
     expect(m.withDemand).toBe(0);
     expect(m.avgFillRatePct).toBe(0); // не 100% от «пустых» карточек
     expect(m.active).toBe(2);

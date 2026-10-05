@@ -41,8 +41,10 @@ AddressesSection
                   restoreAddressRecord, duplicateAddressRecord,
                   selectedAddressId, openAddressDrawer, listOptions
   → filterAddresses(addresses, {...filters, showArchived})       — для таблицы
-  → filterAddresses(addresses, {...filters, showArchived:false}) — для KPI
-  → calculateAddressMetrics(addresses, activeFiltered)
+  → filterAddresses(addresses, {...filters, showArchived:false}) — активные для KPI
+  → filterAddresses(addresses, {...filters, showArchived:true})  — архивные для KPI
+  → calculateAddressMetrics(activeFiltered, archivedFiltered)
+      — все показатели следуют фильтрам, но не вкладке «Активные/Архив»
       — показатели потребности считаются по hasOpenDemand(required_count > 0):
         обнулённые импортом карточки в дашборд не входят
   → <AddressesDashboard> + <AddressesTable> + <AddAddressModal>

@@ -29,7 +29,7 @@ export function hasOpenDemand(row: AddressRow): boolean {
 }
 
 export interface AddressMetrics {
-  /** Адресов, по которым сейчас есть потребность — из отфильтрованной выборки, в отличие от active/archived. */
+  /** Адресов, по которым сейчас есть потребность. */
   withDemand: number;
   active: number;
   archived: number;
@@ -41,14 +41,18 @@ export interface AddressMetrics {
 }
 
 /**
- * Pure metric computation. Two separate inputs on purpose:
- *  - `allRows` — the whole loaded dataset, used only for «Активных/Архивных
- *    адресов»: эти два счётчика про жизненный цикл карточки и не зависят ни
- *    от фильтров, ни от вкладки Активные/Архив;
- *  - `activeFilteredRows` — the currently-filtered set with archived
- *    addresses already excluded (regardless of which tab is open).
+ * Pure metric computation. Обе выборки приходят уже **отфильтрованными** —
+ * все восемь показателей отвечают на вопрос «что сейчас в выбранном срезе»,
+ * будь то проект, город или должность:
+ *  - `activeFilteredRows` — подходящие под фильтры и не в архиве;
+ *  - `archivedFilteredRows` — подходящие под те же фильтры, но архивные.
  *
- * Все показатели потребности считаются не по нему целиком, а по
+ * Два набора, а не один флаг, потому что переключатель «Активные/Архив»
+ * в `filterAddresses` взаимоисключающий, а показатели от вкладки зависеть не
+ * должны: открытый «Архив» не меняет ни одной цифры, обе выборки считаются
+ * независимо от него.
+ *
+ * Показатели потребности считаются не по всей активной выборке, а по
  * **карточкам с ненулевой потребностью** (`hasOpenDemand`): дашборд отвечает
  * на вопрос «что нужно закрывать прямо сейчас», а обнулённый объект в этот
  * ответ не входит — ни своим приоритетом, ни своей укомплектованностью.
@@ -60,9 +64,12 @@ export interface AddressMetrics {
  * Пустая выборка даёт 0 по всем показателям (никогда NaN, без деления на
  * ноль) — та же конвенция, что и в calculateCandidateMetrics.
  */
-export function calculateAddressMetrics(allRows: AddressRow[], activeFilteredRows: AddressRow[]): AddressMetrics {
-  const archived = allRows.filter((a) => Boolean(a.archived_at)).length;
-  const active = allRows.length - archived;
+export function calculateAddressMetrics(
+  activeFilteredRows: AddressRow[],
+  archivedFilteredRows: AddressRow[],
+): AddressMetrics {
+  const active = activeFilteredRows.length;
+  const archived = archivedFilteredRows.length;
 
   const demandRows = activeFilteredRows.filter(hasOpenDemand);
 

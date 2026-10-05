@@ -109,14 +109,23 @@ export function AddressesSection() {
     [addresses, filters, showArchived],
   );
 
-  // KPI никогда не зависят от текущей вкладки Активные/Архив — архивные
-  // адреса не участвуют в расчёте, даже если открыта вкладка «Архив».
+  // KPI никогда не зависят от текущей вкладки Активные/Архив — обе выборки
+  // считаются независимо от неё, даже если открыт «Архив». Но от самих
+  // фильтров (проект, город, должность, …) зависят все восемь показателей:
+  // дашборд описывает выбранный срез, а не базу целиком.
   const activeForKpi = useMemo(
     () => filterAddresses(addresses, { ...filters, showArchived: false }),
     [addresses, filters],
   );
+  const archivedForKpi = useMemo(
+    () => filterAddresses(addresses, { ...filters, showArchived: true }),
+    [addresses, filters],
+  );
 
-  const stats = useMemo(() => calculateAddressMetrics(addresses, activeForKpi), [addresses, activeForKpi]);
+  const stats = useMemo(
+    () => calculateAddressMetrics(activeForKpi, archivedForKpi),
+    [activeForKpi, archivedForKpi],
+  );
 
   return (
     <>
