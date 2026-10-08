@@ -173,6 +173,48 @@ describe("parserLavkaV1", () => {
     expect(rows[0]!.address).toBe("МСК Зелёный проспект, 91");
   });
 
+  describe("граница адреса в «Задаче»", () => {
+    function addressOf(task: string): { address: string | null | undefined; errors: unknown[] } {
+      const workbook = makeWorkbook([{ task, status: "Открыт", position: "Сборщик", date: new Date("2026-08-01T00:00:00Z") }]);
+      const { rows, errors } = parserLavkaV1.extractRows(workbook, CONFIG, "Лавка");
+      return { address: rows[0]?.address, errors };
+    }
+
+    it("cuts the address at the « | » before the ticket code, not at the last « | » of the line", () => {
+      expect(addressOf("Москва | Вакансия Сборщик для площадки: МСК Зелёный проспект, 91 | 2025082701 (бронь ООО Виста) | 17.07")).toEqual({
+        address: "МСК Зелёный проспект, 91",
+        errors: [],
+      });
+    });
+
+    it("keeps a « | » that is part of the address itself, before the code", () => {
+      expect(addressOf("Москва | Вакансия Сборщик для площадки: МСК Ленина, 1 | вход со двора | 2025082701").address).toBe(
+        "МСК Ленина, 1 | вход со двора",
+      );
+    });
+
+    it("accepts a line without the ticket code — the address runs to the end", () => {
+      expect(addressOf("Москва | Вакансия Сборщик для площадки: МСК Снежная, 20  ")).toEqual({
+        address: "МСК Снежная, 20",
+        errors: [],
+      });
+    });
+
+    it.each([
+      "Москва | Вакансия Сборщик для Площадки: МСК Снежная, 20 | 2025082701",
+      "Москва | Вакансия Сборщик для ПЛОЩАДКИ: МСК Снежная, 20 | 2025082701",
+    ])("matches «площадки:» case-insensitively: %s", (task) => {
+      expect(addressOf(task)).toEqual({ address: "МСК Снежная, 20", errors: [] });
+    });
+
+    it("still finds the city before the first « | »", () => {
+      const workbook = makeWorkbook([
+        { task: "Санкт-Петербург | Вакансия Сборщик для площадки: СПБ Невский пр-т, 1", status: "Открыт", position: "Сборщик", date: new Date() },
+      ]);
+      expect(parserLavkaV1.extractRows(workbook, CONFIG, "Лавка").rows[0]!.city).toBe("Санкт-Петербург");
+    });
+  });
+
   it("reports a row error when the Задача text doesn't match the expected pattern", () => {
     const workbook = makeWorkbook([{ task: "какой-то произвольный текст без разделителей", status: "Открыт", position: "Курьер", date: new Date() }]);
     const { rows, errors } = parserLavkaV1.extractRows(workbook, CONFIG, "Лавка");

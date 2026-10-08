@@ -88,7 +88,17 @@ jobs:
       # continue-on-error stays: a new advisory in an existing dependency isn't
       # caused by whatever PR happens to run next, and failing an unrelated PR
       # on it would still be noise.
-      - run: npm audit --audit-level=high
+      #
+      # The threshold check itself lives in scripts/audit-check.mjs, not in
+      # `--audit-level`: npm cannot ignore a single advisory, and EX-004
+      # (braces inside eslint-config-next, high, no patched version exists)
+      # would otherwise keep this job red forever. The script fails on any
+      # high/critical advisory that is not in the docs/SECURITY.md registry.
+      # `|| true`: npm audit exits non-zero whenever it finds anything, and the
+      # runner's pipefail would turn that into a failure before the script
+      # gets to judge it.
+      - run: npm audit --audit-level=high || true
+      - run: "{ npm audit --json || true; } | node scripts/audit-check.mjs"
 
   rls-tests:
     name: rls-tests

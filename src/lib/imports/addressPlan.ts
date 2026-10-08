@@ -83,9 +83,46 @@ function mergeConditions(base: ImportedConditions, next: ImportedConditions | un
   };
 }
 
-/** Match key for "is this file row the same staffing object as that card?". Case-insensitive so «МСК Снежная 20» and «МСК снежная 20» don't become two cards. */
+/**
+ * Match key for "is this file row the same staffing object as that card?".
+ * Только ключ сравнения — в карточку и предпросмотр по-прежнему уходит
+ * исходная строка адреса.
+ *
+ * Одна и та же площадка в выгрузках и в карточках, заведённых руками,
+ * записывается по-разному: «МСК Снежная 20» / «мск снежная 20»,
+ * «Щёлковское шоссе, 21» / «Щелковское ш.,21», двойные пробелы. Без
+ * нормализации каждый вариант становился отдельной карточкой, а `sync`
+ * обнулял «старую». Поэтому во всех частях ключа: регистр, ё→е, схлопнутые
+ * пробелы; в адресе дополнительно — единый вид пробелов вокруг запятой и
+ * сокращения «шоссе»/«ш.», «улица»/«ул.», «проспект»/«просп.»/«пр-кт»/«пр-т».
+ *
+ * Чего нормализация не делает: «21 А» и «21А», «д. 5» и «5», «к1» и
+ * «корп. 1» остаются разными ключами.
+ */
 export function objectKey(project: string, city: string, position: string, address: string): string {
-  return [project, city, position, address].map((part) => part.trim().toLowerCase()).join(" ");
+  return [normalizeKeyPart(project), normalizeKeyPart(city), normalizeKeyPart(position), normalizeAddressKey(address)].join(" ");
+}
+
+function normalizeKeyPart(value: string): string {
+  return value.toLowerCase().replace(/ё/g, "е").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Сокращение → единая форма. Граница слова задаётся явно через `\p{L}`:
+ * `\b` в JS не работает с кириллицей. «шоссе»/«улица»/«проспект» не
+ * совпадают внутри длинных слов («Шоссейная», «Улицкого»), а одиночные
+ * «ш»/«ул» без точки — только как отдельное слово.
+ */
+const ADDRESS_ABBREVIATIONS: [RegExp, string][] = [
+  [/(?<![\p{L}\p{N}-])(?:шоссе(?![\p{L}\p{N}])|ш\.|ш(?![\p{L}\p{N}.-]))/gu, "ш "],
+  [/(?<![\p{L}\p{N}-])(?:улица(?![\p{L}\p{N}])|ул\.|ул(?![\p{L}\p{N}.-]))/gu, "ул "],
+  [/(?<![\p{L}\p{N}-])(?:проспект(?![\p{L}\p{N}])|просп\.|пр-кт(?![\p{L}\p{N}])|пр-т(?![\p{L}\p{N}]))/gu, "пр-т "],
+];
+
+function normalizeAddressKey(address: string): string {
+  let key = normalizeKeyPart(address);
+  for (const [pattern, canonical] of ADDRESS_ABBREVIATIONS) key = key.replace(pattern, canonical);
+  return key.replace(/\s+/g, " ").replace(/\s*,\s*/g, ", ").trim();
 }
 
 /**

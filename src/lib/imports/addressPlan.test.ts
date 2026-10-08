@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aggregateByObject, planAddressWrites, type ImportedObject } from "./addressPlan";
+import { aggregateByObject, objectKey, planAddressWrites, type ImportedObject } from "./addressPlan";
 import { EMPTY_CONDITIONS, type ImportedConditions } from "./mapping/normalizeConditions";
 import type { DemandImportRow } from "./types";
 import type { AddressRow } from "../supabase/addresses.types";
@@ -106,6 +106,50 @@ describe("aggregateByObject", () => {
   });
 });
 
+describe("objectKey — нормализация адреса", () => {
+  const key = (address: string) => objectKey("Яндекс Лавка", "Москва", "Кладовщик", address);
+
+  it.each([
+    ["МСК Снежная 20", "мск  снежная   20 "],
+    ["МСК Щёлковское шоссе, 21 А", "МСК Щелковское шоссе, 21 А"],
+    ["МСК Щелковское шоссе, 21 А", "МСК Щелковское ш., 21 А"],
+    ["МСК Щелковское шоссе, 21 А", "МСК Щелковское ш.,21 А"],
+    ["МСК Щелковское шоссе, 21 А", "МСК Щелковское ш , 21 А"],
+    ["МСК улица Ленина, 1", "МСК ул. Ленина, 1"],
+    ["МСК улица Ленина, 1", "МСК ул.Ленина,1"],
+    ["МСК Зелёный проспект, 91", "МСК Зеленый пр-т, 91"],
+    ["МСК Зелёный проспект, 91", "МСК Зеленый пр-кт, 91"],
+    ["МСК Зелёный проспект, 91", "МСК Зеленый просп., 91"],
+  ])("treats «%s» and «%s» as one object", (a, b) => {
+    expect(key(a)).toBe(key(b));
+  });
+
+  it.each([
+    ["МСК Шоссейная, 1", "МСК ш., 1"],
+    ["МСК Снежная, 20", "МСК Снежная, 21"],
+  ])("keeps «%s» and «%s» apart", (a, b) => {
+    expect(key(a)).not.toBe(key(b));
+  });
+
+  it("normalizes ё and spaces in the other key parts too", () => {
+    expect(objectKey("Яндекс  Лавка", "Москва", "Мобильный КГЕ", "МСК Снежная 20")).toBe(
+      objectKey("яндекс лавка", "москва ", "мобильный кге", "МСК Снежная 20"),
+    );
+  });
+});
+
+describe("aggregateByObject — разные записи одного адреса", () => {
+  it("groups spelling variants into one object and keeps the first original string", () => {
+    const result = aggregateByObject([
+      makeRow({ address: "МСК Щёлковское шоссе, 21 А" }),
+      makeRow({ address: "МСК Щелковское ш.,21 А" }),
+    ]);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.required).toBe(2);
+    expect(result[0]!.address).toBe("МСК Щёлковское шоссе, 21 А");
+  });
+});
+
 describe("planAddressWrites", () => {
   const object: ImportedObject = {
     project: "Яндекс Лавка",
@@ -145,6 +189,17 @@ describe("planAddressWrites", () => {
     const plan = planAddressWrites([object], [makeCard({ full_address: "мск снежная 20" })], "replace", "Яндекс Лавка");
     expect(plan.creates).toEqual([]);
     expect(plan.updates).toHaveLength(1);
+  });
+
+  it("matches a card whose address is spelled differently, without rewriting the card's address", () => {
+    const plan = planAddressWrites(
+      [{ ...object, address: "МСК Щелковское ш., 21 А" }],
+      [makeCard({ full_address: "МСК Щёлковское шоссе,  21 А", required_count: 1 })],
+      "replace",
+      "Яндекс Лавка",
+    );
+    expect(plan.creates).toEqual([]);
+    expect(plan.updates).toEqual([{ id: "card-1", patch: { required_count: 3 } }]);
   });
 
   it("does not match a card of a different position", () => {
